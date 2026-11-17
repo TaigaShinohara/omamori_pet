@@ -9,12 +9,12 @@
         android:pathData="M48,8A40,40 0 1,1 47.99,8Z" />
     <path
         android:fillColor="#7B8896"
-        android:pathData="M48,18 C30,18 20,34 20,52 C20,68 31,78 48,78 C65,78 76,68 76,52 C76,34 66,18 48,18 Z" />
-    <!-- Sleeping lines -->
+        android:pathData="M48,15A33,33 0 1,1 47.99,15Z" />
+    <!-- Peaceful resting low horizontal bar eyes -->
     <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M34,47 h7 M55,47 h7 M45,57 h6"
-        android:strokeColor="#11161D"
-        android:strokeLineCap="round"
-        android:strokeWidth="3" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,51 h10 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-10 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,51 h10 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-10 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
 </vector>

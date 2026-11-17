@@ -1,30 +1,52 @@
 package com.omamoripet.mobile.ui.components
 
 import android.provider.Settings
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.omamoripet.shared.model.OmamoriState
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 
+private data class EyePose(
+    val gazeX: Float,
+    val gazeY: Float,
+    val leftHeightScale: Float,
+    val rightHeightScale: Float,
+    val widthScale: Float,
+    val cornerFactor: Float
+)
+
+/**
+ * 角丸スクエア／カプセル型の目が立体球面上で様々な方向へ動き、
+ * 状態に応じて形を変えるシンプルなお守りボットアイコン。
+ */
 @Composable
 fun OmamoriPetMobileAvatar(
     state: OmamoriState,
@@ -40,162 +62,192 @@ fun OmamoriPetMobileAvatar(
         1f
     ) > 0f
 
-    val pulse = if (animationsEnabled && state != OmamoriState.RESTING) {
-        if (state == OmamoriState.BREATHING) {
-            0.86f + 0.28f * breathFraction
-        } else {
-            val infinite = rememberInfiniteTransition(label = "mobile_pet_pulse")
-            val v by infinite.animateFloat(
-                initialValue = 0.96f,
-                targetValue = 1.04f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 3800, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "pulse_scale"
-            )
-            v
+    var targetPose by remember {
+        mutableStateOf(EyePose(gazeX = 0.34f, gazeY = -0.24f, leftHeightScale = 1f, rightHeightScale = 1f, widthScale = 1f, cornerFactor = 0.42f))
+    }
+    var tapWinkTrigger by remember { mutableStateOf(0) }
+
+    LaunchedEffect(state, animationsEnabled, tapWinkTrigger) {
+        if (!animationsEnabled) {
+            targetPose = when (state) {
+                OmamoriState.CALM -> EyePose(0.32f, -0.22f, 1f, 1f, 1f, 0.42f)
+                OmamoriState.ELEVATED_AT_REST -> EyePose(0f, -0.05f, 0.92f, 0.92f, 1.18f, 0.34f)
+                OmamoriState.BREATHING -> EyePose(0f, 0.05f, 0.35f, 0.35f, 1.15f, 0.5f)
+                OmamoriState.RESTING -> EyePose(0f, 0.14f, 0.24f, 0.24f, 1.2f, 0.5f)
+            }
+            return@LaunchedEffect
         }
-    } else {
-        1f
+
+        if (tapWinkTrigger > 0 && state != OmamoriState.BREATHING) {
+            targetPose = EyePose(0.18f, -0.10f, 1.05f, 0.20f, 1.05f, 0.48f)
+            delay(360L)
+        }
+
+        when (state) {
+            OmamoriState.CALM -> {
+                val script = listOf(
+                    EyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L, // 右上を眺める
+                    EyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,  // まばたき
+                    EyePose(0.00f, -0.04f, 1.00f, 1.00f, 1.05f, 0.38f) to 1800L, // 正面
+                    EyePose(-0.32f, -0.18f, 1.00f, 1.00f, 1.00f, 0.42f) to 1900L, // 左上を見る
+                    EyePose(-0.24f, 0.12f, 1.05f, 0.20f, 1.05f, 0.48f) to 480L,  // 優しいウインク
+                    EyePose(0.18f, 0.18f, 1.08f, 1.08f, 0.96f, 0.44f) to 1600L,  // 下向きにきょろきょろ
+                    EyePose(0.18f, 0.18f, 0.12f, 0.12f, 1.08f, 0.50f) to 130L
+                )
+                while (true) {
+                    for ((pose, waitMs) in script) {
+                        targetPose = pose
+                        delay(waitMs)
+                    }
+                }
+            }
+            OmamoriState.ELEVATED_AT_REST -> {
+                val script = listOf(
+                    EyePose(0.00f, -0.06f, 0.92f, 0.92f, 1.18f, 0.32f) to 2200L, // しっかりした角丸スクエアの目
+                    EyePose(0.00f, -0.06f, 0.14f, 0.14f, 1.18f, 0.48f) to 150L,  // ゆっくりまばたき
+                    EyePose(0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L,
+                    EyePose(-0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L
+                )
+                while (true) {
+                    for ((pose, waitMs) in script) {
+                        targetPose = pose
+                        delay(waitMs)
+                    }
+                }
+            }
+            OmamoriState.RESTING -> {
+                val script = listOf(
+                    EyePose(0.00f, 0.16f, 0.22f, 0.22f, 1.22f, 0.50f) to 2800L,
+                    EyePose(0.12f, 0.12f, 0.32f, 0.32f, 1.15f, 0.48f) to 1400L,
+                    EyePose(0.00f, 0.18f, 0.20f, 0.20f, 1.22f, 0.50f) to 2600L
+                )
+                while (true) {
+                    for ((pose, waitMs) in script) {
+                        targetPose = pose
+                        delay(waitMs)
+                    }
+                }
+            }
+            OmamoriState.BREATHING -> Unit
+        }
     }
 
+    val effectiveTarget = if (state == OmamoriState.BREATHING) {
+        // 呼吸の吸う・吐くに合わせて目が上下＆細長↔安らぎバーへ滑らかに変形
+        EyePose(
+            gazeX = 0f,
+            gazeY = 0.20f - 0.38f * breathFraction,
+            leftHeightScale = 0.28f + 0.78f * breathFraction,
+            rightHeightScale = 0.28f + 0.78f * breathFraction,
+            widthScale = 1.20f - 0.18f * breathFraction,
+            cornerFactor = 0.48f - 0.08f * breathFraction
+        )
+    } else {
+        targetPose
+    }
+
+    val eyeSpring = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+    val gazeX by animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "gazeX")
+    val gazeY by animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "gazeY")
+    val leftH by animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "leftH")
+    val rightH by animateFloatAsState(effectiveTarget.rightHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "rightH")
+    val widthScale by animateFloatAsState(effectiveTarget.widthScale, animationSpec = eyeSpring, label = "widthScale")
+    val cornerFactor by animateFloatAsState(effectiveTarget.cornerFactor, animationSpec = eyeSpring, label = "corner")
+
     val cs = MaterialTheme.colorScheme
-    val bodyColor = when (state) {
+    val targetBodyColor = when (state) {
         OmamoriState.CALM -> cs.primary
         OmamoriState.ELEVATED_AT_REST -> cs.tertiary
         OmamoriState.BREATHING -> cs.secondary
         OmamoriState.RESTING -> cs.outline
     }
-    val knotColor = when (state) {
-        OmamoriState.CALM -> cs.primaryContainer
-        OmamoriState.ELEVATED_AT_REST -> cs.tertiaryContainer
-        OmamoriState.BREATHING -> cs.secondaryContainer
-        OmamoriState.RESTING -> cs.surfaceContainerHighest
+    val bodyColor by animateColorAsState(targetBodyColor, animationSpec = tween(450), label = "bodyColor")
+    val eyeColor = Color.White
+
+    val haloScale = if (!animationsEnabled) {
+        1f
+    } else if (state == OmamoriState.BREATHING) {
+        0.90f + 0.22f * breathFraction
+    } else {
+        1.0f + 0.03f * abs(gazeY)
     }
-    val faceColor = cs.surface
 
     Canvas(
         modifier = modifier
             .size(size)
             .semantics { contentDescription = description }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { tapWinkTrigger++ }
+            )
     ) {
         val w = this.size.width
         val h = this.size.height
         val cx = w / 2f
         val cy = h / 2f
 
+        // 外周の柔らかいオーラリング
         drawCircle(
             color = bodyColor.copy(alpha = 0.20f),
-            radius = w * 0.45f * pulse,
+            radius = w * 0.46f * haloScale,
             center = Offset(cx, cy)
         )
-
         if (state == OmamoriState.ELEVATED_AT_REST) {
             drawCircle(
-                color = bodyColor.copy(alpha = 0.65f),
-                radius = w * 0.41f * pulse,
+                color = bodyColor.copy(alpha = 0.55f),
+                radius = w * 0.42f * haloScale,
                 center = Offset(cx, cy),
                 style = Stroke(width = w * 0.025f)
             )
         }
 
-        val bodyR = w * 0.31f * (if (state == OmamoriState.BREATHING) (0.90f + 0.14f * breathFraction) else 1f)
+        // シンプルな球体シルエット（3D球面錯視）
+        val bodyRadius = w * 0.36f * (if (state == OmamoriState.BREATHING) (0.93f + 0.11f * breathFraction) else 1f)
         drawCircle(
             color = bodyColor,
-            radius = bodyR,
-            center = Offset(cx, cy + h * 0.04f)
+            radius = bodyRadius,
+            center = Offset(cx, cy)
         )
 
-        // お守り結びモチーフ
-        drawRoundRect(
-            color = knotColor,
-            topLeft = Offset(cx - w * 0.09f, cy - bodyR - h * 0.02f),
-            size = Size(w * 0.18f, h * 0.085f),
-            cornerRadius = CornerRadius(w * 0.04f, w * 0.04f)
-        )
+        // 立体球面上の目の配置・透視縮小・傾き計算
+        val shiftX = gazeX * bodyRadius * 0.62f
+        val shiftY = gazeY * bodyRadius * 0.54f
+        val eyeGap = bodyRadius * 0.34f * (1f - abs(gazeX) * 0.22f)
+        val baseEyeW = bodyRadius * 0.21f * widthScale
+        val baseEyeH = bodyRadius * 0.44f
 
-        val eyeY = cy
-        val eyeOffset = bodyR * 0.36f
-        val strokeW = w * 0.04f
+        // 奥側の目を少し細く・小さくして球体の回転感を出す
+        val leftPerspX = if (gazeX < 0f) 1f - abs(gazeX) * 0.36f else 1f
+        val rightPerspX = if (gazeX > 0f) 1f - abs(gazeX) * 0.36f else 1f
+        val leftScale = if (gazeX < 0f) 1f - abs(gazeX) * 0.14f else 1f
+        val rightScale = if (gazeX > 0f) 1f - abs(gazeX) * 0.14f else 1f
 
-        when (state) {
-            OmamoriState.CALM -> {
-                drawArc(
-                    color = faceColor,
-                    startAngle = 195f,
-                    sweepAngle = 150f,
-                    useCenter = false,
-                    topLeft = Offset(cx - eyeOffset - w * 0.055f, eyeY - h * 0.03f),
-                    size = Size(w * 0.11f, h * 0.085f),
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = faceColor,
-                    startAngle = 195f,
-                    sweepAngle = 150f,
-                    useCenter = false,
-                    topLeft = Offset(cx + eyeOffset - w * 0.055f, eyeY - h * 0.03f),
-                    size = Size(w * 0.11f, h * 0.085f),
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = faceColor,
-                    startAngle = 20f,
-                    sweepAngle = 140f,
-                    useCenter = false,
-                    topLeft = Offset(cx - w * 0.05f, eyeY + bodyR * 0.24f),
-                    size = Size(w * 0.10f, h * 0.06f),
-                    style = Stroke(width = strokeW * 0.85f, cap = StrokeCap.Round)
-                )
-            }
-            OmamoriState.ELEVATED_AT_REST -> {
-                drawCircle(color = faceColor, radius = w * 0.035f, center = Offset(cx - eyeOffset, eyeY))
-                drawCircle(color = faceColor, radius = w * 0.035f, center = Offset(cx + eyeOffset, eyeY))
-                drawCircle(
-                    color = faceColor,
-                    radius = w * 0.042f,
-                    center = Offset(cx, eyeY + bodyR * 0.36f),
-                    style = Stroke(width = strokeW * 0.7f)
-                )
-            }
-            OmamoriState.BREATHING -> {
-                drawArc(
-                    color = faceColor,
-                    startAngle = 15f,
-                    sweepAngle = 150f,
-                    useCenter = false,
-                    topLeft = Offset(cx - eyeOffset - w * 0.055f, eyeY - h * 0.04f),
-                    size = Size(w * 0.11f, h * 0.08f),
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = faceColor,
-                    startAngle = 15f,
-                    sweepAngle = 150f,
-                    useCenter = false,
-                    topLeft = Offset(cx + eyeOffset - w * 0.055f, eyeY - h * 0.04f),
-                    size = Size(w * 0.11f, h * 0.08f),
-                    style = Stroke(width = strokeW, cap = StrokeCap.Round)
-                )
-            }
-            OmamoriState.RESTING -> {
-                val half = w * 0.048f
-                drawLine(
-                    color = faceColor,
-                    start = Offset(cx - eyeOffset - half, eyeY),
-                    end = Offset(cx - eyeOffset + half, eyeY),
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = faceColor,
-                    start = Offset(cx + eyeOffset - half, eyeY),
-                    end = Offset(cx + eyeOffset + half, eyeY),
-                    strokeWidth = strokeW,
-                    cap = StrokeCap.Round
-                )
-            }
+        val tiltDegrees = gazeX * gazeY * -120f
+
+        val leftCenter = Offset(cx + shiftX - eyeGap, cy + shiftY)
+        val rightCenter = Offset(cx + shiftX + eyeGap, cy + shiftY)
+
+        rotate(degrees = tiltDegrees, pivot = Offset(cx + shiftX, cy + shiftY)) {
+            val lw = baseEyeW * leftPerspX * leftScale
+            val lh = (baseEyeH * leftH * leftScale).coerceAtLeast(w * 0.028f)
+            val lCorner = (minOf(lw, lh) * cornerFactor)
+            drawRoundRect(
+                color = eyeColor,
+                topLeft = Offset(leftCenter.x - lw / 2f, leftCenter.y - lh / 2f),
+                size = Size(lw, lh),
+                cornerRadius = CornerRadius(lCorner, lCorner)
+            )
+
+            val rw = baseEyeW * rightPerspX * rightScale
+            val rh = (baseEyeH * rightH * rightScale).coerceAtLeast(w * 0.028f)
+            val rCorner = (minOf(rw, rh) * cornerFactor)
+            drawRoundRect(
+                color = eyeColor,
+                topLeft = Offset(rightCenter.x - rw / 2f, rightCenter.y - rh / 2f),
+                size = Size(rw, rh),
+                cornerRadius = CornerRadius(rCorner, rCorner)
+            )
         }
     }
 }

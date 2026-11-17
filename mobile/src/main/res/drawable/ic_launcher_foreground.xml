@@ -6,14 +6,16 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#8FD3B6"
-        android:pathData="M54,28 C39,28 31,40 31,56 C31,70 40,79 54,79 C68,79 77,70 77,56 C77,40 69,28 54,28 Z" />
-    <path
-        android:fillColor="#CFECE0"
-        android:pathData="M48,25 h12 a2.5,2.5 0 0,1 2.5,2.5 v3 a2.5,2.5 0 0,1 -2.5,2.5 h-12 a2.5,2.5 0 0,1 -2.5,-2.5 v-3 a2.5,2.5 0 0,1 2.5,-2.5 z" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:pathData="M42,52 Q45.5,48.5 49,52 M59,52 Q62.5,48.5 66,52"
-        android:strokeColor="#11161D"
-        android:strokeLineCap="round"
-        android:strokeWidth="3" />
+        android:pathData="M54,28A26,26 0 1,1 53.99,28Z" />
+    <group
+        android:pivotX="61"
+        android:pivotY="48"
+        android:rotation="10">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M53,41 h5 a2,2 0 0,1 2,2 v9 a2,2 0 0,1 -2,2 h-5 a2,2 0 0,1 -2,-2 v-9 a2,2 0 0,1 2,-2 z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M65,42 h4 a1.8,1.8 0 0,1 1.8,1.8 v7.5 a1.8,1.8 0 0,1 -1.8,1.8 h-4 a1.8,1.8 0 0,1 -1.8,-1.8 v-7.5 a1.8,1.8 0 0,1 1.8,-1.8 z" />
+    </group>
 </vector>
