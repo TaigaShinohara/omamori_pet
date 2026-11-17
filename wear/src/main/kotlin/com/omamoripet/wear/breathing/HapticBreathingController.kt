@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.math.ceil
 
 enum class BreathPhase {
     INHALE,
@@ -24,6 +25,7 @@ data class BreathingUiState(
     val isRunning: Boolean = false,
     val phase: BreathPhase = BreathPhase.INHALE,
     val phaseProgress: Float = 0f,
+    val remainingSecondsInPhase: Int = 4,
     val cycleIndex: Int = 1,
     val totalCycles: Int = 5,
     val preBpm: Int? = null,
@@ -38,6 +40,7 @@ class HapticBreathingController(
     private val context: Context,
     private val scope: CoroutineScope,
     private val readCurrentBpm: () -> Int?,
+    private val isSimulatedMode: () -> Boolean,
     private val onActiveChanged: (Boolean) -> Unit,
     private val onSessionCompleted: suspend (BreathingSessionRecord) -> Unit
 ) {
@@ -55,9 +58,9 @@ class HapticBreathingController(
 
         job = scope.launch {
             for (cycle in 1..totalCycles) {
-                runPhase(BreathPhase.INHALE, 4_000L, cycle, totalCycles, preBpm, pulseAtStart = true)
-                runPhase(BreathPhase.HOLD, 2_000L, cycle, totalCycles, preBpm, pulseAtStart = false)
-                runPhase(BreathPhase.EXHALE, 6_000L, cycle, totalCycles, preBpm, pulseAtStart = true)
+                runPhase(BreathPhase.INHALE, 4_000L, cycle, totalCycles, preBpm)
+                runPhase(BreathPhase.HOLD, 2_000L, cycle, totalCycles, preBpm)
+                runPhase(BreathPhase.EXHALE, 6_000L, cycle, totalCycles, preBpm)
             }
 
             val postBpm = readCurrentBpm()
@@ -68,20 +71,24 @@ class HapticBreathingController(
                 durationSeconds = totalCycles * 12,
                 preBpm = preBpm,
                 postBpm = postBpm,
-                triggeredByAlert = triggeredByAlert
+                triggeredByAlert = triggeredByAlert,
+                isSimulated = isSimulatedMode()
             )
             onActiveChanged(false)
             _state.value = BreathingUiState(
                 isRunning = false,
                 phase = BreathPhase.COMPLETED,
                 phaseProgress = 1f,
+                remainingSecondsInPhase = 0,
                 cycleIndex = totalCycles,
                 totalCycles = totalCycles,
                 preBpm = preBpm,
                 postBpm = postBpm,
                 completedRecord = record
             )
-            onSessionCompleted(record)
+            if (!record.isSimulated) {
+                onSessionCompleted(record)
+            }
         }
     }
 
@@ -98,19 +105,18 @@ class HapticBreathingController(
         durationMs: Long,
         cycle: Int,
         totalCycles: Int,
-        preBpm: Int?,
-        pulseAtStart: Boolean
+        preBpm: Int?
     ) {
-        if (pulseAtStart) {
-            vibratePhaseCue(phase)
-        }
+        vibratePhaseCue(phase)
         val stepMs = 50L
         var elapsed = 0L
         while (elapsed <= durationMs) {
+            val remainingSec = ceil(((durationMs - elapsed).coerceAtLeast(0L)) / 1000.0).toInt().coerceAtLeast(1)
             _state.value = BreathingUiState(
                 isRunning = true,
                 phase = phase,
                 phaseProgress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f),
+                remainingSecondsInPhase = remainingSec,
                 cycleIndex = cycle,
                 totalCycles = totalCycles,
                 preBpm = preBpm
@@ -125,8 +131,9 @@ class HapticBreathingController(
         if (!v.hasVibrator()) return
         val effect = when (phase) {
             BreathPhase.INHALE -> VibrationEffect.createWaveform(longArrayOf(0, 70, 90, 90), intArrayOf(0, 45, 0, 75), -1)
+            BreathPhase.HOLD -> VibrationEffect.createOneShot(35L, 32)
             BreathPhase.EXHALE -> VibrationEffect.createWaveform(longArrayOf(0, 120, 120, 60), intArrayOf(0, 70, 0, 35), -1)
-            BreathPhase.HOLD, BreathPhase.COMPLETED -> return
+            BreathPhase.COMPLETED -> return
         }
         v.vibrate(effect)
     }

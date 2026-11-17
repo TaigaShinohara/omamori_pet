@@ -58,12 +58,20 @@ class PhoneWearSyncListenerService : WearableListenerService() {
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         val repo = (application as OmamoriMobileApplication).repository
         dataEvents.forEach { event ->
-            if (event.type == DataEvent.TYPE_CHANGED &&
-                event.dataItem.uri.path == DataLayerPaths.WATCH_LIVE_STATE
-            ) {
+            if (event.type == DataEvent.TYPE_CHANGED) {
+                val path = event.dataItem.uri.path ?: return@forEach
                 val raw = DataMapItem.fromDataItem(event.dataItem).dataMap.getString(DataLayerPaths.KEY_PAYLOAD)
-                OmamoriJson.decodeOrNull<WatchLivePayload>(raw)?.let {
-                    repo.applyWatchLivePayload(it)
+                when (path) {
+                    DataLayerPaths.WATCH_LIVE_STATE -> {
+                        OmamoriJson.decodeOrNull<WatchLivePayload>(raw)?.let {
+                            repo.applyWatchLivePayload(it)
+                        }
+                    }
+                    DataLayerPaths.ALERT_PREFERENCES -> {
+                        OmamoriJson.decodeOrNull<PreferencesSyncPayload>(raw)?.let {
+                            repo.updatePreferences(it.preferences, syncToWatch = false)
+                        }
+                    }
                 }
             }
         }

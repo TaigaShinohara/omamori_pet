@@ -16,7 +16,6 @@ import com.omamoripet.mobile.sync.PhoneWearSyncClient
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BreathingSessionRecord
-import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
@@ -141,6 +140,9 @@ class MobileRepository(
 
     fun applyWatchLivePayload(payload: WatchLivePayload) {
         if (_uiState.value.demoMode != MobileDemoMode.LIVE_WATCH) return
+        val previous = _uiState.value
+        val stateChanged = previous.omamoriState != payload.omamoriState ||
+            previous.motionState != payload.motionState
         _uiState.update { state ->
             state.copy(
                 omamoriState = payload.omamoriState,
@@ -152,6 +154,9 @@ class MobileRepository(
                 isSimulated = payload.isSimulated,
                 lastWatchSyncMs = payload.updatedAtEpochMs
             )
+        }
+        if (stateChanged) {
+            scope.launch { refreshAiAdvice() }
         }
     }
 
@@ -236,11 +241,13 @@ class MobileRepository(
         refreshAiAdvice()
     }
 
-    fun updatePreferences(updated: AlertPreferences) {
+    fun updatePreferences(updated: AlertPreferences, syncToWatch: Boolean = true) {
         _uiState.update { it.copy(preferences = updated) }
         scope.launch {
             context.mobileDataStore.edit { it[Keys.ALERT_PREFS] = OmamoriJson.encode(updated) }
-            wearSyncClient.pushPreferences(PreferencesSyncPayload(updated, System.currentTimeMillis()))
+            if (syncToWatch) {
+                wearSyncClient.pushPreferences(PreferencesSyncPayload(updated, System.currentTimeMillis()))
+            }
         }
     }
 
@@ -262,30 +269,31 @@ class MobileRepository(
     }
 
     fun addLocalBreathingCompletion(durationSec: Int) {
-        val currentBpm = _uiState.value.currentHeartRateBpm
-        val simulatedPost = currentBpm?.let { (it - 6).coerceAtLeast(_uiState.value.restingBaselineBpm) }
+        val state = _uiState.value
+        // 憶測なし原則を厳守し、スマホ単体完了時は実測値がない限り postBpm を捏造しない
+        val measuredPreBpm = if (!state.isSimulated && state.lastWatchSyncMs != null) state.currentHeartRateBpm else null
         recordBreathingSession(
             BreathingSessionRecord(
                 id = UUID.randomUUID().toString(),
                 startedAtEpochMs = System.currentTimeMillis() - durationSec * 1000L,
                 durationSeconds = durationSec,
-                preBpm = currentBpm,
-                postBpm = simulatedPost,
-                triggeredByAlert = false
+                preBpm = measuredPreBpm,
+                postBpm = null,
+                triggeredByAlert = false,
+                isSimulated = state.isSimulated
             )
         )
-        if (_uiState.value.demoMode == MobileDemoMode.DEMO_ELEVATED_AT_REST) {
-            recordCalmEvent(
-                CalmEventRecord(
-                    id = UUID.randomUUID().toString(),
-                    timestampEpochMs = System.currentTimeMillis(),
-                    peakBpm = currentBpm ?: (_uiState.value.restingBaselineBpm + 18),
-                    restingBaselineBpm = _uiState.value.restingBaselineBpm,
-                    sustainedSeconds = 95,
-                    actionTaken = CalmEventAction.BREATHING_COMPLETED
-                )
-            )
-            setDemoMode(MobileDemoMode.DEMO_CALM)
+    }
+
+    fun clearSimulatedHistory() {
+        val realEvents = _uiState.value.calmEvents.filterNot { it.isSimulated }
+        val realSessions = _uiState.value.breathingSessions.filterNot { it.isSimulated }
+        _uiState.update { it.copy(calmEvents = realEvents, breathingSessions = realSessions) }
+        scope.launch {
+            context.mobileDataStore.edit {
+                it[Keys.CALM_EVENTS] = OmamoriJson.encode(realEvents)
+                it[Keys.BREATH_SESSIONS] = OmamoriJson.encode(realSessions)
+            }
         }
     }
 

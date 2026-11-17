@@ -55,6 +55,11 @@ class OmamoriTileService : TileService() {
             } else {
                 "-- bpm"
             }
+            val motionLabel = when (uiState.snapshot.motionState) {
+                com.omamoripet.shared.model.MotionState.STILL_CONFIRMED -> getString(R.string.still_confirmed)
+                com.omamoripet.shared.model.MotionState.RECENT_MOVEMENT -> getString(R.string.recent_movement)
+                com.omamoripet.shared.model.MotionState.OFF_BODY -> getString(R.string.off_body)
+            }
             val petResourceId = when (state) {
                 OmamoriState.CALM -> ID_PET_CALM
                 OmamoriState.ELEVATED_AT_REST -> ID_PET_ELEVATED
@@ -101,6 +106,12 @@ class OmamoriTileService : TileService() {
                     Text.Builder(this@OmamoriTileService, bpmText)
                         .setTypography(Typography.TYPOGRAPHY_BODY1)
                         .setColor(ColorBuilders.argb(0xFFB9C8C0.toInt()))
+                        .build()
+                )
+                .addContent(
+                    Text.Builder(this@OmamoriTileService, motionLabel)
+                        .setTypography(Typography.TYPOGRAPHY_CAPTION1)
+                        .setColor(ColorBuilders.argb(0xFF9AA6B2.toInt()))
                         .build()
                 )
                 .build()

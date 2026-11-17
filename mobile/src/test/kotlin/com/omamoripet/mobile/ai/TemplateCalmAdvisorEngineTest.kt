@@ -26,9 +26,28 @@ class TemplateCalmAdvisorEngineTest {
             )
         )
         assertTrue(output.text.contains("84"))
+        assertTrue(output.text.contains("普段より +20"))
         assertFalse(output.text.contains("危険"))
         assertFalse(output.text.contains("異常"))
         assertFalse(output.usedGeminiNano)
+    }
+
+    @Test
+    fun `japanese post breathing advice uses positive bpm reduction`() = runBlocking {
+        val output = engine.generateReflection(
+            AdvisorInput(
+                omamoriState = OmamoriState.CALM,
+                currentBpm = 66,
+                restingBaselineBpm = 64,
+                motionState = MotionState.STILL_CONFIRMED,
+                todayElevatedCount = 1,
+                todayBreathingCount = 1,
+                lastBreathingDeltaBpm = -6,
+                isJapanese = true
+            )
+        )
+        assertTrue(output.text.contains("6 bpm 落ち着きました"))
+        assertFalse(output.text.contains("-6 bpm"))
     }
 
     @Test

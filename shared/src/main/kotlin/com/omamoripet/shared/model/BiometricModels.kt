@@ -100,7 +100,8 @@ data class CalmEventRecord(
     val peakBpm: Int,
     val restingBaselineBpm: Int,
     val sustainedSeconds: Int,
-    val actionTaken: CalmEventAction
+    val actionTaken: CalmEventAction,
+    val isSimulated: Boolean = false
 )
 
 @Serializable
@@ -110,5 +111,6 @@ data class BreathingSessionRecord(
     val durationSeconds: Int,
     val preBpm: Int?,
     val postBpm: Int?,
-    val triggeredByAlert: Boolean
+    val triggeredByAlert: Boolean,
+    val isSimulated: Boolean = false
 )

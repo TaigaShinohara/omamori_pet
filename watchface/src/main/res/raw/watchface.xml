@@ -30,17 +30,17 @@
         <!-- 要素 1（上部）：お守りペット状態スロット -->
         <ComplicationSlot
             displayName="@string/slot_pet_name"
-            height="108"
+            height="96"
             isCustomizable="TRUE"
             name="omamori_pet_slot"
             slotId="1"
             supportedTypes="SMALL_IMAGE MONOCHROMATIC_IMAGE SHORT_TEXT EMPTY"
-            width="160"
-            x="145"
-            y="36">
+            width="140"
+            x="155"
+            y="42">
             <BoundingOval
-                height="108"
-                width="160"
+                height="96"
+                width="140"
                 x="0"
                 y="0" />
             <DefaultProviderPolicy
@@ -52,40 +52,23 @@
             <Complication type="SMALL_IMAGE">
                 <PartImage
                     alpha="255"
-                    height="82"
-                    width="82"
-                    x="39"
+                    height="88"
+                    width="88"
+                    x="26"
                     y="4">
                     <Variant mode="AMBIENT" target="alpha" value="150" />
                     <Image resource="[COMPLICATION.SMALL_IMAGE]" />
                 </PartImage>
-                <PartText
-                    alpha="230"
-                    height="24"
-                    width="160"
-                    x="0"
-                    y="84">
-                    <Variant mode="AMBIENT" target="alpha" value="140" />
-                    <Text align="CENTER">
-                        <Font
-                            color="#FFB9C8C0"
-                            family="SYNC_TO_DEVICE"
-                            size="18"
-                            weight="MEDIUM">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
-                    </Text>
-                </PartText>
             </Complication>
 
             <Complication type="MONOCHROMATIC_IMAGE">
                 <PartImage
                     alpha="255"
-                    height="76"
+                    height="78"
                     tintColor="#FF8FD3B6"
-                    width="76"
-                    x="42"
-                    y="8">
+                    width="78"
+                    x="31"
+                    y="9">
                     <Variant mode="AMBIENT" target="alpha" value="140" />
                     <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]" />
                 </PartImage>
@@ -95,12 +78,12 @@
                 <PartText
                     alpha="240"
                     height="44"
-                    width="160"
+                    width="140"
                     x="0"
-                    y="32">
+                    y="26">
                     <Text align="CENTER">
                         <Font
-                            color="#FF8FD3B6"
+                            color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
                             size="22"
                             weight="MEDIUM">
@@ -113,14 +96,14 @@
 
         <!-- 要素 2（中央）：時刻と日付 -->
         <DigitalClock
-            height="104"
+            height="100"
             width="320"
             x="65"
-            y="156">
+            y="148">
             <TimeText
                 align="CENTER"
                 format="HH:mm"
-                height="84"
+                height="86"
                 hourFormat="SYNC_TO_DEVICE"
                 width="320"
                 x="0"
@@ -128,7 +111,7 @@
                 <Font
                     color="#FFECE8DF"
                     family="SYNC_TO_DEVICE"
-                    size="74"
+                    size="76"
                     weight="SEMI_BOLD">
                     <Variant mode="AMBIENT" target="color" value="#FFA8A59E" />
                 </Font>
@@ -140,7 +123,7 @@
             height="28"
             width="240"
             x="105"
-            y="246">
+            y="242">
             <Variant mode="AMBIENT" target="alpha" value="120" />
             <Text align="CENTER">
                 <Font
@@ -153,21 +136,21 @@
             </Text>
         </PartText>
 
-        <!-- 要素 3（下部）：現在心拍・安静時差と落ち着きゲージ -->
+        <!-- 要素 3（下部）：静止/移動文脈付き 心拍＆落ち着きゲージ -->
         <ComplicationSlot
             displayName="@string/slot_heart_name"
-            height="86"
+            height="92"
             isCustomizable="TRUE"
             name="heart_calm_slot"
             slotId="2"
             supportedTypes="RANGED_VALUE SHORT_TEXT EMPTY"
-            width="240"
-            x="105"
-            y="302">
+            width="300"
+            x="75"
+            y="294">
             <BoundingRoundBox
-                cornerRadius="43"
-                height="86"
-                width="240"
+                cornerRadius="46"
+                height="92"
+                width="300"
                 x="0"
                 y="0" />
             <DefaultProviderPolicy
@@ -180,16 +163,16 @@
                 <!-- ソフトなカプセル背景 -->
                 <PartDraw
                     alpha="255"
-                    height="72"
-                    width="224"
+                    height="78"
+                    width="284"
                     x="8"
                     y="7">
                     <Variant mode="AMBIENT" target="alpha" value="0" />
                     <RoundRectangle
-                        cornerRadiusX="36"
-                        cornerRadiusY="36"
-                        height="72"
-                        width="224"
+                        cornerRadiusX="39"
+                        cornerRadiusY="39"
+                        height="78"
+                        width="284"
                         x="0"
                         y="0">
                         <Fill color="#FF1B242F" />
@@ -197,21 +180,40 @@
                             color="#FF2F3E4E"
                             thickness="2" />
                     </RoundRectangle>
+                    <!-- 落ち着きスコア RANGED_VALUE 進捗バー（下部トラック） -->
+                    <RoundRectangle
+                        cornerRadiusX="3"
+                        cornerRadiusY="3"
+                        height="5"
+                        width="160"
+                        x="62"
+                        y="58">
+                        <Fill color="#FF2A3644" />
+                    </RoundRectangle>
+                    <RoundRectangle
+                        cornerRadiusX="3"
+                        cornerRadiusY="3"
+                        height="5"
+                        width="[160 * ([COMPLICATION.RANGED_VALUE_VALUE] / 100)]"
+                        x="62"
+                        y="58">
+                        <Fill color="#FF8FD3B6" />
+                    </RoundRectangle>
                 </PartDraw>
 
-                <!-- 中央の心拍＋安静時差テキスト -->
+                <!-- 静止/移動文脈＋心拍・安静時差テキスト -->
                 <PartText
                     alpha="255"
-                    height="48"
-                    width="216"
-                    x="12"
-                    y="19">
-                    <Variant mode="AMBIENT" target="alpha" value="160" />
+                    height="40"
+                    width="268"
+                    x="16"
+                    y="16">
+                    <Variant mode="AMBIENT" target="alpha" value="170" />
                     <Text align="CENTER">
                         <Font
-                            color="#FF8FD3B6"
+                            color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
-                            size="24"
+                            size="21"
                             weight="MEDIUM">
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
@@ -223,15 +225,15 @@
                 <PartDraw
                     alpha="255"
                     height="72"
-                    width="224"
+                    width="284"
                     x="8"
-                    y="7">
+                    y="10">
                     <Variant mode="AMBIENT" target="alpha" value="0" />
                     <RoundRectangle
                         cornerRadiusX="36"
                         cornerRadiusY="36"
                         height="72"
-                        width="224"
+                        width="284"
                         x="0"
                         y="0">
                         <Fill color="#FF1B242F" />
@@ -239,16 +241,16 @@
                 </PartDraw>
                 <PartText
                     alpha="255"
-                    height="48"
-                    width="216"
-                    x="12"
-                    y="19">
-                    <Variant mode="AMBIENT" target="alpha" value="160" />
+                    height="44"
+                    width="268"
+                    x="16"
+                    y="24">
+                    <Variant mode="AMBIENT" target="alpha" value="170" />
                     <Text align="CENTER">
                         <Font
                             color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
-                            size="24"
+                            size="21"
                             weight="MEDIUM">
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>

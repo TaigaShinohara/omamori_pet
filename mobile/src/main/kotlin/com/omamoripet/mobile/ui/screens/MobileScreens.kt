@@ -1,5 +1,7 @@
 package com.omamoripet.mobile.ui.screens
 
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,11 +23,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.HealthAndSafety
 import androidx.compose.material.icons.rounded.Hotel
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.NotificationsPaused
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SelfImprovement
 import androidx.compose.material.icons.rounded.Spa
@@ -38,6 +42,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -51,6 +56,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,6 +66,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -69,12 +77,17 @@ import com.omamoripet.mobile.data.MobileDemoMode
 import com.omamoripet.mobile.data.MobileUiState
 import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.ui.components.OmamoriPetMobileAvatar
+import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
+import com.omamoripet.shared.model.BreathingSessionRecord
+import com.omamoripet.shared.model.CalmEventAction
+import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 @Composable
@@ -85,7 +98,6 @@ fun HomeMobileScreen(
     onRefreshAi: () -> Unit,
     onPrepareGeminiNano: () -> Unit,
     onRequestHealthConnect: () -> Unit,
-    onSelectDemoMode: (MobileDemoMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -112,15 +124,15 @@ fun HomeMobileScreen(
                 onPrepareGeminiNano = onPrepareGeminiNano
             )
 
-            HealthConnectSection(
-                uiState = uiState,
-                onRequestHealthConnect = onRequestHealthConnect
-            )
-
-            DemoModeSelector(
-                current = uiState.demoMode,
-                onSelect = onSelectDemoMode
-            )
+            // 連携済みの日常利用時は Hero 内に1行統合し、権限未許可または要更新時だけ復旧案内を出す
+            val needsHealthConnectAction =
+                uiState.healthConnectAvailability != HealthConnectAvailability.UNAVAILABLE &&
+                    !uiState.hasHealthConnectPermission
+            if (needsHealthConnectAction) {
+                HealthConnectRecoveryCard(
+                    onRequestHealthConnect = onRequestHealthConnect
+                )
+            }
 
             Spacer(Modifier.height(8.dp))
         }
@@ -170,6 +182,18 @@ private fun HeroStatusCard(
         MotionState.RECENT_MOVEMENT -> stringResource(R.string.motion_moving)
         MotionState.OFF_BODY -> stringResource(R.string.motion_off)
     }
+    val baselineSourceLabel = when (uiState.baselineSource) {
+        BaselineSource.HEALTH_CONNECT -> stringResource(R.string.baseline_source_hc)
+        BaselineSource.WATCH_LEARNED -> stringResource(R.string.baseline_source_watch)
+        BaselineSource.DEFAULT_FALLBACK -> stringResource(R.string.baseline_source_default)
+    }
+    val timeFormatter = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
+    val syncStatusText = when {
+        uiState.isSimulated -> stringResource(R.string.watch_badge_demo)
+        uiState.lastWatchSyncMs != null ->
+            stringResource(R.string.watch_badge_connected, timeFormatter.format(Date(uiState.lastWatchSyncMs)))
+        else -> stringResource(R.string.watch_badge_disconnected)
+    }
 
     ElevatedCard(
         colors = CardDefaults.elevatedCardColors(
@@ -183,6 +207,12 @@ private fun HeroStatusCard(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            Text(
+                text = syncStatusText,
+                style = MaterialTheme.typography.labelMedium,
+                color = contentColor.copy(alpha = 0.8f)
+            )
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -191,7 +221,7 @@ private fun HeroStatusCard(
                 OmamoriPetMobileAvatar(
                     state = uiState.omamoriState,
                     description = stateTitle,
-                    size = 96.dp
+                    size = 92.dp
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -225,7 +255,6 @@ private fun HeroStatusCard(
                 style = MaterialTheme.typography.bodyLarge
             )
 
-            // 非カラー依存の状態ラベル（アイコン＋テキスト）
             Surface(
                 color = cs.surface.copy(alpha = 0.45f),
                 shape = MaterialTheme.shapes.small
@@ -247,8 +276,14 @@ private fun HeroStatusCard(
                 }
             }
 
+            Text(
+                text = stringResource(R.string.baseline_format, uiState.restingBaselineBpm, baselineSourceLabel),
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor.copy(alpha = 0.85f)
+            )
+
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
@@ -265,7 +300,7 @@ private fun HeroStatusCard(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.cta_breathe_phone), maxLines = 1)
                 }
-                OutlinedButton(
+                TextButton(
                     onClick = onTriggerWatchBreathing,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -347,6 +382,14 @@ private fun AiReflectionCard(
                 )
             }
 
+            if (uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_DOWNLOADABLE) {
+                Text(
+                    text = stringResource(R.string.ai_status_downloadable),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
@@ -376,16 +419,9 @@ private fun AiReflectionCard(
 }
 
 @Composable
-private fun HealthConnectSection(
-    uiState: MobileUiState,
+private fun HealthConnectRecoveryCard(
     onRequestHealthConnect: () -> Unit
 ) {
-    val sourceLabel = when (uiState.baselineSource) {
-        BaselineSource.HEALTH_CONNECT -> stringResource(R.string.baseline_source_hc)
-        BaselineSource.WATCH_LEARNED -> stringResource(R.string.baseline_source_watch)
-        BaselineSource.DEFAULT_FALLBACK -> stringResource(R.string.baseline_source_default)
-    }
-
     OutlinedCard(
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.fillMaxWidth()
@@ -408,41 +444,16 @@ private fun HealthConnectSection(
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-
             Text(
-                text = stringResource(R.string.baseline_format, uiState.restingBaselineBpm, sourceLabel),
+                text = stringResource(R.string.hc_missing_perm),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            when {
-                uiState.healthConnectAvailability != HealthConnectAvailability.AVAILABLE -> {
-                    Text(
-                        text = stringResource(R.string.hc_unavailable),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                !uiState.hasHealthConnectPermission -> {
-                    Text(
-                        text = stringResource(R.string.hc_missing_perm),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    FilledTonalButton(
-                        onClick = onRequestHealthConnect,
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                    ) {
-                        Text(stringResource(R.string.hc_grant_btn))
-                    }
-                }
-                uiState.healthConnectRestingBpm != null -> {
-                    Text(
-                        text = stringResource(R.string.hc_ready, uiState.healthConnectRestingBpm),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+            FilledTonalButton(
+                onClick = onRequestHealthConnect,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+            ) {
+                Text(stringResource(R.string.hc_grant_btn))
             }
         }
     }
@@ -484,14 +495,28 @@ fun BreathingMobileScreen(
     onCompleted: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var running by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val view = LocalView.current
+    val vibrator = remember { context.getSystemService(Vibrator::class.java) }
+
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose {
+            view.keepScreenOn = false
+            vibrator?.cancel()
+        }
+    }
+
+    var sessionId by remember { mutableIntStateOf(1) }
+    var running by remember { mutableStateOf(true) } // 開いたら即座に呼吸ガイド開始（2回タップの摩擦を排除）
     var completed by remember { mutableStateOf(false) }
-    var phaseIndex by remember { mutableIntStateOf(0) } // 0=Inhale(4s), 1=Hold(2s), 2=Exhale(6s)
+    var phaseIndex by remember { mutableIntStateOf(0) }
     var progress by remember { mutableFloatStateOf(0f) }
+    var remainingSec by remember { mutableIntStateOf(4) }
     var cycle by remember { mutableIntStateOf(1) }
     val totalCycles = 5
 
-    LaunchedEffect(running) {
+    LaunchedEffect(running, sessionId) {
         if (!running) return@LaunchedEffect
         completed = false
         val durations = listOf(4_000L, 2_000L, 6_000L)
@@ -499,15 +524,18 @@ fun BreathingMobileScreen(
             cycle = c
             for (p in 0..2) {
                 phaseIndex = p
+                vibrateMobileBreathCue(vibrator, p)
                 val dur = durations[p]
                 var elapsed = 0L
                 while (elapsed <= dur) {
                     progress = (elapsed.toFloat() / dur).coerceIn(0f, 1f)
+                    remainingSec = ceil(((dur - elapsed).coerceAtLeast(0L)) / 1000.0).toInt().coerceAtLeast(1)
                     delay(50L)
                     elapsed += 50L
                 }
             }
         }
+        vibrateMobileCompletion(vibrator)
         running = false
         completed = true
         onCompleted(totalCycles * 12)
@@ -521,7 +549,6 @@ fun BreathingMobileScreen(
     }
     val cueText = when {
         completed -> stringResource(R.string.breathing_complete)
-        !running -> stringResource(R.string.state_breathing_desc)
         phaseIndex == 0 -> stringResource(R.string.breathing_inhale)
         phaseIndex == 1 -> stringResource(R.string.breathing_hold)
         else -> stringResource(R.string.breathing_exhale)
@@ -533,7 +560,7 @@ fun BreathingMobileScreen(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier
                 .widthIn(max = 520.dp)
                 .fillMaxWidth()
@@ -552,49 +579,105 @@ fun BreathingMobileScreen(
             )
             if (running) {
                 Text(
-                    text = "$cycle / $totalCycles",
+                    text = "${stringResource(R.string.breathing_seconds_left, remainingSec)} · $cycle / $totalCycles",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(6.dp)
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        running = false
-                        onBack()
-                    },
-                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.back))
-                }
-                Button(
-                    onClick = { running = !running },
-                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                ) {
-                    Text(
-                        if (running) stringResource(R.string.breathing_stop) else stringResource(R.string.breathing_start)
-                    )
+                if (completed) {
+                    OutlinedButton(
+                        onClick = {
+                            sessionId++
+                            running = true
+                        },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Text(stringResource(R.string.breathing_restart))
+                    }
+                    Button(
+                        onClick = onBack,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Text(stringResource(R.string.breathing_done_back))
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            running = false
+                            onBack()
+                        },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.breathing_stop))
+                    }
                 }
             }
         }
     }
 }
 
+private fun vibrateMobileBreathCue(vibrator: Vibrator?, phaseIndex: Int) {
+    if (vibrator == null || !vibrator.hasVibrator()) return
+    val effect = when (phaseIndex) {
+        0 -> VibrationEffect.createWaveform(longArrayOf(0, 50, 70, 70), intArrayOf(0, 40, 0, 65), -1)
+        1 -> VibrationEffect.createOneShot(30L, 30)
+        else -> VibrationEffect.createWaveform(longArrayOf(0, 90, 90, 50), intArrayOf(0, 60, 0, 35), -1)
+    }
+    vibrator.vibrate(effect)
+}
+
+private fun vibrateMobileCompletion(vibrator: Vibrator?) {
+    if (vibrator == null || !vibrator.hasVibrator()) return
+    vibrator.vibrate(VibrationEffect.createOneShot(100L, 60))
+}
+
+private sealed interface HistoryTimelineItem {
+    val key: String
+    val timestampEpochMs: Long
+    val isSimulated: Boolean
+
+    data class Breath(val record: BreathingSessionRecord) : HistoryTimelineItem {
+        override val key: String = "b_${record.id}"
+        override val timestampEpochMs: Long = record.startedAtEpochMs
+        override val isSimulated: Boolean = record.isSimulated
+    }
+
+    data class Event(val record: CalmEventRecord) : HistoryTimelineItem {
+        override val key: String = "e_${record.id}"
+        override val timestampEpochMs: Long = record.timestampEpochMs
+        override val isSimulated: Boolean = record.isSimulated
+    }
+}
+
 @Composable
 fun HistoryMobileScreen(
     uiState: MobileUiState,
+    onTryBreathing: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
-    val hasItems = uiState.breathingSessions.isNotEmpty() || uiState.calmEvents.isNotEmpty()
+    val timeline = remember(uiState.breathingSessions, uiState.calmEvents) {
+        (uiState.breathingSessions.map { HistoryTimelineItem.Breath(it) } +
+            uiState.calmEvents.map { HistoryTimelineItem.Event(it) })
+            .sortedByDescending { it.timestampEpochMs }
+    }
+    val todayCutoff = remember { System.currentTimeMillis() - 24 * 60 * 60_000L }
+    val todayBreaths = uiState.breathingSessions.count { !it.isSimulated && it.startedAtEpochMs >= todayCutoff }
 
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = modifier.fillMaxSize()
     ) {
-        if (!hasItems) {
+        if (timeline.isEmpty()) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -622,6 +705,13 @@ fun HistoryMobileScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
+                Spacer(Modifier.height(16.dp))
+                FilledTonalButton(
+                    onClick = onTryBreathing,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(stringResource(R.string.history_try_breathing))
+                }
             }
         } else {
             LazyColumn(
@@ -629,44 +719,81 @@ fun HistoryMobileScreen(
                     .widthIn(max = 720.dp)
                     .fillMaxSize()
             ) {
-                items(uiState.breathingSessions, key = { "b_${it.id}" }) { session ->
-                    val timeLabel = formatter.format(Date(session.startedAtEpochMs))
-                    val deltaStr = if (session.preBpm != null && session.postBpm != null) {
-                        stringResource(R.string.history_breath_delta, session.preBpm!!, session.postBpm!!)
-                    } else {
-                        "${session.durationSeconds}s"
-                    }
-                    ListItem(
-                        leadingContent = {
+                item(key = "summary_header") {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = MaterialTheme.shapes.medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(14.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Spa,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
-                        },
-                        headlineContent = {
-                            Text(stringResource(R.string.history_breath_item, deltaStr))
-                        },
-                        supportingContent = { Text(timeLabel) }
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Text(
+                                text = stringResource(R.string.history_today_summary, todayBreaths),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
                 }
 
-                items(uiState.calmEvents, key = { "e_${it.id}" }) { event ->
-                    val timeLabel = formatter.format(Date(event.timestampEpochMs))
-                    ListItem(
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Rounded.FavoriteBorder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary
+                items(timeline, key = { it.key }) { item ->
+                    val timeLabel = formatter.format(Date(item.timestampEpochMs))
+                    val demoSuffix = if (item.isSimulated) " · ${stringResource(R.string.history_demo_tag)}" else ""
+                    when (item) {
+                        is HistoryTimelineItem.Breath -> {
+                            val s = item.record
+                            val detail = if (s.preBpm != null && s.postBpm != null) {
+                                stringResource(R.string.history_breath_delta, s.preBpm!!, s.postBpm!!)
+                            } else {
+                                stringResource(R.string.history_breath_duration, s.durationSeconds)
+                            }
+                            ListItem(
+                                leadingContent = {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Spa,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                headlineContent = {
+                                    Text(stringResource(R.string.history_breath_item, detail))
+                                },
+                                supportingContent = { Text("$timeLabel$demoSuffix") }
                             )
-                        },
-                        headlineContent = {
-                            Text(stringResource(R.string.history_event_item, event.peakBpm, event.restingBaselineBpm))
-                        },
-                        supportingContent = { Text(timeLabel) }
-                    )
+                        }
+                        is HistoryTimelineItem.Event -> {
+                            val e = item.record
+                            val isSnoozed = e.actionTaken == CalmEventAction.SNOOZED
+                            ListItem(
+                                leadingContent = {
+                                    Icon(
+                                        imageVector = if (isSnoozed) Icons.Rounded.NotificationsPaused else Icons.Rounded.FavoriteBorder,
+                                        contentDescription = null,
+                                        tint = if (isSnoozed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.tertiary
+                                    )
+                                },
+                                headlineContent = {
+                                    Text(
+                                        if (isSnoozed) {
+                                            stringResource(R.string.history_event_snoozed)
+                                        } else {
+                                            stringResource(R.string.history_event_item, e.peakBpm, e.restingBaselineBpm)
+                                        }
+                                    )
+                                },
+                                supportingContent = { Text("$timeLabel$demoSuffix") }
+                            )
+                        }
+                    }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 }
             }
@@ -677,12 +804,15 @@ fun HistoryMobileScreen(
 @Composable
 fun SettingsMobileScreen(
     uiState: MobileUiState,
-    onUpdatePreferences: (com.omamoripet.shared.model.AlertPreferences) -> Unit,
+    onUpdatePreferences: (AlertPreferences) -> Unit,
     onRequestHealthConnect: () -> Unit,
     onSelectDemoMode: (MobileDemoMode) -> Unit,
+    onClearDemoHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val prefs = uiState.preferences
+    val hasDemoRecords = uiState.breathingSessions.any { it.isSimulated } || uiState.calmEvents.any { it.isSimulated }
+
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = modifier.fillMaxSize()
@@ -742,10 +872,13 @@ fun SettingsMobileScreen(
                 headlineContent = { Text(stringResource(R.string.hc_title)) },
                 supportingContent = {
                     Text(
-                        if (uiState.hasHealthConnectPermission && uiState.healthConnectRestingBpm != null) {
-                            stringResource(R.string.hc_ready, uiState.healthConnectRestingBpm)
-                        } else {
-                            stringResource(R.string.hc_missing_perm)
+                        when {
+                            uiState.healthConnectAvailability != HealthConnectAvailability.AVAILABLE ->
+                                stringResource(R.string.hc_unavailable)
+                            uiState.hasHealthConnectPermission && uiState.healthConnectRestingBpm != null ->
+                                stringResource(R.string.hc_ready, uiState.healthConnectRestingBpm)
+                            else ->
+                                stringResource(R.string.hc_missing_perm)
                         }
                     )
                 },
@@ -759,11 +892,24 @@ fun SettingsMobileScreen(
             )
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(16.dp)
+            ) {
                 DemoModeSelector(
                     current = uiState.demoMode,
                     onSelect = onSelectDemoMode
                 )
+                if (hasDemoRecords) {
+                    TextButton(
+                        onClick = onClearDemoHistory,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    ) {
+                        Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.settings_clear_demo))
+                    }
+                }
             }
 
             OutlinedCard(

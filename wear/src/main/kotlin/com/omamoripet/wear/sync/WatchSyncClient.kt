@@ -34,6 +34,15 @@ class WatchSyncClient(private val context: Context) {
         }
     }
 
+    suspend fun pushPreferences(payload: PreferencesSyncPayload) {
+        runCatching {
+            val request = PutDataMapRequest.create(DataLayerPaths.ALERT_PREFERENCES).apply {
+                dataMap.putString(DataLayerPaths.KEY_PAYLOAD, OmamoriJson.encode(payload))
+            }.asPutDataRequest().setUrgent()
+            dataClient.putDataItem(request).await()
+        }
+    }
+
     suspend fun sendBreathingSession(record: BreathingSessionRecord) {
         sendMessageToAllNodes(DataLayerPaths.BREATHING_SESSION, OmamoriJson.encode(record))
     }
@@ -69,7 +78,7 @@ class WatchDataSyncListenerService : WearableListenerService() {
                     }
                     DataLayerPaths.ALERT_PREFERENCES -> {
                         OmamoriJson.decodeOrNull<PreferencesSyncPayload>(json)?.let {
-                            repo.updatePreferences(it.preferences)
+                            repo.updatePreferences(it.preferences, syncToPhone = false)
                         }
                     }
                 }

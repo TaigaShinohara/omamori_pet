@@ -65,22 +65,22 @@ class TemplateCalmAdvisorEngine : CalmAdvisorEngine {
         val delta = bpm?.minus(input.restingBaselineBpm)
         return when (input.omamoriState) {
             OmamoriState.ELEVATED_AT_REST -> {
-                val deltaStr = delta?.let { "+$it" } ?: ""
-                "動いていないのに心拍が ${bpm ?: "--"} bpm（普段 $deltaStr）と少し早めです。身体が反応しているだけなので、まずは1分だけ息を長く吐いてみましょう。"
+                val deltaStr = delta?.let { if (it >= 0) "+$it" else "$it" } ?: "--"
+                "動いていないのに心拍が ${bpm ?: "--"} bpm（普段より $deltaStr）と少し早めです。身体が反応しているだけなので、まずは1分だけ息を長く吐いてみましょう。"
             }
             OmamoriState.BREATHING -> {
                 "いま深呼吸のリズムに合わせられています。肩の力を抜いて、吐く息を長めにしてみましょう。"
             }
             OmamoriState.CALM -> when {
                 input.lastBreathingDeltaBpm != null && input.lastBreathingDeltaBpm < 0 ->
-                    "先ほどの深呼吸で心拍が ${input.lastBreathingDeltaBpm} bpm 落ち着きました。今は平常時の安定したリズムに戻っています。"
+                    "先ほどの深呼吸で心拍が ${-input.lastBreathingDeltaBpm} bpm 落ち着きました。今は平常時の安定したリズムに戻っています。"
                 input.motionState == MotionState.RECENT_MOVEMENT ->
                     "直近に動きがあったため心拍は活動モードです。自然な反応なので心配はいりません。"
                 else ->
                     "現在の心拍は ${bpm ?: input.restingBaselineBpm} bpm 付近で、平常時の目安（${input.restingBaselineBpm} bpm）とよく調和しています。このままで大丈夫です。"
             }
             OmamoriState.RESTING -> {
-                "ウォッチの装着やデモ表示を切り替えると、平常時の基準（${input.restingBaselineBpm} bpm）と比べた状態をお届けします。"
+                "ウォッチを装着すると、平常時の基準（${input.restingBaselineBpm} bpm）と比べた状態をお届けします。"
             }
         }
     }
@@ -165,16 +165,26 @@ class GeminiNanoAdvisorEngine(
 
     private fun buildPrompt(input: AdvisorInput): String {
         val delta = input.currentBpm?.let { it - input.restingBaselineBpm }
+        val stateMeaningJa = when (input.omamoriState) {
+            OmamoriState.CALM -> "落ち着いている（平常時ペース）"
+            OmamoriState.ELEVATED_AT_REST -> "3分以上静止中なのに普段より心拍が高め"
+            OmamoriState.BREATHING -> "深呼吸ガイド中"
+            OmamoriState.RESTING -> "装着・計測待機中"
+        }
+        val breathDeltaJa = input.lastBreathingDeltaBpm?.let {
+            if (it < 0) "直近の深呼吸で心拍が ${-it} bpm 低下" else "直近の深呼吸完了（変化: +$it bpm）"
+        } ?: "直近の深呼吸前後比較なし"
+
         return if (input.isJapanese) {
             """
             あなたは「お守りペット」という穏やかなセルフケアアプリの相棒です。
             以下の実測データだけに基づき、不安や緊張を和らげる優しい2文以内の日本語コメントを返してください。
             医療診断や危険を煽る表現、データにない憶測は禁止です。
-            - 状態: ${input.omamoriState.name}
+            - 状態: $stateMeaningJa
             - 現在心拍: ${input.currentBpm ?: "未計測"} bpm（平常時目安: ${input.restingBaselineBpm} bpm、差分: ${delta ?: "不明"}）
             - 動作状態: ${input.motionState.name}
             - 本日の静止中心拍上昇回数: ${input.todayElevatedCount} 回
-            - 本日の深呼吸回数: ${input.todayBreathingCount} 回
+            - 本日の深呼吸回数: ${input.todayBreathingCount} 回（$breathDeltaJa）
             """.trimIndent()
         } else {
             """
@@ -185,7 +195,7 @@ class GeminiNanoAdvisorEngine(
             - Current HR: ${input.currentBpm ?: "N/A"} bpm (Resting baseline: ${input.restingBaselineBpm} bpm, Delta: ${delta ?: "N/A"})
             - Motion: ${input.motionState.name}
             - Elevated-at-rest notices today: ${input.todayElevatedCount}
-            - Breathing sessions today: ${input.todayBreathingCount}
+            - Breathing sessions today: ${input.todayBreathingCount} (Last delta: ${input.lastBreathingDeltaBpm ?: "N/A"})
             """.trimIndent()
         }
     }

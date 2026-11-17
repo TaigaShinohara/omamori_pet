@@ -23,6 +23,8 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.omamoripet.shared.model.CalmEventAction
+import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.wear.breathing.HapticBreathingController
 import com.omamoripet.wear.sensor.BiometricMonitorService
 import com.omamoripet.wear.sync.WatchSyncClient
@@ -30,7 +32,9 @@ import com.omamoripet.wear.ui.BreathingWatchScreen
 import com.omamoripet.wear.ui.DemoSettingsWatchScreen
 import com.omamoripet.wear.ui.HomeWatchScreen
 import com.omamoripet.wear.ui.OmamoriWearTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 class MainActivity : ComponentActivity() {
 
@@ -42,6 +46,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var breathingController: HapticBreathingController
     private lateinit var syncClient: WatchSyncClient
 
+    private val openBreathingRequests = MutableStateFlow<Pair<Int, Boolean>?>(null)
+    private var breathingRequestNonce = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -51,6 +58,7 @@ class MainActivity : ComponentActivity() {
             context = this,
             scope = lifecycleScope,
             readCurrentBpm = { repository.uiState.value.snapshot.currentHeartRateBpm },
+            isSimulatedMode = { repository.uiState.value.snapshot.isSimulated },
             onActiveChanged = { active -> repository.setBreathingActive(active) },
             onSessionCompleted = { record ->
                 lifecycleScope.launch { syncClient.sendBreathingSession(record) }
@@ -60,12 +68,15 @@ class MainActivity : ComponentActivity() {
         if (BiometricMonitorService.canStartHealthForegroundService(this)) {
             BiometricMonitorService.start(this)
         }
-        val openBreathingInitially = intent?.getBooleanExtra(EXTRA_OPEN_BREATHING, false) == true
-        val triggeredByAlert = intent?.getBooleanExtra(EXTRA_TRIGGERED_BY_ALERT, false) == true
+        if (intent?.getBooleanExtra(EXTRA_OPEN_BREATHING, false) == true) {
+            val byAlert = intent.getBooleanExtra(EXTRA_TRIGGERED_BY_ALERT, false)
+            openBreathingRequests.value = (++breathingRequestNonce) to byAlert
+        }
 
         setContent {
             val uiState by repository.uiState.collectAsStateWithLifecycle()
             val breathingState by breathingController.state.collectAsStateWithLifecycle()
+            val openRequest by openBreathingRequests.collectAsStateWithLifecycle()
             val navController = rememberSwipeDismissableNavController()
 
             var hasSensorPermission by remember { mutableStateOf(checkRequiredPermissions()) }
@@ -78,18 +89,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(Unit) {
-                if (!hasSensorPermission) {
-                    permissionLauncher.launch(requiredPermissions())
+            LaunchedEffect(openRequest) {
+                val req = openRequest ?: return@LaunchedEffect
+                breathingController.start(triggeredByAlert = req.second)
+                navController.navigate("breathing") {
+                    launchSingleTop = true
                 }
-                if (openBreathingInitially) {
-                    breathingController.start(triggeredByAlert = triggeredByAlert)
-                    navController.navigate("breathing")
-                }
+                openBreathingRequests.value = null
             }
 
             OmamoriWearTheme {
-                AppScaffold {
+                // TimeText は各 ScreenScaffold 側でスクロール連動制御し、文字重なりを防ぐ
+                AppScaffold(timeText = {}) {
                     SwipeDismissableNavHost(
                         navController = navController,
                         startDestination = "home"
@@ -108,13 +119,32 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onStartBreathing = {
                                     breathingController.start(triggeredByAlert = false)
-                                    navController.navigate("breathing")
+                                    navController.navigate("breathing") {
+                                        launchSingleTop = true
+                                    }
                                 },
-                                onStartCalibration = {
-                                    BiometricMonitorService.start(this@MainActivity, startCalibration = true)
+                                onSnooze1h = {
+                                    repository.snoozeAlertsForMinutes(60)
+                                    val snap = uiState.snapshot
+                                    if (!snap.isSimulated) {
+                                        lifecycleScope.launch {
+                                            syncClient.sendCalmEvent(
+                                                CalmEventRecord(
+                                                    id = UUID.randomUUID().toString(),
+                                                    timestampEpochMs = System.currentTimeMillis(),
+                                                    peakBpm = snap.currentHeartRateBpm ?: snap.restingBaselineBpm,
+                                                    restingBaselineBpm = snap.restingBaselineBpm,
+                                                    sustainedSeconds = snap.sustainedElevationSeconds,
+                                                    actionTaken = CalmEventAction.SNOOZED
+                                                )
+                                            )
+                                        }
+                                    }
                                 },
                                 onOpenSettings = {
-                                    navController.navigate("settings")
+                                    navController.navigate("settings") {
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                         }
@@ -132,14 +162,18 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("settings") {
                             DemoSettingsWatchScreen(
-                                currentScenario = uiState.simulationScenario,
-                                alertsEnabled = uiState.preferences.alertsEnabled,
+                                uiState = uiState,
+                                hasSensorPermission = hasSensorPermission,
                                 onSelectScenario = { repository.setSimulationScenario(it) },
                                 onToggleAlerts = {
                                     val cur = uiState.preferences
                                     repository.updatePreferences(cur.copy(alertsEnabled = !cur.alertsEnabled))
                                 },
-                                onSnooze1h = { repository.snoozeAlertsForMinutes(60) }
+                                onSnooze1h = { repository.snoozeAlertsForMinutes(60) },
+                                onStartCalibration = {
+                                    BiometricMonitorService.start(this@MainActivity, startCalibration = true)
+                                    navController.popBackStack()
+                                }
                             )
                         }
                     }
@@ -150,8 +184,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_OPEN_BREATHING, false)) {
-            breathingController.start(triggeredByAlert = intent.getBooleanExtra(EXTRA_TRIGGERED_BY_ALERT, false))
+            val byAlert = intent.getBooleanExtra(EXTRA_TRIGGERED_BY_ALERT, false)
+            openBreathingRequests.value = (++breathingRequestNonce) to byAlert
         }
     }
 

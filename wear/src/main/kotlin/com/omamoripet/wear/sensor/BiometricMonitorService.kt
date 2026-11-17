@@ -274,16 +274,19 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                 deltaBpm = evaluation.deltaFromRestingBpm!!
             )
             repository.markAlertSent(now)
-            syncClient.sendCalmEvent(
-                CalmEventRecord(
-                    id = UUID.randomUUID().toString(),
-                    timestampEpochMs = now,
-                    peakBpm = snapshot.currentHeartRateBpm!!,
-                    restingBaselineBpm = snapshot.restingBaselineBpm,
-                    sustainedSeconds = snapshot.sustainedElevationSeconds,
-                    actionTaken = CalmEventAction.ALERT_SENT
+            if (!snapshot.isSimulated) {
+                syncClient.sendCalmEvent(
+                    CalmEventRecord(
+                        id = UUID.randomUUID().toString(),
+                        timestampEpochMs = now,
+                        peakBpm = snapshot.currentHeartRateBpm!!,
+                        restingBaselineBpm = snapshot.restingBaselineBpm,
+                        sustainedSeconds = snapshot.sustainedElevationSeconds,
+                        actionTaken = CalmEventAction.ALERT_SENT,
+                        isSimulated = false
+                    )
                 )
-            )
+            }
         }
 
         if (now - lastSyncPushMs >= 15_000L || evaluation.shouldTriggerAlert) {

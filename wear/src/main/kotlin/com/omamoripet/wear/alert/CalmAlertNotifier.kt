@@ -17,6 +17,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
+import kotlinx.coroutines.launch
 
 object CalmAlertNotifier {
     const val CHANNEL_MONITOR = "omamori_monitor"
@@ -46,13 +47,15 @@ object CalmAlertNotifier {
 
     fun notifyGentleElevation(context: Context, currentBpm: Int, deltaBpm: Int) {
         ensureChannels(context)
-        vibrateSoftTwoBeats(context)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
+            // 通知権限がないまま振動だけ鳴ると利用者が理由不明で不安になるため、振動も抑止する
             return
         }
+
+        vibrateSoftTwoBeats(context)
 
         val breatheIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -118,9 +121,29 @@ class AlertActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_SNOOZE_1H) {
-            val app = context.applicationContext as? OmamoriWearApplication
-            app?.repository?.snoozeAlertsForMinutes(60)
+            val app = context.applicationContext as? OmamoriWearApplication ?: return
+            app.repository.snoozeAlertsForMinutes(60)
             NotificationManagerCompat.from(context).cancel(CalmAlertNotifier.NOTIF_ID_ALERT)
+            val snap = app.repository.uiState.value.snapshot
+            if (!snap.isSimulated) {
+                val pendingResult = goAsync()
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        com.omamoripet.wear.sync.WatchSyncClient(context.applicationContext).sendCalmEvent(
+                            com.omamoripet.shared.model.CalmEventRecord(
+                                id = java.util.UUID.randomUUID().toString(),
+                                timestampEpochMs = System.currentTimeMillis(),
+                                peakBpm = snap.currentHeartRateBpm ?: snap.restingBaselineBpm,
+                                restingBaselineBpm = snap.restingBaselineBpm,
+                                sustainedSeconds = snap.sustainedElevationSeconds,
+                                actionTaken = com.omamoripet.shared.model.CalmEventAction.SNOOZED
+                            )
+                        )
+                    } finally {
+                        pendingResult.finish()
+                    }
+                }
+            }
         }
     }
 }

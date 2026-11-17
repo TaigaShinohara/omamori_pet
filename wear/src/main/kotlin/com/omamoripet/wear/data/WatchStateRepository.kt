@@ -177,7 +177,7 @@ class WatchStateRepository(private val context: Context) {
         updatePreferences(updated)
     }
 
-    fun updatePreferences(preferences: AlertPreferences) {
+    fun updatePreferences(preferences: AlertPreferences, syncToPhone: Boolean = true) {
         _uiState.update { state ->
             val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val eval = CalmStateEvaluator.evaluate(
@@ -191,6 +191,11 @@ class WatchStateRepository(private val context: Context) {
         }
         scope.launch {
             context.watchDataStore.edit { it[Keys.ALERT_PREFS] = OmamoriJson.encode(preferences) }
+            if (syncToPhone) {
+                com.omamoripet.wear.sync.WatchSyncClient(context).pushPreferences(
+                    com.omamoripet.shared.sync.PreferencesSyncPayload(preferences, System.currentTimeMillis())
+                )
+            }
         }
     }
 

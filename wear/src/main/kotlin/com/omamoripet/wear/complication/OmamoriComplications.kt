@@ -51,7 +51,7 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
         }
         val tapAction = launchWatchAppPendingIntent(
             context = this,
-            openBreathing = state == OmamoriState.ELEVATED_AT_REST
+            openBreathing = false
         )
         val contentDescription = PlainComplicationText.Builder(shortLabel).build()
         val icon = Icon.createWithResource(this, iconRes)
@@ -104,16 +104,24 @@ class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
         val bpm = uiState.snapshot.currentHeartRateBpm
         val delta = uiState.evaluation.deltaFromRestingBpm
         val calmScore = uiState.evaluation.calmScore.toFloat().coerceIn(0f, 100f)
+        val motion = uiState.snapshot.motionState
+        val state = uiState.evaluation.state
 
-        val display = if (bpm != null && delta != null) {
-            val sign = if (delta >= 0) "+" else ""
-            "$bpm bpm ($sign$delta)"
-        } else {
-            "-- bpm"
+        val display = when {
+            bpm == null || motion == com.omamoripet.shared.model.MotionState.OFF_BODY -> "-- bpm"
+            motion == com.omamoripet.shared.model.MotionState.RECENT_MOVEMENT ->
+                getString(R.string.comp_moving_bpm, bpm)
+            state == OmamoriState.ELEVATED_AT_REST && delta != null ->
+                getString(R.string.comp_still_elevated_bpm, bpm, delta)
+            delta != null -> {
+                val sign = if (delta >= 0) "+" else ""
+                getString(R.string.comp_calm_bpm, bpm, "$sign$delta")
+            }
+            else -> "$bpm bpm"
         }
         val tapAction = launchWatchAppPendingIntent(
             context = this,
-            openBreathing = uiState.evaluation.state == OmamoriState.ELEVATED_AT_REST
+            openBreathing = false
         )
         val text = PlainComplicationText.Builder(display).build()
 

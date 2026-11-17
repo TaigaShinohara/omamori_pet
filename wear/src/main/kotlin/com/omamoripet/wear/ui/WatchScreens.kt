@@ -1,6 +1,8 @@
 package com.omamoripet.wear.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,12 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,11 +35,13 @@ import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.CardDefaults
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.TimeText
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import com.omamoripet.shared.model.MotionState
@@ -48,13 +59,16 @@ fun HomeWatchScreen(
     onRequestPermissions: () -> Unit,
     onOpenAppSettings: () -> Unit,
     onStartBreathing: () -> Unit,
-    onStartCalibration: () -> Unit,
+    onSnooze1h: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
 
-    ScreenScaffold(scrollState = listState) { contentPadding ->
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { TimeText() }
+    ) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
             contentPadding = contentPadding,
@@ -107,9 +121,15 @@ fun HomeWatchScreen(
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
                         Text(
-                            text = stringResource(R.string.permission_denied_recovery),
+                            text = stringResource(R.string.permission_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.action_grant_permissions),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.tertiary
                         )
                     }
                 }
@@ -125,7 +145,7 @@ fun HomeWatchScreen(
                 }
             }
 
-            // 実測心拍と静止判定カード
+            // 純粋な実測表示パネル（非インタラクティブ：誤タップで即呼吸開始させない）
             item {
                 val bpm = uiState.snapshot.currentHeartRateBpm
                 val delta = uiState.evaluation.deltaFromRestingBpm
@@ -145,12 +165,13 @@ fun HomeWatchScreen(
                     MotionState.RECENT_MOVEMENT -> stringResource(R.string.recent_movement)
                     MotionState.OFF_BODY -> stringResource(R.string.off_body)
                 }
-                Card(
-                    onClick = onStartBreathing,
-                    transformation = SurfaceTransformation(transformationSpec),
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -201,43 +222,18 @@ fun HomeWatchScreen(
                 )
             }
 
-            // Phone側 AI の一言（あれば表示）
-            if (!uiState.latestAiAdvice.isNullOrBlank()) {
+            // 静止中の心拍上昇時は、やらない選択（1h休止）も1タップで出せるようにする
+            if (uiState.evaluation.state == OmamoriState.ELEVATED_AT_REST) {
                 item {
-                    Card(
-                        onClick = {},
+                    FilledTonalButton(
+                        onClick = onSnooze1h,
+                        label = { Text(stringResource(R.string.action_snooze_1h)) },
                         transformation = SurfaceTransformation(transformationSpec),
                         modifier = Modifier
                             .fillMaxWidth()
                             .transformedHeight(this, transformationSpec)
-                    ) {
-                        Text(
-                            text = uiState.latestAiAdvice,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    )
                 }
-            }
-
-            item {
-                FilledTonalButton(
-                    onClick = onStartCalibration,
-                    enabled = !uiState.isCalibrating,
-                    label = {
-                        Text(
-                            if (uiState.isCalibrating) {
-                                "${uiState.calibrationRemainingSeconds}s..."
-                            } else {
-                                stringResource(R.string.action_calibrate)
-                            }
-                        )
-                    },
-                    transformation = SurfaceTransformation(transformationSpec),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .transformedHeight(this, transformationSpec)
-                )
             }
 
             item {
@@ -272,7 +268,13 @@ fun BreathingWatchScreen(
     onStop: () -> Unit,
     onDoneBack: () -> Unit
 ) {
-    ScreenScaffold { contentPadding ->
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+
+    ScreenScaffold(timeText = {}) { contentPadding ->
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
@@ -285,7 +287,7 @@ fun BreathingWatchScreen(
                 OmamoriPetWearAvatar(
                     state = OmamoriState.CALM,
                     contentDescriptionText = stringResource(R.string.breathing_done_title),
-                    size = 56.dp
+                    size = 54.dp
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -295,10 +297,13 @@ fun BreathingWatchScreen(
                 )
                 val pre = breathingState.preBpm
                 val post = breathingState.postBpm
-                val subtitle = if (pre != null && post != null) {
-                    stringResource(R.string.breathing_done_delta, pre, post)
-                } else {
-                    stringResource(R.string.breathing_done_summary)
+                val subtitle = when {
+                    pre != null && post != null && post < pre ->
+                        stringResource(R.string.breathing_done_reduced, pre, post, pre - post)
+                    post != null ->
+                        stringResource(R.string.breathing_done_steady, post)
+                    else ->
+                        stringResource(R.string.breathing_done_summary)
                 }
                 Text(
                     text = subtitle,
@@ -328,9 +333,9 @@ fun BreathingWatchScreen(
                     state = OmamoriState.BREATHING,
                     contentDescriptionText = cueText,
                     breathProgress = breathFraction,
-                    size = 76.dp
+                    size = 70.dp
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = cueText,
                     style = MaterialTheme.typography.titleMedium,
@@ -338,17 +343,22 @@ fun BreathingWatchScreen(
                     textAlign = TextAlign.Center
                 )
                 Text(
-                    text = "${breathingState.cycleIndex} / ${breathingState.totalCycles}",
+                    text = "${stringResource(R.string.breathing_seconds_left, breathingState.remainingSecondsInPhase)} · ${breathingState.cycleIndex}/${breathingState.totalCycles}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { breathingState.phaseProgress },
+                    modifier = Modifier
+                        .fillMaxWidth(0.65f)
+                        .height(4.dp)
+                )
                 Spacer(Modifier.height(10.dp))
-                Row(horizontalArrangement = Arrangement.Center) {
-                    OutlinedButton(
-                        onClick = onStop,
-                        label = { Text(stringResource(R.string.breathing_stop)) }
-                    )
-                }
+                OutlinedButton(
+                    onClick = onStop,
+                    label = { Text(stringResource(R.string.breathing_stop)) }
+                )
             }
         }
     }
@@ -356,16 +366,21 @@ fun BreathingWatchScreen(
 
 @Composable
 fun DemoSettingsWatchScreen(
-    currentScenario: SimulationScenario,
-    alertsEnabled: Boolean,
+    uiState: WatchUiState,
+    hasSensorPermission: Boolean,
     onSelectScenario: (SimulationScenario) -> Unit,
     onToggleAlerts: () -> Unit,
-    onSnooze1h: () -> Unit
+    onSnooze1h: () -> Unit,
+    onStartCalibration: () -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
+    var snoozedFeedback by remember { mutableStateOf(false) }
 
-    ScreenScaffold(scrollState = listState) { contentPadding ->
+    ScreenScaffold(
+        scrollState = listState,
+        timeText = { TimeText() }
+    ) { contentPadding ->
         TransformingLazyColumn(
             state = listState,
             contentPadding = contentPadding,
@@ -373,21 +388,91 @@ fun DemoSettingsWatchScreen(
         ) {
             item {
                 Text(
-                    text = stringResource(R.string.action_demo_settings),
+                    text = stringResource(R.string.settings_section_alerts),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
+            item {
+                OutlinedButton(
+                    onClick = onToggleAlerts,
+                    label = {
+                        Text(
+                            if (uiState.preferences.alertsEnabled) {
+                                stringResource(R.string.settings_alerts_on)
+                            } else {
+                                stringResource(R.string.settings_alerts_off)
+                            }
+                        )
+                    },
+                    transformation = SurfaceTransformation(spec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, spec)
+                )
+            }
+            item {
+                OutlinedButton(
+                    onClick = {
+                        snoozedFeedback = true
+                        onSnooze1h()
+                    },
+                    label = {
+                        Text(
+                            if (snoozedFeedback) {
+                                stringResource(R.string.settings_snoozed_confirm)
+                            } else {
+                                stringResource(R.string.action_snooze_1h)
+                            }
+                        )
+                    },
+                    transformation = SurfaceTransformation(spec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, spec)
+                )
+            }
+            item {
+                val canCalibrate = hasSensorPermission && uiState.simulationScenario == SimulationScenario.LIVE_SENSORS && !uiState.isCalibrating
+                FilledTonalButton(
+                    onClick = onStartCalibration,
+                    enabled = canCalibrate,
+                    label = {
+                        Text(
+                            when {
+                                uiState.isCalibrating -> "${uiState.calibrationRemainingSeconds}s..."
+                                !hasSensorPermission || uiState.simulationScenario != SimulationScenario.LIVE_SENSORS ->
+                                    stringResource(R.string.calibration_requires_sensors)
+                                else -> stringResource(R.string.action_calibrate)
+                            }
+                        )
+                    },
+                    transformation = SurfaceTransformation(spec),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, spec)
+                )
+            }
+
+            item {
+                Text(
+                    text = stringResource(R.string.settings_section_demo),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+            }
             val scenarios = listOf(
-                SimulationScenario.LIVE_SENSORS to "Live Sensors",
-                SimulationScenario.CALM_AT_REST to "Demo: Calm",
-                SimulationScenario.ELEVATED_AT_REST to "Demo: Elevated HR",
-                SimulationScenario.POST_WALK_MOVEMENT to "Demo: Moving (Guard)"
+                SimulationScenario.LIVE_SENSORS to R.string.demo_live,
+                SimulationScenario.CALM_AT_REST to R.string.demo_calm,
+                SimulationScenario.ELEVATED_AT_REST to R.string.demo_elevated,
+                SimulationScenario.POST_WALK_MOVEMENT to R.string.demo_moving
             )
-            scenarios.forEach { (scenario, label) ->
+            scenarios.forEach { (scenario, labelRes) ->
                 item {
-                    val selected = currentScenario == scenario
+                    val selected = uiState.simulationScenario == scenario
+                    val label = stringResource(labelRes)
                     FilledTonalButton(
                         onClick = { onSelectScenario(scenario) },
                         colors = if (selected) {
@@ -402,26 +487,6 @@ fun DemoSettingsWatchScreen(
                             .transformedHeight(this, spec)
                     )
                 }
-            }
-            item {
-                OutlinedButton(
-                    onClick = onToggleAlerts,
-                    label = { Text(if (alertsEnabled) "Alerts: ON" else "Alerts: OFF") },
-                    transformation = SurfaceTransformation(spec),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .transformedHeight(this, spec)
-                )
-            }
-            item {
-                OutlinedButton(
-                    onClick = onSnooze1h,
-                    label = { Text(stringResource(R.string.action_snooze_1h)) },
-                    transformation = SurfaceTransformation(spec),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .transformedHeight(this, spec)
-                )
             }
         }
     }

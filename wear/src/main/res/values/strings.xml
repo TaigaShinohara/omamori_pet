@@ -6,7 +6,7 @@
     <string name="tile_label">Omamori Calm</string>
 
     <string name="state_calm">Calm</string>
-    <string name="state_elevated">Elevated</string>
+    <string name="state_elevated">A little quick</string>
     <string name="state_breathing">Breathing</string>
     <string name="state_resting">Waiting</string>
 
@@ -15,6 +15,10 @@
     <string name="state_breathing_short">Breath</string>
     <string name="state_resting_short">Wait</string>
 
+    <string name="comp_moving_bpm">Moving %1$d</string>
+    <string name="comp_still_elevated_bpm">Still %1$d (+%2$d)</string>
+    <string name="comp_calm_bpm">Calm %1$d (%2$s)</string>
+
     <string name="status_calm_detail">Heart rate is steady at rest.</string>
     <string name="status_elevated_detail">Heart rate is +%1$d bpm above rest while still.</string>
     <string name="status_breathing_detail">Following a gentle 4-2-6 breath.</string>
@@ -22,7 +26,7 @@
 
     <string name="action_breathe_1m">1-min Breathe</string>
     <string name="action_snooze_1h">I\'m fine (1h)</string>
-    <string name="action_demo_settings">Demo &amp; Settings</string>
+    <string name="action_demo_settings">Settings &amp; Demo</string>
     <string name="action_calibrate">1-min Calm Calibration</string>
     <string name="action_grant_permissions">Enable Sensors</string>
     <string name="action_open_settings">Open Settings</string>
@@ -30,11 +34,13 @@
     <string name="breathing_inhale">Inhale softly</string>
     <string name="breathing_hold">Hold gently</string>
     <string name="breathing_exhale">Exhale slowly</string>
+    <string name="breathing_seconds_left">%1$ds</string>
     <string name="breathing_done_title">Nice and steady</string>
-    <string name="breathing_done_delta">Heart rate shifted %1$d -> %2$d bpm</string>
+    <string name="breathing_done_reduced">Heart rate eased %1$d → %2$d bpm (-%3$d)</string>
+    <string name="breathing_done_steady">Took a calm minute for your breath (%1$d bpm).</string>
     <string name="breathing_done_summary">Completed a calm minute.</string>
     <string name="breathing_stop">Stop</string>
-    <string name="breathing_back">Back</string>
+    <string name="breathing_back">Done</string>
 
     <string name="notif_monitor_channel">Quiet Monitoring</string>
     <string name="notif_monitor_title">Omamori Pet is watching gently</string>
@@ -45,13 +51,24 @@
     <string name="notif_alert_body">You\'ve been still, and HR is %1$d bpm (+%2$d). Want a 1-minute breath?</string>
 
     <string name="permission_title">Sensor Permission</string>
-    <string name="permission_body">Needed only to read live heart rate and distinguish movement from calm rest.</string>
-    <string name="permission_denied_recovery">Sensors were declined. You can re-enable them in Watch Settings or test with Demo Mode.</string>
+    <string name="permission_body">Used only on-device to read live heart rate and tell stillness apart from walking.</string>
+    <string name="permission_denied_recovery">Sensors are off. Grant access in Settings or try Demo Mode.</string>
 
     <string name="baseline_label">Resting baseline: %1$d bpm</string>
-    <string name="still_confirmed">At rest</string>
+    <string name="still_confirmed">At rest (3+ min)</string>
     <string name="recent_movement">Moving / post-activity</string>
     <string name="off_body">Off wrist</string>
     <string name="demo_badge">DEMO</string>
     <string name="non_medical_note">Wellness companion only; not medical advice.</string>
+
+    <string name="settings_section_alerts">Gentle Notices</string>
+    <string name="settings_alerts_on">Alerts: ON</string>
+    <string name="settings_alerts_off">Alerts: OFF</string>
+    <string name="settings_snoozed_confirm">Paused for 1 hour</string>
+    <string name="settings_section_demo">Demo Simulation</string>
+    <string name="demo_live">Live Sensors</string>
+    <string name="demo_calm">Demo: Calm</string>
+    <string name="demo_elevated">Demo: Elevated at rest</string>
+    <string name="demo_moving">Demo: Post-walk</string>
+    <string name="calibration_requires_sensors">Switch to Live Sensors and allow permissions to calibrate.</string>
 </resources>

@@ -153,6 +153,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                     modifier = Modifier.weight(1f)
                 ) {
                     composable(TopDestination.NOW.route) {
+                        val notConnectedMsg = stringResource(R.string.snackbar_watch_not_connected)
                         HomeMobileScreen(
                             uiState = uiState,
                             onOpenBreathing = { navController.navigate("breathing") },
@@ -160,7 +161,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                                 scope.launch {
                                     val sent = repository.triggerWatchBreathing()
                                     if (!sent) {
-                                        snackbarHostState.showSnackbar("Watch not connected; opened phone guide instead.")
+                                        snackbarHostState.showSnackbar(notConnectedMsg)
                                         navController.navigate("breathing")
                                     }
                                 }
@@ -169,12 +170,14 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             onPrepareGeminiNano = { scope.launch { repository.prepareGeminiNano() } },
                             onRequestHealthConnect = {
                                 hcLauncher.launch(repository.healthConnectManager.requiredPermissions)
-                            },
-                            onSelectDemoMode = { repository.setDemoMode(it) }
+                            }
                         )
                     }
                     composable(TopDestination.HISTORY.route) {
-                        HistoryMobileScreen(uiState = uiState)
+                        HistoryMobileScreen(
+                            uiState = uiState,
+                            onTryBreathing = { navController.navigate("breathing") }
+                        )
                     }
                     composable(TopDestination.SETTINGS.route) {
                         SettingsMobileScreen(
@@ -183,7 +186,8 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             onRequestHealthConnect = {
                                 hcLauncher.launch(repository.healthConnectManager.requiredPermissions)
                             },
-                            onSelectDemoMode = { repository.setDemoMode(it) }
+                            onSelectDemoMode = { repository.setDemoMode(it) },
+                            onClearDemoHistory = { repository.clearSimulatedHistory() }
                         )
                     }
                     composable("breathing") {
