@@ -247,8 +247,8 @@ private fun HeroStatusCard(
                 }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Button(
@@ -258,20 +258,22 @@ private fun HeroStatusCard(
                         contentColor = if (uiState.omamoriState == OmamoriState.ELEVATED_AT_REST) cs.onTertiary else cs.onPrimary
                     ),
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
                 ) {
                     Icon(Icons.Rounded.Spa, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.cta_breathe_phone))
+                    Text(stringResource(R.string.cta_breathe_phone), maxLines = 1)
                 }
                 OutlinedButton(
                     onClick = onTriggerWatchBreathing,
-                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                 ) {
                     Icon(Icons.Rounded.Watch, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.cta_breathe_watch))
+                    Text(stringResource(R.string.cta_breathe_watch), maxLines = 1)
                 }
             }
         }

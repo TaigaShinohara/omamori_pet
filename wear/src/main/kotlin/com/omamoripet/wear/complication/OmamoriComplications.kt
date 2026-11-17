@@ -107,9 +107,9 @@ class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
 
         val display = if (bpm != null && delta != null) {
             val sign = if (delta >= 0) "+" else ""
-            "♥ $bpm ($sign$delta)"
+            "$bpm bpm ($sign$delta)"
         } else {
-            "♥ --"
+            "-- bpm"
         }
         val tapAction = launchWatchAppPendingIntent(
             context = this,
@@ -138,7 +138,7 @@ class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
-        val text = PlainComplicationText.Builder("♥ 68 (+2)").build()
+        val text = PlainComplicationText.Builder("68 bpm (+2)").build()
         return when (type) {
             ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
                 value = 88f,

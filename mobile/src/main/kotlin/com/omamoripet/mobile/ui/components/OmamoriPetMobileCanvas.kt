@@ -139,6 +139,15 @@ fun OmamoriPetMobileAvatar(
                     size = Size(w * 0.11f, h * 0.085f),
                     style = Stroke(width = strokeW, cap = StrokeCap.Round)
                 )
+                drawArc(
+                    color = faceColor,
+                    startAngle = 20f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(cx - w * 0.05f, eyeY + bodyR * 0.24f),
+                    size = Size(w * 0.10f, h * 0.06f),
+                    style = Stroke(width = strokeW * 0.85f, cap = StrokeCap.Round)
+                )
             }
             OmamoriState.ELEVATED_AT_REST -> {
                 drawCircle(color = faceColor, radius = w * 0.035f, center = Offset(cx - eyeOffset, eyeY))

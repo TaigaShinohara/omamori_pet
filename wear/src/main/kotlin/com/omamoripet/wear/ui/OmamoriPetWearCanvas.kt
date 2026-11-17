@@ -145,6 +145,15 @@ fun OmamoriPetWearAvatar(
                     size = Size(w * 0.12f, h * 0.09f),
                     style = Stroke(width = strokeW, cap = StrokeCap.Round)
                 )
+                drawArc(
+                    color = faceColor,
+                    startAngle = 20f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(cx - w * 0.055f, eyeY + bodyRadius * 0.24f),
+                    size = Size(w * 0.11f, h * 0.065f),
+                    style = Stroke(width = strokeW * 0.85f, cap = StrokeCap.Round)
+                )
             }
             OmamoriState.ELEVATED_AT_REST -> {
                 // Round attentive eyes + small 'O' breathing cue

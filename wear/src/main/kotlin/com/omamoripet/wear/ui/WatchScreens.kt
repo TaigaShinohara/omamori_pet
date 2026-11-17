@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +25,7 @@ import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.CardDefaults
 import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.ScreenScaffold
@@ -126,9 +131,14 @@ fun HomeWatchScreen(
                 val delta = uiState.evaluation.deltaFromRestingBpm
                 val bpmLine = if (bpm != null && delta != null) {
                     val sign = if (delta >= 0) "+" else ""
-                    "♥ $bpm bpm ($sign$delta)"
+                    "$bpm bpm ($sign$delta)"
                 } else {
-                    "♥ -- bpm"
+                    "-- bpm"
+                }
+                val accentColor = if (uiState.evaluation.state == OmamoriState.ELEVATED_AT_REST) {
+                    MaterialTheme.colorScheme.tertiary
+                } else {
+                    MaterialTheme.colorScheme.primary
                 }
                 val motionText = when (uiState.snapshot.motionState) {
                     MotionState.STILL_CONFIRMED -> stringResource(R.string.still_confirmed)
@@ -142,15 +152,22 @@ fun HomeWatchScreen(
                         .fillMaxWidth()
                         .transformedHeight(this, transformationSpec)
                 ) {
-                    Text(
-                        text = bpmLine,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (uiState.evaluation.state == OmamoriState.ELEVATED_AT_REST) {
-                            MaterialTheme.colorScheme.tertiary
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        }
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Favorite,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = bpmLine,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = accentColor
+                        )
+                    }
                     Text(
                         text = motionText,
                         style = MaterialTheme.typography.bodySmall,
