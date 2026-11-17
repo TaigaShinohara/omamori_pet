@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Omamori Pet</string>
+
+    <string name="nav_now">Now</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+
+    <string name="state_calm_title">Steady &amp; Calm</string>
+    <string name="state_elevated_title">A little quick at rest</string>
+    <string name="state_breathing_title">Taking a calm breath</string>
+    <string name="state_resting_title">Waiting for watch</string>
+
+    <string name="state_calm_desc">Your heart rate matches your calm baseline.</string>
+    <string name="state_elevated_desc">You have been still, and your heart rate is +%1$d bpm above baseline.</string>
+    <string name="state_breathing_desc">Following the gentle 4-2-6 breathing pace.</string>
+    <string name="state_resting_desc">Wear your Pixel Watch or try Demo Mode below.</string>
+
+    <string name="heart_rate_unit">bpm</string>
+    <string name="baseline_format">Resting baseline: %1$d bpm (%2$s)</string>
+    <string name="baseline_source_hc">Health Connect</string>
+    <string name="baseline_source_watch">Watch learned</string>
+    <string name="baseline_source_default">Initial estimate</string>
+
+    <string name="motion_still">Still (at rest)</string>
+    <string name="motion_moving">Moving / post-activity</string>
+    <string name="motion_off">Off wrist</string>
+
+    <string name="cta_breathe_phone">1-min Guided Breath</string>
+    <string name="cta_breathe_watch">Open on Watch</string>
+
+    <string name="ai_card_title">Omamori Reflection</string>
+    <string name="ai_refresh">Refresh advice</string>
+    <string name="ai_source_nano">On-device: Gemini Nano</string>
+    <string name="ai_source_local">On-device: Calm Rule</string>
+    <string name="ai_status_downloadable">Gemini Nano can be downloaded on this Pixel device.</string>
+    <string name="ai_download_btn">Prepare Gemini Nano</string>
+
+    <string name="hc_title">Health Connect Baseline</string>
+    <string name="hc_ready">Connected (%1$d bpm)</string>
+    <string name="hc_missing_perm">Grant Resting Heart Rate access to sharpen your personal baseline.</string>
+    <string name="hc_grant_btn">Connect Health Connect</string>
+    <string name="hc_unavailable">Health Connect is unavailable on this device. Watch-learned baseline is used automatically.</string>
+
+    <string name="history_title">Calm Reflections</string>
+    <string name="history_empty_title">No events recorded yet</string>
+    <string name="history_empty_body">Quiet heart rate notices and 1-minute breathing sessions will appear here.</string>
+    <string name="history_breath_item">1-min Breath · %1$s</string>
+    <string name="history_breath_delta">%1$d → %2$d bpm</string>
+    <string name="history_event_item">Elevated while still · Peak %1$d bpm (baseline %2$d)</string>
+
+    <string name="settings_alerts_section">Gentle Proactive Alerts</string>
+    <string name="settings_alerts_toggle">Notify on elevated HR at rest</string>
+    <string name="settings_alerts_subtitle">Requires 3+ min stillness and 90s sustained elevation.</string>
+    <string name="settings_threshold_label">Sensitivity (+%1$d bpm above baseline)</string>
+    <string name="settings_quiet_hours">Quiet hours (23:00 - 07:00)</string>
+    <string name="settings_demo_section">Demo &amp; Verification Mode</string>
+    <string name="settings_disclaimer_title">Wellness Notice</string>
+    <string name="settings_disclaimer_body">Omamori Pet is a relaxation and self-awareness companion. It is not a medical device and does not diagnose or treat any condition.</string>
+
+    <string name="privacy_title">Data &amp; Privacy</string>
+    <string name="privacy_body">Omamori Pet reads only your Resting Heart Rate from Health Connect to calibrate your personal baseline on-device. No biometric data is uploaded to external servers.</string>
+
+    <string name="breathing_inhale">Inhale softly (4s)</string>
+    <string name="breathing_hold">Hold gently (2s)</string>
+    <string name="breathing_exhale">Exhale slowly (6s)</string>
+    <string name="breathing_complete">Well done. Take your time.</string>
+    <string name="breathing_start">Start 1-min Breath</string>
+    <string name="breathing_stop">Stop</string>
+    <string name="back">Back</string>
+</resources>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">お守りペット</string>
+
+    <string name="nav_now">いま</string>
+    <string name="nav_history">ふりかえり</string>
+    <string name="nav_settings">設定</string>
+
+    <string name="state_calm_title">おだやかです</string>
+    <string name="state_elevated_title">静止中に心拍がやや高め</string>
+    <string name="state_breathing_title">深呼吸しています</string>
+    <string name="state_resting_title">ウォッチの計測待ち</string>
+
+    <string name="state_calm_desc">平常時の落ち着いた心拍ペースと調和しています。</string>
+    <string name="state_elevated_desc">動いていない状態で、普段より +%1$d bpm 高めが続いています。</string>
+    <string name="state_breathing_desc">4-2-6 のゆったりしたリズムで整えています。</string>
+    <string name="state_resting_desc">Pixel Watch を装着するか、下のデモ表示で確認できます。</string>
+
+    <string name="heart_rate_unit">bpm</string>
+    <string name="baseline_format">平常時の目安: %1$d bpm（%2$s）</string>
+    <string name="baseline_source_hc">Health Connect 同期</string>
+    <string name="baseline_source_watch">ウォッチ自動学習</string>
+    <string name="baseline_source_default">初期目安</string>
+
+    <string name="motion_still">静止中（平常時）</string>
+    <string name="motion_moving">移動・歩行直後（誤検知ガード中）</string>
+    <string name="motion_off">未装着</string>
+
+    <string name="cta_breathe_phone">1分間の深呼吸ガイド</string>
+    <string name="cta_breathe_watch">ウォッチで呼吸を開く</string>
+
+    <string name="ai_card_title">お守りからの整理</string>
+    <string name="ai_refresh">言葉を新しくする</string>
+    <string name="ai_source_nano">端末内AI: Gemini Nano</string>
+    <string name="ai_source_local">端末内ルール助言</string>
+    <string name="ai_status_downloadable">この Pixel 端末では Gemini Nano を準備できます。</string>
+    <string name="ai_download_btn">Gemini Nano を準備</string>
+
+    <string name="hc_title">Health Connect 基準連携</string>
+    <string name="hc_ready">連携済み（安静時 %1$d bpm）</string>
+    <string name="hc_missing_perm">安静時心拍の読み取りを許可すると、個人基準の精度が上がります。</string>
+    <string name="hc_grant_btn">Health Connect を許可</string>
+    <string name="hc_unavailable">Health Connect が未導入ですが、ウォッチ単体の学習基準でそのまま使えます。</string>
+
+    <string name="history_title">落ち着きのきろく</string>
+    <string name="history_empty_title">まだ記録はありません</string>
+    <string name="history_empty_body">静止中の心拍上昇の気づきや、1分深呼吸の記録がここに残ります。</string>
+    <string name="history_breath_item">1分間の深呼吸 · %1$s</string>
+    <string name="history_breath_delta">%1$d → %2$d bpm</string>
+    <string name="history_event_item">静止中に心拍高め · 最大 %1$d bpm（目安 %2$d）</string>
+
+    <string name="settings_alerts_section">やさしい通知の設定</string>
+    <string name="settings_alerts_toggle">静止中の心拍上昇をそっと知らせる</string>
+    <string name="settings_alerts_subtitle">3分以上の静止と90秒の持続を確認してから通知します。</string>
+    <string name="settings_threshold_label">気づきの目安（平常時 +%1$d bpm）</string>
+    <string name="settings_quiet_hours">おやすみ時間（23:00〜07:00は通知しない）</string>
+    <string name="settings_demo_section">動作確認・デモ表示</string>
+    <string name="settings_disclaimer_title">ご利用上の注意</string>
+    <string name="settings_disclaimer_body">お守りペットはリラックスと自己観察のためのウェルネスアプリです。医療機器ではなく、疾患の診断・治療を目的としていません。</string>
+
+    <string name="privacy_title">データとプライバシー</string>
+    <string name="privacy_body">お守りペットは個人基準値（安静時心拍）の精度向上のためにのみ Health Connect から安静時心拍を読み取ります。生体データはすべて端末内で処理され、外部サーバーへ送信されません。</string>
+
+    <string name="breathing_inhale">鼻からゆっくり吸う（4秒）</string>
+    <string name="breathing_hold">やさしく止める（2秒）</string>
+    <string name="breathing_exhale">細く長く吐き出す（6秒）</string>
+    <string name="breathing_complete">おつかれさま。自分のペースで大丈夫です。</string>
+    <string name="breathing_start">1分深呼吸をはじめる</string>
+    <string name="breathing_stop">やめる</string>
+    <string name="back">もどる</string>
+</resources>

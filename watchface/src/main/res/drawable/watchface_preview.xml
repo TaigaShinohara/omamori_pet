@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    <!-- Deep Material 3 calm surface circle -->
+    <path
+        android:fillColor="#11161D"
+        android:pathData="M120,0A120,120 0 1,1 119.99,0Z" />
+    <!-- Subtle outer calm ring -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M120,16A104,104 0 1,1 119.99,16Z"
+        android:strokeColor="#8FD3B6"
+        android:strokeWidth="6" />
+    <!-- Soft aura behind pet -->
+    <path
+        android:fillColor="#208FD3B6"
+        android:pathData="M120,44A28,28 0 1,1 119.99,44Z" />
+    <!-- Omamori spirit silhouette -->
+    <path
+        android:fillColor="#8FD3B6"
+        android:pathData="M120,48 C105,48 96,60 96,74 C96,86 105,94 120,94 C135,94 144,86 144,74 C144,60 135,48 120,48 Z" />
+    <!-- Gentle eyes -->
+    <path
+        android:fillColor="#11161D"
+        android:pathData="M111,71A2.5,2.5 0 1,1 110.99,71Z M129,71A2.5,2.5 0 1,1 128.99,71Z" />
+    <!-- Center time block placeholder -->
+    <path
+        android:fillColor="#ECE8DF"
+        android:pathData="M78,118 h84 a4,4 0 0,1 4,4 v14 a4,4 0 0,1 -4,4 h-84 a4,4 0 0,1 -4,-4 v-14 a4,4 0 0,1 4,-4 z" />
+    <!-- Bottom heart rate pill -->
+    <path
+        android:fillColor="#1D2631"
+        android:pathData="M72,164 h96 a14,14 0 0,1 14,14 v0 a14,14 0 0,1 -14,14 h-96 a14,14 0 0,1 -14,-14 v0 a14,14 0 0,1 14,-14 z" />
+</vector>

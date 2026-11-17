@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace
+    clipShape="CIRCLE"
+    height="450"
+    width="450">
+
+    <Metadata key="CLOCK_TYPE" value="DIGITAL" />
+    <Metadata key="STEP_COUNT_DISPLAY" value="FALSE" />
+
+    <Scene backgroundColor="#FF11161D">
+        <!-- 外周の静かなリング（Ambient では抑える） -->
+        <PartDraw
+            alpha="255"
+            height="450"
+            width="450"
+            x="0"
+            y="0">
+            <Variant mode="AMBIENT" target="alpha" value="60" />
+            <Ellipse
+                height="422"
+                width="422"
+                x="14"
+                y="14">
+                <Stroke
+                    color="#FF24303D"
+                    thickness="8" />
+            </Ellipse>
+        </PartDraw>
+
+        <!-- 要素 1（上部）：お守りペット状態スロット -->
+        <ComplicationSlot
+            displayName="@string/slot_pet_name"
+            height="108"
+            isCustomizable="TRUE"
+            name="omamori_pet_slot"
+            slotId="1"
+            supportedTypes="SMALL_IMAGE MONOCHROMATIC_IMAGE SHORT_TEXT EMPTY"
+            width="160"
+            x="145"
+            y="36">
+            <BoundingOval
+                height="108"
+                width="160"
+                x="0"
+                y="0" />
+            <DefaultProviderPolicy
+                defaultSystemProvider="DATE"
+                defaultSystemProviderType="SHORT_TEXT"
+                primaryProvider="com.omamoripet.app/com.omamoripet.wear.complication.PetStateComplicationService"
+                primaryProviderType="SMALL_IMAGE" />
+
+            <Complication type="SMALL_IMAGE">
+                <PartImage
+                    alpha="255"
+                    height="82"
+                    width="82"
+                    x="39"
+                    y="4">
+                    <Variant mode="AMBIENT" target="alpha" value="150" />
+                    <Image resource="[COMPLICATION.SMALL_IMAGE]" />
+                </PartImage>
+                <PartText
+                    alpha="230"
+                    height="24"
+                    width="160"
+                    x="0"
+                    y="84">
+                    <Variant mode="AMBIENT" target="alpha" value="140" />
+                    <Text align="CENTER">
+                        <Font
+                            color="#FFB9C8C0"
+                            family="SYNC_TO_DEVICE"
+                            size="18"
+                            weight="MEDIUM">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+
+            <Complication type="MONOCHROMATIC_IMAGE">
+                <PartImage
+                    alpha="255"
+                    height="76"
+                    tintColor="#FF8FD3B6"
+                    width="76"
+                    x="42"
+                    y="8">
+                    <Variant mode="AMBIENT" target="alpha" value="140" />
+                    <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]" />
+                </PartImage>
+            </Complication>
+
+            <Complication type="SHORT_TEXT">
+                <PartText
+                    alpha="240"
+                    height="44"
+                    width="160"
+                    x="0"
+                    y="32">
+                    <Text align="CENTER">
+                        <Font
+                            color="#FF8FD3B6"
+                            family="SYNC_TO_DEVICE"
+                            size="22"
+                            weight="MEDIUM">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+        </ComplicationSlot>
+
+        <!-- 要素 2（中央）：時刻と日付 -->
+        <DigitalClock
+            height="104"
+            width="320"
+            x="65"
+            y="156">
+            <TimeText
+                align="CENTER"
+                format="HH:mm"
+                height="84"
+                hourFormat="SYNC_TO_DEVICE"
+                width="320"
+                x="0"
+                y="0">
+                <Font
+                    color="#FFECE8DF"
+                    family="SYNC_TO_DEVICE"
+                    size="74"
+                    weight="SEMI_BOLD">
+                    <Variant mode="AMBIENT" target="color" value="#FFA8A59E" />
+                </Font>
+            </TimeText>
+        </DigitalClock>
+
+        <PartText
+            alpha="200"
+            height="28"
+            width="240"
+            x="105"
+            y="246">
+            <Variant mode="AMBIENT" target="alpha" value="120" />
+            <Text align="CENTER">
+                <Font
+                    color="#FFB4BCC4"
+                    family="SYNC_TO_DEVICE"
+                    size="20"
+                    weight="NORMAL">
+                    <Template>%s %s<Parameter expression="[MONTH_DAY_OF_MONTH]" /><Parameter expression="[DAY_OF_WEEK_S]" /></Template>
+                </Font>
+            </Text>
+        </PartText>
+
+        <!-- 要素 3（下部）：現在心拍・安静時差と落ち着きゲージ -->
+        <ComplicationSlot
+            displayName="@string/slot_heart_name"
+            height="86"
+            isCustomizable="TRUE"
+            name="heart_calm_slot"
+            slotId="2"
+            supportedTypes="RANGED_VALUE SHORT_TEXT EMPTY"
+            width="240"
+            x="105"
+            y="302">
+            <BoundingRoundBox
+                cornerRadius="43"
+                height="86"
+                width="240"
+                x="0"
+                y="0" />
+            <DefaultProviderPolicy
+                defaultSystemProvider="HEART_RATE"
+                defaultSystemProviderType="SHORT_TEXT"
+                primaryProvider="com.omamoripet.app/com.omamoripet.wear.complication.HeartRateComplicationService"
+                primaryProviderType="RANGED_VALUE" />
+
+            <Complication type="RANGED_VALUE">
+                <!-- ソフトなカプセル背景 -->
+                <PartDraw
+                    alpha="255"
+                    height="72"
+                    width="224"
+                    x="8"
+                    y="7">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <RoundRectangle
+                        cornerRadiusX="36"
+                        cornerRadiusY="36"
+                        height="72"
+                        width="224"
+                        x="0"
+                        y="0">
+                        <Fill color="#FF1B242F" />
+                        <Stroke
+                            color="#FF2F3E4E"
+                            thickness="2" />
+                    </RoundRectangle>
+                </PartDraw>
+
+                <!-- 中央の心拍＋安静時差テキスト -->
+                <PartText
+                    alpha="255"
+                    height="48"
+                    width="216"
+                    x="12"
+                    y="19">
+                    <Variant mode="AMBIENT" target="alpha" value="160" />
+                    <Text align="CENTER">
+                        <Font
+                            color="#FF8FD3B6"
+                            family="SYNC_TO_DEVICE"
+                            size="24"
+                            weight="MEDIUM">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+
+            <Complication type="SHORT_TEXT">
+                <PartDraw
+                    alpha="255"
+                    height="72"
+                    width="224"
+                    x="8"
+                    y="7">
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    <RoundRectangle
+                        cornerRadiusX="36"
+                        cornerRadiusY="36"
+                        height="72"
+                        width="224"
+                        x="0"
+                        y="0">
+                        <Fill color="#FF1B242F" />
+                    </RoundRectangle>
+                </PartDraw>
+                <PartText
+                    alpha="255"
+                    height="48"
+                    width="216"
+                    x="12"
+                    y="19">
+                    <Variant mode="AMBIENT" target="alpha" value="160" />
+                    <Text align="CENTER">
+                        <Font
+                            color="#FFECE8DF"
+                            family="SYNC_TO_DEVICE"
+                            size="24"
+                            weight="MEDIUM">
+                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                        </Font>
+                    </Text>
+                </PartText>
+            </Complication>
+        </ComplicationSlot>
+    </Scene>
+</WatchFace>

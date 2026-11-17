@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="watch_face_name">Omamori Pet</string>
+    <string name="watch_face_description">Calm watch face showing your Omamori Pet and resting heart rate status at a glance.</string>
+    <string name="slot_pet_name">Omamori Pet</string>
+    <string name="slot_heart_name">Heart Rate &amp; Calm</string>
+</resources>

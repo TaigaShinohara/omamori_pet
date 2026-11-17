@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">お守りペット</string>
+    <string name="complication_pet_label">お守りペットの状態</string>
+    <string name="complication_heart_label">落ち着き心拍</string>
+    <string name="tile_label">お守りペット</string>
+
+    <string name="state_calm">おだやか</string>
+    <string name="state_elevated">ひと息タイム</string>
+    <string name="state_breathing">深呼吸中</string>
+    <string name="state_resting">待機中</string>
+
+    <string name="state_calm_short">穏やか</string>
+    <string name="state_elevated_short">ひと息</string>
+    <string name="state_breathing_short">呼吸中</string>
+    <string name="state_resting_short">待機</string>
+
+    <string name="status_calm_detail">平常時の落ち着いた心拍です。</string>
+    <string name="status_elevated_detail">静止中に普段より +%1$d bpm 高めです。</string>
+    <string name="status_breathing_detail">4-2-6 のリズムで整えています。</string>
+    <string name="status_resting_detail">ウォッチを装着すると静かに見守ります。</string>
+
+    <string name="action_breathe_1m">1分深呼吸</string>
+    <string name="action_snooze_1h">いま大丈夫 (1時間休止)</string>
+    <string name="action_demo_settings">デモ・設定</string>
+    <string name="action_calibrate">1分 静止基準を測る</string>
+    <string name="action_grant_permissions">センサーを許可する</string>
+    <string name="action_open_settings">設定を開く</string>
+
+    <string name="breathing_inhale">鼻からゆっくり吸う</string>
+    <string name="breathing_hold">やさしく止める</string>
+    <string name="breathing_exhale">細く長く吐き出す</string>
+    <string name="breathing_done_title">おつかれさま</string>
+    <string name="breathing_done_delta">心拍 %1$d → %2$d bpm</string>
+    <string name="breathing_done_summary">1分間の深呼吸が完了しました。</string>
+    <string name="breathing_stop">おわる</string>
+    <string name="breathing_back">もどる</string>
+
+    <string name="notif_monitor_channel">静かな見守り</string>
+    <string name="notif_monitor_title">お守りペットが見守っています</string>
+    <string name="notif_monitor_body">運動時を除き、静止中の心拍変化をそっと確認中。</string>
+
+    <string name="notif_alert_channel">やさしい呼吸のお知らせ</string>
+    <string name="notif_alert_title">少し心拍が早めかも</string>
+    <string name="notif_alert_body">静止中に %1$d bpm（普段 +%2$d）です。1分だけ息を整えませんか？</string>
+
+    <string name="permission_title">センサーの許可</string>
+    <string name="permission_body">心拍数と静止状態を区別するためだけに使用し、外部へ送信しません。</string>
+    <string name="permission_denied_recovery">許可がオフになっています。設定から許可するか、デモモードで動作を確認できます。</string>
+
+    <string name="baseline_label">平常時の目安: %1$d bpm</string>
+    <string name="still_confirmed">静止中（平常時）</string>
+    <string name="recent_movement">移動・運動の直後</string>
+    <string name="off_body">未装着</string>
+    <string name="demo_badge">デモ中</string>
+    <string name="non_medical_note">医療・診断ではなくセルフケア支援用です。</string>
+</resources>

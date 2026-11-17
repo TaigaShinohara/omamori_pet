@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="watch_face_name">お守りペット</string>
+    <string name="watch_face_description">お守りペットの表情と心拍の状態を、ひと目で穏やかに確認できる文字盤です。</string>
+    <string name="slot_pet_name">お守りペット</string>
+    <string name="slot_heart_name">心拍と落ち着き</string>
+</resources>

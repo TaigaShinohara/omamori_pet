@@ -1,0 +1,107 @@
+package com.omamoripet.shared.domain
+
+import com.omamoripet.shared.model.BaselineSource
+import com.omamoripet.shared.model.MotionState
+
+/**
+ * 手首の加速度分散と歩数増分から「直近 N 秒間（デフォルト180秒）連続して動いていない平常時」かを追跡する。
+ * 階段を登った直後に立ち止まっても、数分間は心拍が高いまま残るため誤検知を防ぐ。
+ */
+class MotionStillnessTracker(
+    private val requiredStillMs: Long = 180_000L,
+    private val accelVarianceThreshold: Double = 0.35
+) {
+    private var lastMovementEpochMs: Long? = null
+    private var firstSampleEpochMs: Long? = null
+    private var lastKnownSteps: Long? = null
+
+    fun recordSample(
+        epochMs: Long,
+        accelMagnitudeVariance: Double,
+        cumulativeSteps: Long? = null
+    ): MotionState {
+        if (firstSampleEpochMs == null) {
+            firstSampleEpochMs = epochMs
+        }
+
+        val stepsIncreased = if (cumulativeSteps != null) {
+            val previous = lastKnownSteps
+            lastKnownSteps = cumulativeSteps
+            previous != null && cumulativeSteps > previous
+        } else {
+            false
+        }
+
+        if (accelMagnitudeVariance > accelVarianceThreshold || stepsIncreased) {
+            lastMovementEpochMs = epochMs
+            return MotionState.RECENT_MOVEMENT
+        }
+
+        val anchor = lastMovementEpochMs ?: firstSampleEpochMs ?: epochMs
+        return if ((epochMs - anchor) >= requiredStillMs) {
+            MotionState.STILL_CONFIRMED
+        } else {
+            MotionState.RECENT_MOVEMENT
+        }
+    }
+
+    fun reset() {
+        lastMovementEpochMs = null
+        firstSampleEpochMs = null
+        lastKnownSteps = null
+    }
+}
+
+data class ResolvedBaseline(
+    val bpm: Int,
+    val source: BaselineSource
+)
+
+/**
+ * Watch 単体で静止時心拍サンプルから安静時ベースラインを学習し、
+ * Health Connect の安静時心拍レコードがあればそれと安全に統合する。
+ */
+class RestingBaselineLearner(
+    private val defaultFallbackBpm: Int = 65,
+    private val maxSamples: Int = 60,
+    private val minSamplesForLearned: Int = 5
+) {
+    private val stillHrSamples = ArrayDeque<Int>()
+    private var healthConnectBaselineBpm: Int? = null
+
+    fun loadInitial(samples: List<Int>, healthConnectBpm: Int?) {
+        stillHrSamples.clear()
+        samples.takeLast(maxSamples).forEach { bpm ->
+            if (bpm in 38..140) stillHrSamples.addLast(bpm)
+        }
+        healthConnectBaselineBpm = healthConnectBpm?.takeIf { it in 38..120 }
+    }
+
+    fun recordStillSample(bpm: Int) {
+        if (bpm !in 38..140) return
+        if (stillHrSamples.size >= maxSamples) {
+            stillHrSamples.removeFirst()
+        }
+        stillHrSamples.addLast(bpm)
+    }
+
+    fun updateHealthConnectBaseline(bpm: Int?) {
+        healthConnectBaselineBpm = bpm?.takeIf { it in 38..120 }
+    }
+
+    fun getCurrentSamples(): List<Int> = stillHrSamples.toList()
+
+    fun resolveBaseline(): ResolvedBaseline {
+        val hc = healthConnectBaselineBpm
+        if (hc != null) {
+            return ResolvedBaseline(bpm = hc, source = BaselineSource.HEALTH_CONNECT)
+        }
+        if (stillHrSamples.size >= minSamplesForLearned) {
+            val sorted = stillHrSamples.sorted()
+            // ストレス時の高い値を除いた 30パーセンタイル付近を個人の安静時目安とする
+            val index = ((sorted.size - 1) * 0.30).toInt().coerceIn(0, sorted.lastIndex)
+            return ResolvedBaseline(bpm = sorted[index], source = BaselineSource.WATCH_LEARNED)
+        }
+        return ResolvedBaseline(bpm = defaultFallbackBpm, source = BaselineSource.DEFAULT_FALLBACK)
+    }
+}
