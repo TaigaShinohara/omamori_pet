@@ -25,6 +25,7 @@ import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
+import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.sync.WatchLivePayload
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
@@ -32,12 +33,18 @@ import com.omamoripet.wear.alert.CalmAlertNotifier
 import com.omamoripet.wear.data.SimulationScenario
 import com.omamoripet.wear.data.WatchStateRepository
 import com.omamoripet.wear.sync.WatchSyncClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -49,6 +56,11 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     companion object {
         const val ACTION_START_CALIBRATION = "com.omamoripet.wear.ACTION_START_CALIBRATION"
         const val PERMISSION_READ_HEART_RATE = "android.permission.health.READ_HEART_RATE"
+        private const val ACCEL_BUFFER_SIZE = 30
+        private const val ACCEL_BATCH_LATENCY_US = 4_000_000
+        private const val EVAL_TICK_MS = 5_000L
+        private const val SYNC_MIN_BPM_DELTA_INTERVAL_MS = 15_000L
+        private const val SYNC_HEARTBEAT_INTERVAL_MS = 60_000L
 
         fun heartRatePermission(): String =
             if (Build.VERSION.SDK_INT >= 36) PERMISSION_READ_HEART_RATE else Manifest.permission.BODY_SENSORS
@@ -79,15 +91,26 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
 
     private val stillnessTracker = MotionStillnessTracker(requiredStillMs = 180_000L, accelVarianceThreshold = 0.35)
-    private val accelMagnitudes = ArrayDeque<Double>()
+    private val accelLock = Any()
+    private val accelBuffer = DoubleArray(ACCEL_BUFFER_SIZE)
+    private var accelHead = 0
+    private var accelCount = 0
 
+    @Volatile
     private var latestLiveBpm: Int? = null
+    @Volatile
     private var isWatchOnBody: Boolean = true
     private var latestMotionState: MotionState = MotionState.RECENT_MOVEMENT
     private var elevatedStartEpochMs: Long? = null
+    private var accelRegistered = false
     private var measureRegistered = false
-    private var lastSyncPushMs = 0L
     private var calibrationJob: Job? = null
+
+    private var lastSyncPushMs = 0L
+    private var lastSyncedState: OmamoriState? = null
+    private var lastSyncedMotion: MotionState? = null
+    private var lastSyncedOnBody: Boolean? = null
+    private var lastSyncedBpm: Int? = null
 
     private val measureClient by lazy { HealthServices.getClient(this).measureClient }
 
@@ -129,7 +152,6 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             .build()
         startForeground(CalmAlertNotifier.NOTIF_ID_MONITOR, ongoingNotification)
 
-        registerSensorsIfPermitted()
         startEvaluationLoop()
     }
 
@@ -138,29 +160,45 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         if (intent?.action == ACTION_START_CALIBRATION) {
             startOneMinuteCalibration()
         }
-        registerSensorsIfPermitted()
+        if (repository.uiState.value.simulationScenario == SimulationScenario.LIVE_SENSORS) {
+            registerSensorsIfPermitted()
+        }
         return START_STICKY
     }
 
     private fun registerSensorsIfPermitted() {
         val accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        if (accel != null) {
-            sensorManager.unregisterListener(this, accel)
-            sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL)
+        if (accel != null && !accelRegistered) {
+            // 4秒ハードウェア FIFO バッチングで不要な CPU 起床を抑える
+            accelRegistered = sensorManager.registerListener(
+                this,
+                accel,
+                SensorManager.SENSOR_DELAY_NORMAL,
+                ACCEL_BATCH_LATENCY_US
+            )
         }
 
-        if (hasHeartRatePermission(this) &&
-            !measureRegistered
-        ) {
+        if (hasHeartRatePermission(this) && !measureRegistered) {
             lifecycleScope.launch {
                 runCatching {
                     val caps = measureClient.getCapabilitiesAsync().await()
-                    if (DataType.HEART_RATE_BPM in caps.supportedDataTypesMeasure) {
+                    if (DataType.HEART_RATE_BPM in caps.supportedDataTypesMeasure && !measureRegistered) {
                         measureClient.registerMeasureCallback(DataType.HEART_RATE_BPM, hrCallback)
                         measureRegistered = true
                     }
                 }
             }
+        }
+    }
+
+    private fun unregisterSensors() {
+        if (accelRegistered) {
+            sensorManager.unregisterListener(this)
+            accelRegistered = false
+        }
+        if (measureRegistered) {
+            measureRegistered = false
+            runCatching { measureClient.unregisterMeasureCallbackAsync(DataType.HEART_RATE_BPM, hrCallback) }
         }
     }
 
@@ -170,100 +208,109 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         val y = event.values[1].toDouble()
         val z = event.values[2].toDouble()
         val mag = sqrt(x * x + y * y + z * z)
-        synchronized(accelMagnitudes) {
-            if (accelMagnitudes.size >= 30) accelMagnitudes.removeFirst()
-            accelMagnitudes.addLast(mag)
+        synchronized(accelLock) {
+            accelBuffer[accelHead] = mag
+            accelHead = (accelHead + 1) % ACCEL_BUFFER_SIZE
+            if (accelCount < ACCEL_BUFFER_SIZE) accelCount++
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     private fun computeAccelVariance(): Double {
-        val values = synchronized(accelMagnitudes) { accelMagnitudes.toList() }
-        if (values.size < 4) return 0.0
-        val mean = values.average()
-        return values.sumOf { (it - mean) * (it - mean) } / values.size
+        synchronized(accelLock) {
+            val count = accelCount
+            if (count < 4) return 0.0
+            var sum = 0.0
+            for (i in 0 until count) {
+                sum += accelBuffer[i]
+            }
+            val mean = sum / count
+            var sqDiff = 0.0
+            for (i in 0 until count) {
+                val d = accelBuffer[i] - mean
+                sqDiff += d * d
+            }
+            return sqDiff / count
+        }
     }
 
     private fun startEvaluationLoop() {
         lifecycleScope.launch {
-            repository.uiState.collectLatest { /* keep repo hot */ }
-        }
-        lifecycleScope.launch {
-            while (true) {
-                evaluateCurrentTick()
-                delay(5_000L)
-            }
+            repository.awaitInitialized()
+            repository.uiState
+                .map { it.simulationScenario }
+                .distinctUntilChanged()
+                .collectLatest { scenario ->
+                    if (scenario == SimulationScenario.LIVE_SENSORS) {
+                        registerSensorsIfPermitted()
+                        while (isActive) {
+                            evaluateLiveTick()
+                            delay(EVAL_TICK_MS)
+                        }
+                    } else {
+                        // デモ中は実センサー・5秒ティックを止めてバッテリーと CPU を節約し、切替時のみ 1回通知・同期
+                        unregisterSensors()
+                        pushCurrentDemoSnapshotOnce()
+                    }
+                }
         }
     }
 
-    private suspend fun evaluateCurrentTick() {
+    private suspend fun pushCurrentDemoSnapshotOnce() {
+        val currentState = repository.uiState.value
+        val snapshot = currentState.snapshot
+        val evaluation = currentState.evaluation
+        if (evaluation.shouldTriggerAlert && snapshot.currentHeartRateBpm != null && evaluation.deltaFromRestingBpm != null) {
+            CalmAlertNotifier.notifyGentleElevation(
+                context = this,
+                currentBpm = snapshot.currentHeartRateBpm!!,
+                deltaBpm = evaluation.deltaFromRestingBpm!!
+            )
+            repository.markAlertSent(snapshot.sampledAtEpochMs)
+        }
+        pushLiveStateIfNeeded(
+            snapshot = snapshot,
+            state = evaluation.state,
+            calmScore = evaluation.calmScore,
+            forceUrgent = true,
+            now = System.currentTimeMillis()
+        )
+    }
+
+    private suspend fun evaluateLiveTick() {
         val now = System.currentTimeMillis()
         val currentState = repository.uiState.value
         val baseline = repository.resolveCurrentBaseline()
 
-        val snapshot = when (currentState.simulationScenario) {
-            SimulationScenario.LIVE_SENSORS -> {
-                latestMotionState = stillnessTracker.recordSample(
-                    epochMs = now,
-                    accelMagnitudeVariance = computeAccelVariance()
-                )
-                val bpm = latestLiveBpm
-                if (bpm != null && isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED) {
-                    if (bpm < baseline.bpm + currentState.preferences.elevationThresholdBpm) {
-                        repository.recordStillHeartRateSample(bpm)
-                    }
-                }
-                val sustainedSec = computeSustainedElevationSeconds(
-                    bpm = bpm,
-                    baselineBpm = baseline.bpm,
-                    threshold = currentState.preferences.elevationThresholdBpm,
-                    motion = latestMotionState,
-                    onBody = isWatchOnBody,
-                    nowMs = now
-                )
-                BiometricSnapshot(
-                    currentHeartRateBpm = bpm,
-                    restingBaselineBpm = baseline.bpm,
-                    baselineSource = baseline.source,
-                    motionState = if (isWatchOnBody) latestMotionState else MotionState.OFF_BODY,
-                    isWatchOnBody = isWatchOnBody,
-                    sustainedElevationSeconds = sustainedSec,
-                    sampledAtEpochMs = now,
-                    isSimulated = false
-                )
+        latestMotionState = stillnessTracker.recordSample(
+            epochMs = now,
+            accelMagnitudeVariance = computeAccelVariance()
+        )
+        val bpm = latestLiveBpm
+        if (bpm != null && isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED) {
+            if (bpm < baseline.bpm + currentState.preferences.elevationThresholdBpm) {
+                repository.recordStillHeartRateSample(bpm)
             }
-            SimulationScenario.CALM_AT_REST -> BiometricSnapshot(
-                currentHeartRateBpm = baseline.bpm + 2,
-                restingBaselineBpm = baseline.bpm,
-                baselineSource = baseline.source,
-                motionState = MotionState.STILL_CONFIRMED,
-                isWatchOnBody = true,
-                sustainedElevationSeconds = 0,
-                sampledAtEpochMs = now,
-                isSimulated = true
-            )
-            SimulationScenario.ELEVATED_AT_REST -> BiometricSnapshot(
-                currentHeartRateBpm = baseline.bpm + currentState.preferences.elevationThresholdBpm + 6,
-                restingBaselineBpm = baseline.bpm,
-                baselineSource = baseline.source,
-                motionState = MotionState.STILL_CONFIRMED,
-                isWatchOnBody = true,
-                sustainedElevationSeconds = currentState.preferences.requiredSustainedSeconds + 15,
-                sampledAtEpochMs = now,
-                isSimulated = true
-            )
-            SimulationScenario.POST_WALK_MOVEMENT -> BiometricSnapshot(
-                currentHeartRateBpm = baseline.bpm + 26,
-                restingBaselineBpm = baseline.bpm,
-                baselineSource = baseline.source,
-                motionState = MotionState.RECENT_MOVEMENT,
-                isWatchOnBody = true,
-                sustainedElevationSeconds = 120,
-                sampledAtEpochMs = now,
-                isSimulated = true
-            )
         }
+        val sustainedSec = computeSustainedElevationSeconds(
+            bpm = bpm,
+            baselineBpm = baseline.bpm,
+            threshold = currentState.preferences.elevationThresholdBpm,
+            motion = latestMotionState,
+            onBody = isWatchOnBody,
+            nowMs = now
+        )
+        val snapshot = BiometricSnapshot(
+            currentHeartRateBpm = bpm,
+            restingBaselineBpm = baseline.bpm,
+            baselineSource = baseline.source,
+            motionState = if (isWatchOnBody) latestMotionState else MotionState.OFF_BODY,
+            isWatchOnBody = isWatchOnBody,
+            sustainedElevationSeconds = sustainedSec,
+            sampledAtEpochMs = now,
+            isSimulated = false
+        )
 
         val evaluation = repository.updateSensorSnapshot(snapshot)
 
@@ -274,35 +321,63 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                 deltaBpm = evaluation.deltaFromRestingBpm!!
             )
             repository.markAlertSent(now)
-            if (!snapshot.isSimulated) {
-                syncClient.sendCalmEvent(
-                    CalmEventRecord(
-                        id = UUID.randomUUID().toString(),
-                        timestampEpochMs = now,
-                        peakBpm = snapshot.currentHeartRateBpm!!,
-                        restingBaselineBpm = snapshot.restingBaselineBpm,
-                        sustainedSeconds = snapshot.sustainedElevationSeconds,
-                        actionTaken = CalmEventAction.ALERT_SENT,
-                        isSimulated = false
-                    )
+            syncClient.sendCalmEvent(
+                CalmEventRecord(
+                    id = UUID.randomUUID().toString(),
+                    timestampEpochMs = now,
+                    peakBpm = snapshot.currentHeartRateBpm!!,
+                    restingBaselineBpm = snapshot.restingBaselineBpm,
+                    sustainedSeconds = snapshot.sustainedElevationSeconds,
+                    actionTaken = CalmEventAction.ALERT_SENT,
+                    isSimulated = false
                 )
-            }
+            )
         }
 
-        if (now - lastSyncPushMs >= 15_000L || evaluation.shouldTriggerAlert) {
+        pushLiveStateIfNeeded(
+            snapshot = snapshot,
+            state = evaluation.state,
+            calmScore = evaluation.calmScore,
+            forceUrgent = evaluation.shouldTriggerAlert,
+            now = now
+        )
+    }
+
+    private suspend fun pushLiveStateIfNeeded(
+        snapshot: BiometricSnapshot,
+        state: OmamoriState,
+        calmScore: Int,
+        forceUrgent: Boolean,
+        now: Long
+    ) {
+        val stateChanged = lastSyncedState != state ||
+            lastSyncedMotion != snapshot.motionState ||
+            lastSyncedOnBody != snapshot.isWatchOnBody
+        val bpmDelta = abs((snapshot.currentHeartRateBpm ?: -1) - (lastSyncedBpm ?: -1))
+        val elapsed = now - lastSyncPushMs
+        val significantBpmChange = bpmDelta >= 2 && elapsed >= SYNC_MIN_BPM_DELTA_INTERVAL_MS
+        val heartbeatDue = elapsed >= SYNC_HEARTBEAT_INTERVAL_MS
+
+        if (forceUrgent || stateChanged || significantBpmChange || heartbeatDue) {
+            val urgent = forceUrgent || stateChanged
             lastSyncPushMs = now
+            lastSyncedState = state
+            lastSyncedMotion = snapshot.motionState
+            lastSyncedOnBody = snapshot.isWatchOnBody
+            lastSyncedBpm = snapshot.currentHeartRateBpm
             syncClient.pushLiveState(
-                WatchLivePayload(
+                payload = WatchLivePayload(
                     currentHeartRateBpm = snapshot.currentHeartRateBpm,
                     restingBaselineBpm = snapshot.restingBaselineBpm,
                     baselineSource = snapshot.baselineSource,
                     motionState = snapshot.motionState,
-                    omamoriState = evaluation.state,
-                    calmScore = evaluation.calmScore,
+                    omamoriState = state,
+                    calmScore = calmScore,
                     isWatchOnBody = snapshot.isWatchOnBody,
                     isSimulated = snapshot.isSimulated,
                     updatedAtEpochMs = now
-                )
+                ),
+                urgent = urgent
             )
         }
     }
@@ -328,24 +403,29 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private fun startOneMinuteCalibration() {
         calibrationJob?.cancel()
         calibrationJob = lifecycleScope.launch {
-            for (remaining in 60 downTo 1) {
-                repository.setCalibrationProgress(active = true, remainingSeconds = remaining)
-                val bpm = latestLiveBpm
-                if (bpm != null && isWatchOnBody) {
-                    repository.recordStillHeartRateSample(bpm)
+            try {
+                for (remaining in 60 downTo 1) {
+                    repository.setCalibrationProgress(active = true, remainingSeconds = remaining)
+                    val bpm = latestLiveBpm
+                    if (bpm != null && isWatchOnBody) {
+                        repository.recordStillHeartRateSample(bpm)
+                    }
+                    delay(1_000L)
                 }
-                delay(1_000L)
+            } finally {
+                repository.setCalibrationProgress(active = false, remainingSeconds = 0)
+                repository.flushLearnedSamples()
+                repository.forceRefreshComplicationsAndTile()
             }
-            repository.setCalibrationProgress(active = false, remainingSeconds = 0)
-            repository.forceRefreshComplicationsAndTile()
         }
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        sensorManager.unregisterListener(this)
-        if (measureRegistered) {
-            runCatching { measureClient.unregisterMeasureCallbackAsync(DataType.HEART_RATE_BPM, hrCallback) }
+        calibrationJob?.cancel()
+        unregisterSensors()
+        CoroutineScope(Dispatchers.IO).launch {
+            repository.flushLearnedSamples()
         }
+        super.onDestroy()
     }
 }

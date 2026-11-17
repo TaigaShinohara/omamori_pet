@@ -25,11 +25,13 @@ class WatchSyncClient(private val context: Context) {
     private val messageClient by lazy { Wearable.getMessageClient(context) }
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
 
-    suspend fun pushLiveState(payload: WatchLivePayload) {
+    suspend fun pushLiveState(payload: WatchLivePayload, urgent: Boolean = true) {
         runCatching {
             val request = PutDataMapRequest.create(DataLayerPaths.WATCH_LIVE_STATE).apply {
                 dataMap.putString(DataLayerPaths.KEY_PAYLOAD, OmamoriJson.encode(payload))
-            }.asPutDataRequest().setUrgent()
+            }.asPutDataRequest().apply {
+                if (urgent) setUrgent()
+            }
             dataClient.putDataItem(request).await()
         }
     }

@@ -67,4 +67,38 @@ class TemplateCalmAdvisorEngineTest {
         assertTrue(output.text.contains("7 bpm"))
         assertFalse(output.usedGeminiNano)
     }
+
+    @Test
+    fun `resting advice differs cleanly between phone-only and connected watch`() = runBlocking {
+        val phoneOnly = engine.generateReflection(
+            AdvisorInput(
+                omamoriState = OmamoriState.RESTING,
+                currentBpm = null,
+                restingBaselineBpm = 65,
+                motionState = MotionState.OFF_BODY,
+                todayElevatedCount = 0,
+                todayBreathingCount = 0,
+                lastBreathingDeltaBpm = null,
+                isWatchConnected = false,
+                isJapanese = true
+            )
+        )
+        assertTrue(phoneOnly.text.contains("時計がなくても"))
+        assertFalse(phoneOnly.text.contains("Watch を手首につけると"))
+
+        val watchConnected = engine.generateReflection(
+            AdvisorInput(
+                omamoriState = OmamoriState.RESTING,
+                currentBpm = null,
+                restingBaselineBpm = 65,
+                motionState = MotionState.OFF_BODY,
+                todayElevatedCount = 0,
+                todayBreathingCount = 0,
+                lastBreathingDeltaBpm = null,
+                isWatchConnected = true,
+                isJapanese = true
+            )
+        )
+        assertTrue(watchConnected.text.contains("手首につけると"))
+    }
 }

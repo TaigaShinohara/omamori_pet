@@ -21,24 +21,27 @@
 
     <string name="status_calm_detail">Heart rate is steady at rest.</string>
     <string name="status_elevated_detail">Heart rate is +%1$d bpm above rest while still.</string>
-    <string name="status_breathing_detail">Following a gentle 4-2-6 breath.</string>
+    <string name="status_breathing_detail">Following a slow, gentle breathing pace.</string>
     <string name="status_resting_detail">Wear your watch to begin quiet sensing.</string>
 
     <string name="action_breathe_1m">1-min Breathe</string>
-    <string name="action_snooze_1h">I\'m fine (1h)</string>
-    <string name="action_demo_settings">Settings &amp; Demo</string>
-    <string name="action_calibrate">1-min Calm Calibration</string>
+    <string name="action_snooze_1h">Pause 1h</string>
+    <string name="action_demo_settings">Settings</string>
+    <string name="action_calibrate">Learn resting HR</string>
+    <string name="action_calibrate_desc">Sit still 1 min</string>
     <string name="action_grant_permissions">Enable Sensors</string>
     <string name="action_open_settings">Open Settings</string>
+    <string name="action_exit_demo">Exit demo</string>
 
     <string name="breathing_inhale">Inhale softly</string>
     <string name="breathing_hold">Hold gently</string>
     <string name="breathing_exhale">Exhale slowly</string>
     <string name="breathing_seconds_left">%1$ds</string>
+    <string name="breathing_cycle_label">%1$d/%2$d</string>
     <string name="breathing_done_title">Nice and steady</string>
-    <string name="breathing_done_reduced">Heart rate eased %1$d → %2$d bpm (-%3$d)</string>
-    <string name="breathing_done_steady">Took a calm minute for your breath (%1$d bpm).</string>
-    <string name="breathing_done_summary">Completed a calm minute.</string>
+    <string name="breathing_done_reduced">HR %1$d → %2$d bpm (-%3$d)</string>
+    <string name="breathing_done_steady">1 calm minute (%1$d bpm)</string>
+    <string name="breathing_done_summary">Completed 1-min breath.</string>
     <string name="breathing_stop">Stop</string>
     <string name="breathing_back">Done</string>
 
@@ -51,24 +54,32 @@
     <string name="notif_alert_body">You\'ve been still, and HR is %1$d bpm (+%2$d). Want a 1-minute breath?</string>
 
     <string name="permission_title">Sensor Permission</string>
-    <string name="permission_body">Used only on-device to read live heart rate and tell stillness apart from walking.</string>
+    <string name="permission_body">Reads heart rate and stillness locally on-device.</string>
     <string name="permission_denied_recovery">Sensors are off. Grant access in Settings or try Demo Mode.</string>
 
-    <string name="baseline_label">Resting baseline: %1$d bpm</string>
-    <string name="still_confirmed">At rest (3+ min)</string>
-    <string name="recent_movement">Moving / post-activity</string>
+    <string name="notif_permission_off">Notifications are off</string>
+    <string name="notif_permission_off_sub">Tap to allow or open Settings</string>
+
+    <string name="calibration_running">Measuring baseline… %1$ds</string>
+    <string name="calibration_running_sub">Sit comfortably and stay still</string>
+    <string name="calibration_done">Resting baseline updated (%1$d bpm)</string>
+
+    <string name="baseline_label">Base %1$d bpm</string>
+    <string name="still_confirmed">Still 3m+</string>
+    <string name="recent_movement">Post-walk</string>
     <string name="off_body">Off wrist</string>
     <string name="demo_badge">DEMO</string>
-    <string name="non_medical_note">Wellness companion only; not medical advice.</string>
+    <string name="non_medical_note">Wellness use only; not medical.</string>
 
-    <string name="settings_section_alerts">Gentle Notices</string>
-    <string name="settings_alerts_on">Alerts: ON</string>
-    <string name="settings_alerts_off">Alerts: OFF</string>
+    <string name="settings_section_alerts">Notices</string>
+    <string name="settings_alerts_label">Gentle alerts</string>
+    <string name="settings_alerts_secondary">When still 3m+</string>
     <string name="settings_snoozed_confirm">Paused for 1 hour</string>
-    <string name="settings_section_demo">Demo Simulation</string>
+    <string name="settings_section_demo">Demo Preview</string>
     <string name="demo_live">Live Sensors</string>
     <string name="demo_calm">Demo: Calm</string>
     <string name="demo_elevated">Demo: Elevated at rest</string>
     <string name="demo_moving">Demo: Post-walk</string>
     <string name="calibration_requires_sensors">Switch to Live Sensors and allow permissions to calibrate.</string>
+    <string name="avatar_tap_action">React gently</string>
 </resources>

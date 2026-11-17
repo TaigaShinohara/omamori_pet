@@ -1,10 +1,10 @@
 package com.omamoripet.wear.ui
 
-import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -25,13 +25,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.wear.R
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
@@ -51,16 +53,12 @@ private data class WearEyePose(
 fun OmamoriPetWearAvatar(
     state: OmamoriState,
     contentDescriptionText: String,
-    breathProgress: Float = 0.5f,
+    breathProgressProvider: () -> Float = { 0.5f },
     size: Dp = 64.dp,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val animationsEnabled = Settings.Global.getFloat(
-        context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f
-    ) > 0f
+    val animationsEnabled = LocalWearAnimationsEnabled.current
+    val tapLabel = stringResource(R.string.avatar_tap_action)
 
     var targetPose by remember {
         mutableStateOf(WearEyePose(0.34f, -0.24f, 1f, 1f, 1f, 0.42f))
@@ -85,6 +83,7 @@ fun OmamoriPetWearAvatar(
 
         when (state) {
             OmamoriState.CALM -> {
+                delay(900L)
                 val script = listOf(
                     WearEyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L,
                     WearEyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,
@@ -135,23 +134,38 @@ fun OmamoriPetWearAvatar(
     val effectiveTarget = if (state == OmamoriState.BREATHING) {
         WearEyePose(
             gazeX = 0f,
-            gazeY = 0.20f - 0.38f * breathProgress,
-            leftHeightScale = 0.28f + 0.78f * breathProgress,
-            rightHeightScale = 0.28f + 0.78f * breathProgress,
-            widthScale = 1.20f - 0.18f * breathProgress,
-            cornerFactor = 0.48f - 0.08f * breathProgress
+            gazeY = 0.01f,
+            leftHeightScale = 0.67f,
+            rightHeightScale = 0.67f,
+            widthScale = 1.11f,
+            cornerFactor = 0.44f
         )
     } else {
         targetPose
     }
 
-    val eyeSpring = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
-    val gazeX by animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "wGazeX")
-    val gazeY by animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "wGazeY")
-    val leftH by animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "wLeftH")
-    val rightH by animateFloatAsState(effectiveTarget.rightHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "wRightH")
-    val widthScale by animateFloatAsState(effectiveTarget.widthScale, animationSpec = eyeSpring, label = "wWidthScale")
-    val cornerFactor by animateFloatAsState(effectiveTarget.cornerFactor, animationSpec = eyeSpring, label = "wCorner")
+    val eyeSpring = remember(animationsEnabled) {
+        if (animationsEnabled) {
+            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+        } else {
+            snap()
+        }
+    }
+    val blinkSpec = remember(animationsEnabled) {
+        if (animationsEnabled) {
+            tween<Float>(160, easing = FastOutSlowInEasing)
+        } else {
+            snap()
+        }
+    }
+
+    // Draw フェーズでのみ .value を読み取り、アニメーション中の毎フレーム Recomposition を防ぐ
+    val gazeXState = animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "wGazeX")
+    val gazeYState = animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "wGazeY")
+    val leftHState = animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = blinkSpec, label = "wLeftH")
+    val rightHState = animateFloatAsState(effectiveTarget.rightHeightScale, animationSpec = blinkSpec, label = "wRightH")
+    val widthScaleState = animateFloatAsState(effectiveTarget.widthScale, animationSpec = eyeSpring, label = "wWidthScale")
+    val cornerFactorState = animateFloatAsState(effectiveTarget.cornerFactor, animationSpec = eyeSpring, label = "wCorner")
 
     val colorScheme = MaterialTheme.colorScheme
     val targetBodyColor = when (state) {
@@ -160,31 +174,64 @@ fun OmamoriPetWearAvatar(
         OmamoriState.BREATHING -> colorScheme.secondary
         OmamoriState.RESTING -> colorScheme.outline
     }
-    val bodyColor by animateColorAsState(targetBodyColor, animationSpec = tween(450), label = "wBodyColor")
+    val bodyColorState = animateColorAsState(
+        targetValue = targetBodyColor,
+        animationSpec = if (animationsEnabled) MaterialTheme.motionScheme.defaultEffectsSpec() else snap(),
+        label = "wBodyColor"
+    )
     val eyeColor = Color.White
-
-    val haloScale = if (!animationsEnabled) {
-        1f
-    } else if (state == OmamoriState.BREATHING) {
-        0.90f + 0.22f * breathProgress
-    } else {
-        1.0f + 0.03f * abs(gazeY)
-    }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Canvas(
         modifier = modifier
             .size(size)
             .semantics { contentDescription = contentDescriptionText }
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
+                enabled = state != OmamoriState.BREATHING && animationsEnabled,
+                onClickLabel = tapLabel,
+                role = Role.Button,
                 onClick = { tapWinkTrigger++ }
             )
     ) {
         val w = this.size.width
-        val h = this.size.height
         val cx = w / 2f
-        val cy = h / 2f
+        val cy = this.size.height / 2f
+
+        val isBreathing = state == OmamoriState.BREATHING
+        val breathProgress = if (isBreathing) breathProgressProvider().coerceIn(0f, 1f) else 0.5f
+
+        val gazeX: Float
+        val gazeY: Float
+        val leftH: Float
+        val rightH: Float
+        val widthScale: Float
+        val cornerFactor: Float
+        if (isBreathing) {
+            gazeX = 0f
+            gazeY = 0.20f - 0.38f * breathProgress
+            leftH = 0.28f + 0.78f * breathProgress
+            rightH = leftH
+            widthScale = 1.20f - 0.18f * breathProgress
+            cornerFactor = 0.48f - 0.08f * breathProgress
+        } else {
+            gazeX = gazeXState.value
+            gazeY = gazeYState.value
+            leftH = leftHState.value
+            rightH = rightHState.value
+            widthScale = widthScaleState.value
+            cornerFactor = cornerFactorState.value
+        }
+
+        val bodyColor = bodyColorState.value
+        val haloScale = if (!animationsEnabled) {
+            1f
+        } else if (isBreathing) {
+            0.90f + 0.22f * breathProgress
+        } else {
+            1.0f + 0.03f * abs(gazeY)
+        }
 
         drawCircle(
             color = bodyColor.copy(alpha = 0.22f),
@@ -200,7 +247,7 @@ fun OmamoriPetWearAvatar(
             )
         }
 
-        val bodyRadius = w * 0.36f * (if (state == OmamoriState.BREATHING) (0.93f + 0.11f * breathProgress) else 1f)
+        val bodyRadius = w * 0.36f * (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathProgress) else 1f)
         drawCircle(
             color = bodyColor,
             radius = bodyRadius,

@@ -24,6 +24,7 @@ import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 
 private const val RESOURCES_VERSION = "1"
@@ -34,7 +35,13 @@ private const val ID_PET_RESTING = "pet_resting"
 
 class OmamoriTileService : TileService() {
 
-    private val serviceScope = CoroutineScope(Dispatchers.Main.immediate)
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
+
+    override fun onDestroy() {
+        serviceJob.cancel()
+        super.onDestroy()
+    }
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> =
         serviceScope.future {
@@ -80,10 +87,20 @@ class OmamoriTileService : TileService() {
                 )
                 .build()
 
+            val primaryColor = when (state) {
+                OmamoriState.ELEVATED_AT_REST -> 0xFFE8B878.toInt()
+                OmamoriState.BREATHING -> 0xFF93C7B5.toInt()
+                OmamoriState.CALM, OmamoriState.RESTING -> 0xFF8FD3B6.toInt()
+            }
+            val onPrimaryColor = when (state) {
+                OmamoriState.ELEVATED_AT_REST -> 0xFF2E1E08.toInt()
+                OmamoriState.BREATHING -> 0xFF0B251D.toInt()
+                OmamoriState.CALM, OmamoriState.RESTING -> 0xFF0A261B.toInt()
+            }
             val materialColors = Colors(
-                0xFF8FD3B6.toInt(),
-                0xFF11161D.toInt(),
-                0xFF1B242F.toInt(),
+                primaryColor,
+                onPrimaryColor,
+                0xFF1D2631.toInt(),
                 0xFFECE8DF.toInt()
             )
 
@@ -105,13 +122,13 @@ class OmamoriTileService : TileService() {
                 .addContent(
                     Text.Builder(this@OmamoriTileService, bpmText)
                         .setTypography(Typography.TYPOGRAPHY_BODY1)
-                        .setColor(ColorBuilders.argb(0xFFB9C8C0.toInt()))
+                        .setColor(ColorBuilders.argb(primaryColor))
                         .build()
                 )
                 .addContent(
                     Text.Builder(this@OmamoriTileService, motionLabel)
                         .setTypography(Typography.TYPOGRAPHY_CAPTION1)
-                        .setColor(ColorBuilders.argb(0xFF9AA6B2.toInt()))
+                        .setColor(ColorBuilders.argb(0xFFB4BCC4.toInt()))
                         .build()
                 )
                 .build()

@@ -6,79 +6,217 @@
     <string name="nav_history">ふりかえり</string>
     <string name="nav_settings">設定</string>
 
-    <string name="state_calm_title">おだやかです</string>
-    <string name="state_elevated_title">静止中に心拍がやや高め</string>
-    <string name="state_breathing_title">深呼吸しています</string>
-    <string name="state_resting_title">ウォッチの計測待ち</string>
+    <string name="state_calm_title">おだやか</string>
+    <string name="state_elevated_title">静止中に心拍が高め</string>
+    <string name="state_breathing_title">深呼吸中</string>
+    <string name="state_resting_title">Watch 装着待ち</string>
+    <string name="state_phone_ready_title">いつでも深呼吸</string>
 
-    <string name="state_calm_desc">平常時の落ち着いた心拍ペースと調和しています。</string>
-    <string name="state_elevated_desc">動いていない状態で、普段より +%1$d bpm 高めが続いています。</string>
-    <string name="state_breathing_desc">4-2-6 のゆったりしたリズムで整えています。</string>
-    <string name="state_resting_desc">Pixel Watch を装着すると同期します。設定タブのデモ表示でも体験できます。</string>
+    <string name="state_elevated_desc">いつもの +%1$d bpm。1分だけ息を整えましょう。</string>
+    <string name="state_breathing_desc">ゆっくり息を合わせています。</string>
+    <string name="state_phone_ready_desc">時計なしでも1分で整えられます。</string>
 
-    <string name="watch_badge_demo">デモ表示中</string>
-    <string name="watch_badge_connected">Watch 連携済み · %1$s</string>
-    <string name="watch_badge_disconnected">Watch 同期待ち</string>
+    <string name="watch_badge_demo">デモ中</string>
+    <string name="watch_badge_demo_exit">終了</string>
+    <string name="watch_badge_connected">Watch · %1$s</string>
 
     <string name="heart_rate_unit">bpm</string>
-    <string name="baseline_format">平常時の目安: %1$d bpm（%2$s）</string>
-    <string name="baseline_source_hc">Health Connect 同期</string>
-    <string name="baseline_source_watch">ウォッチ自動学習</string>
-    <string name="baseline_source_default">初期目安</string>
+    <string name="baseline_format">目安 %1$d bpm</string>
+    <string name="baseline_hc_only">安静時目安 %1$d bpm</string>
 
-    <string name="motion_still">静止中（平常時 · 3分以上）</string>
-    <string name="motion_moving">移動・歩行直後（誤検知ガード中）</string>
+    <string name="motion_still">静止 3分+</string>
+    <string name="motion_moving">歩行後（除外）</string>
     <string name="motion_off">未装着</string>
 
-    <string name="cta_breathe_phone">1分間の深呼吸ガイド</string>
-    <string name="cta_breathe_watch">ウォッチで呼吸を開く</string>
-    <string name="snackbar_watch_not_connected">ウォッチ未接続のため、スマホ側の深呼吸ガイドを開きました。</string>
+    <string name="cta_breathe_phone">1分間の深呼吸</string>
+    <string name="cta_breathe_watch">ウォッチで開く</string>
+    <string name="snackbar_watch_not_connected">ウォッチに届きませんでした。スマホで開きますか？</string>
+    <string name="snackbar_watch_open_phone">スマホで開く</string>
 
-    <string name="ai_card_title">お守りからの整理</string>
+    <string name="watch_guide_title">Pixel Watch とつなぐ</string>
+    <string name="watch_guide_step1">1. Watch に本アプリを導入</string>
+    <string name="watch_guide_step2">2. Watch でセンサーを許可</string>
+    <string name="watch_guide_step3">3. 手首につけて待機</string>
+    <string name="watch_guide_dismiss">非表示</string>
+
+    <string name="ai_card_title">ひとこと</string>
     <string name="ai_refresh">言葉を新しくする</string>
-    <string name="ai_source_nano">端末内AI: Gemini Nano</string>
-    <string name="ai_source_local">端末内ルール助言</string>
-    <string name="ai_status_downloadable">この Pixel 端末では Gemini Nano を準備できます。</string>
-    <string name="ai_download_btn">Gemini Nano を準備</string>
+    <string name="ai_nano_title">端末内AI（Gemini Nano）</string>
+    <string name="ai_nano_ready">準備済み · 外部送信なし</string>
+    <string name="ai_nano_downloadable">より自然な言葉にできます</string>
+    <string name="ai_download_btn">準備する</string>
+    <string name="ai_preparing">準備中…</string>
+    <string name="ai_prepare_failed">準備できませんでした。標準の言葉をお届けします。</string>
 
-    <string name="hc_title">Health Connect 基準連携</string>
-    <string name="hc_ready">連携済み（安静時 %1$d bpm）</string>
-    <string name="hc_missing_perm">安静時心拍の読み取りを許可すると、個人基準の精度が上がります。</string>
-    <string name="hc_grant_btn">Health Connect を許可</string>
-    <string name="hc_unavailable">Health Connect が未導入ですが、ウォッチ単体の学習基準でそのまま使えます。</string>
+    <string name="hc_title">安静時心拍の連携</string>
+    <string name="hc_ready">連携済み（%1$d bpm）</string>
+    <string name="hc_connected_badge">連携済み</string>
+    <string name="hc_missing_perm">普段の目安を合わせるため読み取ります。</string>
+    <string name="hc_denied_recovery">許可オフです。このまま深呼吸は使えます。</string>
+    <string name="hc_update_required">Health Connect の更新が必要です。</string>
+    <string name="hc_grant_btn">許可する</string>
+    <string name="hc_open_settings_btn">設定を開く</string>
+    <string name="hc_update_btn">更新する</string>
+    <string name="hc_later_btn">あとで</string>
+    <string name="hc_unavailable">未導入でもWatch学習やスマホ深呼吸は使えます。</string>
 
-    <string name="history_title">落ち着きのきろく</string>
-    <string name="history_today_summary">きょう：深呼吸を %1$d 回おこないました</string>
+    <string name="history_title">きろく</string>
+    <string name="history_today_summary">きょうの深呼吸 · %1$d 回</string>
+    <string name="history_demo_summary">デモ記録 · %1$d 回</string>
+    <string name="history_section_today">今日</string>
+    <string name="history_section_earlier">それ以前</string>
     <string name="history_empty_title">まだ記録はありません</string>
-    <string name="history_empty_body">静止中の心拍上昇の気づきや、1分深呼吸の記録がここに残ります。</string>
-    <string name="history_try_breathing">1分深呼吸をためす</string>
-    <string name="history_breath_item">1分間の深呼吸 · %1$s</string>
+    <string name="history_empty_body">深呼吸や気づきがここに残ります。</string>
+    <string name="history_try_breathing">1分間の深呼吸</string>
+    <string name="history_breath_item">深呼吸 · %1$s</string>
+    <string name="history_breath_item_plain">1分間の深呼吸</string>
     <string name="history_breath_delta">%1$d → %2$d bpm</string>
-    <string name="history_breath_duration">%1$d秒の呼吸</string>
-    <string name="history_event_item">静止中の心拍上昇に気づき（%1$d bpm / 目安 %2$d）</string>
-    <string name="history_event_snoozed">通知をおやすみ（1時間休止）</string>
+    <string name="history_breath_duration">%1$d秒</string>
+    <string name="history_event_item">心拍上昇 · %1$d bpm（目安 %2$d）</string>
+    <string name="history_event_snoozed">通知を1時間休止</string>
     <string name="history_demo_tag">デモ</string>
 
-    <string name="settings_alerts_section">やさしい通知の設定</string>
-    <string name="settings_alerts_toggle">静止中の心拍上昇をそっと知らせる</string>
-    <string name="settings_alerts_subtitle">3分以上の静止と90秒の持続を確認してから通知します。</string>
-    <string name="settings_threshold_label">気づきの目安（平常時 +%1$d bpm）</string>
-    <string name="settings_quiet_hours">おやすみ時間（23:00〜07:00は通知しない）</string>
-    <string name="settings_demo_section">動作確認・デモ表示</string>
+    <string name="settings_alerts_section">通知</string>
+    <string name="settings_alerts_toggle">静止中の心拍通知</string>
+    <string name="settings_alerts_subtitle">静止3分・持続90秒で通知</string>
+    <string name="settings_threshold_label">通知の目安（+%1$d bpm）</string>
+    <string name="settings_threshold_sensitive">敏感 (+10)</string>
+    <string name="settings_threshold_relaxed">控えめ (+25)</string>
+    <string name="settings_quiet_hours">おやすみ時間（23:00〜07:00）</string>
+    <string name="settings_haptics_toggle">深呼吸の振動ガイド</string>
+    <string name="settings_haptics_subtitle">手元の振動でペースを案内</string>
+    <string name="settings_data_section">連携・プライバシー</string>
+    <string name="settings_privacy_item">データとプライバシー</string>
+    <string name="settings_privacy_subtitle">安静時心拍のみ・端末内完結</string>
+    <string name="settings_guide_section">使い方</string>
+    <string name="settings_replay_onboarding">はじめの案内を見る</string>
+    <string name="settings_reset_onboarding">案内設定をリセット</string>
+    <string name="settings_reset_onboarding_sub">記録は残ります</string>
+    <string name="settings_reset_onboarding_done">リセットしました</string>
+    <string name="settings_demo_section">体験デモ</string>
+    <string name="settings_demo_subtitle">Watch なしで画面と通知を体験</string>
+    <string name="demo_live">実測</string>
+    <string name="demo_calm">おだやか</string>
+    <string name="demo_elevated">高め(静止)</string>
+    <string name="demo_moving">移動後</string>
     <string name="settings_clear_demo">デモ記録を消去</string>
     <string name="settings_disclaimer_title">ご利用上の注意</string>
-    <string name="settings_disclaimer_body">お守りペットはリラックスと自己観察のためのウェルネスアプリです。医療機器ではなく、疾患の診断・治療を目的としていません。</string>
+    <string name="settings_disclaimer_body">医療機器ではなく、自己観察とリラックスのためのアプリです。</string>
 
     <string name="privacy_title">データとプライバシー</string>
-    <string name="privacy_body">お守りペットは個人基準値（安静時心拍）の精度向上のためにのみ Health Connect から安静時心拍を読み取ります。生体データはすべて端末内で処理され、外部サーバーへ送信されません。</string>
+    <string name="privacy_point_read_title">読み取るデータ</string>
+    <string name="privacy_point_read_body">Health Connect の安静時心拍のみを読み取り、普段の目安調整に使います。</string>
+    <string name="privacy_point_local_title">端末内での完結</string>
+    <string name="privacy_point_local_body">心拍評価やひとことは端末内で処理され、外部へ送信されません。</string>
 
-    <string name="breathing_inhale">鼻からゆっくり吸う（4秒）</string>
-    <string name="breathing_hold">やさしく止める（2秒）</string>
-    <string name="breathing_exhale">細く長く吐き出す（6秒）</string>
+    <string name="avatar_tap_action">ペットとふれあう</string>
+    <string name="breathing_cycle_progress">%2$dセット中 %1$dセット目</string>
+
+    <string name="breathing_inhale">ゆっくり吸う</string>
+    <string name="breathing_hold">そっと止める</string>
+    <string name="breathing_exhale">長く吐き出す</string>
     <string name="breathing_seconds_left">あと %1$d秒</string>
-    <string name="breathing_complete">おつかれさま。自分のペースで大丈夫です。</string>
+    <string name="breathing_complete">1分間の深呼吸をきろくしました</string>
     <string name="breathing_done_back">もどる</string>
-    <string name="breathing_restart">もう1分つづける</string>
+    <string name="breathing_restart">もう1分</string>
     <string name="breathing_stop">やめる</string>
     <string name="back">もどる</string>
+    <string name="section_expanded">展開中</string>
+    <string name="section_collapsed">折りたたみ</string>
+
+    <!-- Onboarding -->
+    <string name="ob_skip">スキップ</string>
+    <string name="ob_next">つぎへ</string>
+    <string name="ob_try_later">あとで試す</string>
+    <string name="ob_home_secondary">ホームへ</string>
+    <string name="ob_select_hint">選ぶと自動で進みます</string>
+
+    <string name="ob_p1_title">なんでもないのに、落ち着かない日へ。</string>
+    <string name="ob_p1_body">動いていないのにドキドキするとき、そっと気づいて息を整えます。</string>
+
+    <string name="ob_p2_title">いま、いちばん気になるのは？</string>
+    <string name="ob_p2_body">選んだ内容に合わせて案内を整えます。</string>
+    <string name="ob_p2_opt1">動いていないのに、心拍が早くて落ち着かない</string>
+    <string name="ob_p2_opt2">自分のいつもの落ち着きを知っておきたい</string>
+    <string name="ob_p2_opt3">まだわからない（まずは見てみたい）</string>
+
+    <string name="ob_p3_title">Pixel Watch はお持ちですか？</string>
+    <string name="ob_p3_body">なくてもスマホだけで今日から使えます。</string>
+    <string name="ob_p3_opt1">持っていて、つなげて使いたい</string>
+    <string name="ob_p3_opt2">今はスマホだけで使ってみたい</string>
+    <string name="ob_p3_opt3">あとで決める（まだわからない）</string>
+
+    <string name="ob_p4_fit_title">お守りペットは、あなたにぴったりです。</string>
+    <string name="ob_p4_undecided_title">まずは 1つだけ、試してみましょう。</string>
+    <string name="ob_p4_reflect_calm_watch">静止中のドキドキを落ち着けたいあなたに。</string>
+    <string name="ob_p4_body_calm_watch">歩いた直後の高い心拍は除外し、落ち着きたいときだけそっと知らせます。</string>
+    <string name="ob_p4_reflect_calm_phone">ふとしたドキドキを落ち着けたいあなたに。</string>
+    <string name="ob_p4_body_calm_phone">時計がなくても、開いてすぐ1分間の深呼吸で息を整えられます。</string>
+    <string name="ob_p4_reflect_calm_undecided">ふとしたドキドキを落ち着けたいあなたに。</string>
+    <string name="ob_p4_body_calm_undecided">まずはスマホの1分深呼吸から始め、あとから Watch もつなげられます。</string>
+    <string name="ob_p4_reflect_learn_watch">いつもの落ち着きを知りたいあなたに。</string>
+    <string name="ob_p4_body_learn_watch">Watch とスマホであなたの平常時目安を少しずつ学び、静かに見守ります。</string>
+    <string name="ob_p4_reflect_learn_phone">自分の落ち着きを確かめたいあなたに。</string>
+    <string name="ob_p4_body_learn_phone">1分間の深呼吸とその日のきろくから、落ち着きの流れを振り返れます。</string>
+    <string name="ob_p4_reflect_learn_undecided">自分の落ち着きを知っておきたいあなたに。</string>
+    <string name="ob_p4_body_learn_undecided">毎日の小さな深呼吸を記録しつつ、Watch を追加すれば自動計測もできます。</string>
+    <string name="ob_p4_reflect_open_watch">Watch とつなげて使ってみたいあなたに。</string>
+    <string name="ob_p4_body_open_watch">手首で見守りつつ、気になったときは振動の呼吸ガイドですぐ整えられます。</string>
+    <string name="ob_p4_reflect_open_phone">まずはスマホだけで試したいあなたに。</string>
+    <string name="ob_p4_body_open_phone">むずかしい設定なしで、開いたその場から1分間の深呼吸を始められます。</string>
+    <string name="ob_p4_reflect_open_undecided">まだ決まっていなくて大丈夫です。</string>
+    <string name="ob_p4_body_open_undecided">時計がなくても、スマホからいつでも穏やかな呼吸を始められます。</string>
+
+    <string name="ob_p5_title">診断ではなく、ひと息の相棒。</string>
+    <string name="ob_p5_body">怖い警告や点数は出しません。そっと寄り添うだけのお守りです。</string>
+
+    <string name="ob_p6_watch_title">歩いたあとの心拍には反応しません。</string>
+    <string name="ob_p6_watch_body">階段や散歩のあとは静かに見送り、落ち着いているときの変化だけを見ます。</string>
+    <string name="ob_p6_phone_title">時計がなくても、1分で息を整えられます。</string>
+    <string name="ob_p6_phone_body">開いたら1タップで、画面と手元のリズムに合わせて深呼吸できます。</string>
+
+    <string name="ob_p7_title">深呼吸のリズムを振動でも伝えますか？</string>
+    <string name="ob_p7_body">画面を見つめなくても、手元の震えで息を合わせられます。</string>
+    <string name="ob_p7_opt1">やさしい振動で教えてほしい</string>
+    <string name="ob_p7_opt2">画面の動きだけで十分</string>
+    <string name="ob_p7_opt3">あとで決める（標準: 振動あり）</string>
+
+    <string name="ob_p8_title_haptics">やさしい振動つきで始めます。</string>
+    <string name="ob_p8_title_visual">静かな画面ガイドのみで始めます。</string>
+    <string name="ob_p8_title_default">まずは標準（振動あり）で始めます。</string>
+    <string name="ob_p8_body">設定タブからいつでも切り替えられます。</string>
+
+    <string name="ob_p9_title">1. みる</string>
+    <string name="ob_p9_body">今の気分や落ち着きを、ペットの色と表情で確かめます。</string>
+    <string name="ob_p10_title">2. すう・はく</string>
+    <string name="ob_p10_body">4秒吸って、2秒止めて、6秒吐く。リズムに合わせるだけです。</string>
+    <string name="ob_p11_title">3. ふりかえる</string>
+    <string name="ob_p11_body">深呼吸できた回数や気づきが、あとから静かに見返せます。</string>
+
+    <string name="ob_p12_title">下の丸を1回押して、ひと息ためす</string>
+    <string name="ob_p12_tap_label">ひと息ためす</string>
+    <string name="ob_p12_inhale">ゆっくり吸って…</string>
+    <string name="ob_p12_exhale">細く長く吐き出しましょう…</string>
+
+    <string name="ob_p13_title">ひと息つけました。</string>
+    <string name="ob_p13_body">1分間の本番でも、同じようにゆったり整えられます。</string>
+
+    <string name="ob_p14_title">続けるほど、自分のリズムが見えてきます。</string>
+    <string name="ob_p14_body">1日1分のひと息から、落ち着いた時間が少しずつ積み重なります。</string>
+
+    <string name="ob_p15_title">1分間の深呼吸からはじめましょう</string>
+    <string name="ob_p15_body">約1分で終わります。いつでも途中でやめられます。</string>
+    <string name="ob_p15_cta">1分間の深呼吸をはじめる</string>
+
+    <string name="ob_praise_choice_1">教えてくれてありがとう。それに合わせて整えます。</string>
+    <string name="ob_praise_choice_2">受け取りました。あなたのペースに合わせます。</string>
+    <string name="ob_praise_choice_3">わかりました。ぴったりの使い方をご案内します。</string>
+
+    <string name="ob_praise_try_1">とても穏やかにできています。</string>
+    <string name="ob_praise_try_2">いいリズムです。この感覚を覚えておけます。</string>
+    <string name="ob_praise_try_3">落ち着いて息が吐けました。</string>
+
+    <string name="ob_praise_complete_1">準備が整いました。あとはあなたのペースで大丈夫です。</string>
+    <string name="ob_praise_complete_2">おつかれさま。いつでもこのひと息に戻れます。</string>
+    <string name="ob_praise_complete_3">ここまでで準備は完了です。今日の落ち着きを始めましょう。</string>
 </resources>

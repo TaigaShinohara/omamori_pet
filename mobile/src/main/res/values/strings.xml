@@ -6,79 +6,217 @@
     <string name="nav_history">History</string>
     <string name="nav_settings">Settings</string>
 
-    <string name="state_calm_title">Steady &amp; Calm</string>
-    <string name="state_elevated_title">A little quick at rest</string>
-    <string name="state_breathing_title">Taking a calm breath</string>
+    <string name="state_calm_title">Calm</string>
+    <string name="state_elevated_title">Elevated at rest</string>
+    <string name="state_breathing_title">Breathing</string>
     <string name="state_resting_title">Waiting for watch</string>
+    <string name="state_phone_ready_title">Ready to breathe</string>
 
-    <string name="state_calm_desc">Your heart rate matches your calm baseline.</string>
-    <string name="state_elevated_desc">You have been still, and your heart rate is +%1$d bpm above baseline.</string>
-    <string name="state_breathing_desc">Following the gentle 4-2-6 breathing pace.</string>
-    <string name="state_resting_desc">Put on your Pixel Watch to sync live heart rate, or try Demo Mode in Settings.</string>
+    <string name="state_elevated_desc">+%1$d bpm at rest. Take a 1-min breath.</string>
+    <string name="state_breathing_desc">Following a gentle pace.</string>
+    <string name="state_phone_ready_desc">Settle in 1 minute, no watch needed.</string>
 
-    <string name="watch_badge_demo">Demo preview</string>
-    <string name="watch_badge_connected">Watch synced · %1$s</string>
-    <string name="watch_badge_disconnected">Watch not synced yet</string>
+    <string name="watch_badge_demo">Demo</string>
+    <string name="watch_badge_demo_exit">Exit</string>
+    <string name="watch_badge_connected">Watch · %1$s</string>
 
     <string name="heart_rate_unit">bpm</string>
-    <string name="baseline_format">Resting baseline: %1$d bpm (%2$s)</string>
-    <string name="baseline_source_hc">Health Connect</string>
-    <string name="baseline_source_watch">Watch learned</string>
-    <string name="baseline_source_default">Initial estimate</string>
+    <string name="baseline_format">Base %1$d bpm</string>
+    <string name="baseline_hc_only">Resting base %1$d bpm</string>
 
-    <string name="motion_still">Still (at rest · 3+ min)</string>
-    <string name="motion_moving">Moving / post-activity</string>
+    <string name="motion_still">Still 3m+</string>
+    <string name="motion_moving">Post-walk</string>
     <string name="motion_off">Off wrist</string>
 
-    <string name="cta_breathe_phone">1-min Guided Breath</string>
+    <string name="cta_breathe_phone">1-min Breath</string>
     <string name="cta_breathe_watch">Open on Watch</string>
-    <string name="snackbar_watch_not_connected">Watch is not connected; opened phone guide instead.</string>
+    <string name="snackbar_watch_not_connected">Could not reach watch. Open on phone?</string>
+    <string name="snackbar_watch_open_phone">Open on Phone</string>
 
-    <string name="ai_card_title">Omamori Reflection</string>
-    <string name="ai_refresh">Refresh advice</string>
-    <string name="ai_source_nano">On-device: Gemini Nano</string>
-    <string name="ai_source_local">On-device: Calm Rule</string>
-    <string name="ai_status_downloadable">Gemini Nano is available to prepare on this Pixel device.</string>
-    <string name="ai_download_btn">Prepare Gemini Nano</string>
+    <string name="watch_guide_title">Connect Pixel Watch</string>
+    <string name="watch_guide_step1">1. Install Omamori Pet on Watch</string>
+    <string name="watch_guide_step2">2. Allow sensors on Watch</string>
+    <string name="watch_guide_step3">3. Wear Watch to auto-pair</string>
+    <string name="watch_guide_dismiss">Hide</string>
 
-    <string name="hc_title">Health Connect Baseline</string>
+    <string name="ai_card_title">Note</string>
+    <string name="ai_refresh">Refresh note</string>
+    <string name="ai_nano_title">On-device AI (Gemini Nano)</string>
+    <string name="ai_nano_ready">Ready · Private</string>
+    <string name="ai_nano_downloadable">Smarter notes available</string>
+    <string name="ai_download_btn">Prepare</string>
+    <string name="ai_preparing">Preparing…</string>
+    <string name="ai_prepare_failed">Couldn\'t prepare. Using standard calm notes.</string>
+
+    <string name="hc_title">Resting HR Sync</string>
     <string name="hc_ready">Connected (%1$d bpm)</string>
-    <string name="hc_missing_perm">Grant Resting Heart Rate access to sharpen your personal baseline.</string>
-    <string name="hc_grant_btn">Connect Health Connect</string>
-    <string name="hc_unavailable">Health Connect is unavailable on this device. Watch-learned baseline is used automatically.</string>
+    <string name="hc_connected_badge">Connected</string>
+    <string name="hc_missing_perm">Reads resting HR to tailor your baseline.</string>
+    <string name="hc_denied_recovery">Permission off. Breathing still works.</string>
+    <string name="hc_update_required">Health Connect update needed.</string>
+    <string name="hc_grant_btn">Allow</string>
+    <string name="hc_open_settings_btn">Open Settings</string>
+    <string name="hc_update_btn">Update</string>
+    <string name="hc_later_btn">Later</string>
+    <string name="hc_unavailable">Unavailable here. Watch learning and phone breathing still work.</string>
 
-    <string name="history_title">Calm Reflections</string>
-    <string name="history_today_summary">Today: %1$d breathing session(s) completed</string>
-    <string name="history_empty_title">No events recorded yet</string>
-    <string name="history_empty_body">Quiet heart rate notices and 1-minute breathing sessions will appear here.</string>
-    <string name="history_try_breathing">Try a 1-min Breath</string>
-    <string name="history_breath_item">1-min Breath · %1$s</string>
+    <string name="history_title">Reflections</string>
+    <string name="history_today_summary">Today · %1$d breath(s)</string>
+    <string name="history_demo_summary">Demo · %1$d breath(s)</string>
+    <string name="history_section_today">Today</string>
+    <string name="history_section_earlier">Earlier</string>
+    <string name="history_empty_title">No records yet</string>
+    <string name="history_empty_body">Breathing and notices appear here.</string>
+    <string name="history_try_breathing">1-min Breath</string>
+    <string name="history_breath_item">Breath · %1$s</string>
+    <string name="history_breath_item_plain">1-min Breath</string>
     <string name="history_breath_delta">%1$d → %2$d bpm</string>
-    <string name="history_breath_duration">%1$ds calm breath</string>
-    <string name="history_event_item">Noticed elevated HR while still (%1$d vs %2$d bpm)</string>
-    <string name="history_event_snoozed">Snoozed notice (1h rest)</string>
+    <string name="history_breath_duration">%1$ds</string>
+    <string name="history_event_item">Elevated · %1$d bpm (base %2$d)</string>
+    <string name="history_event_snoozed">Paused notices (1h)</string>
     <string name="history_demo_tag">Demo</string>
 
-    <string name="settings_alerts_section">Gentle Proactive Alerts</string>
-    <string name="settings_alerts_toggle">Notify on elevated HR at rest</string>
-    <string name="settings_alerts_subtitle">Requires 3+ min stillness and 90s sustained elevation.</string>
-    <string name="settings_threshold_label">Sensitivity (+%1$d bpm above baseline)</string>
-    <string name="settings_quiet_hours">Quiet hours (23:00 - 07:00)</string>
-    <string name="settings_demo_section">Demo &amp; Verification Mode</string>
+    <string name="settings_alerts_section">Alerts</string>
+    <string name="settings_alerts_toggle">Elevated HR alerts</string>
+    <string name="settings_alerts_subtitle">After 3m still &amp; 90s rise</string>
+    <string name="settings_threshold_label">Sensitivity (+%1$d bpm)</string>
+    <string name="settings_threshold_sensitive">Sensitive (+10)</string>
+    <string name="settings_threshold_relaxed">Relaxed (+25)</string>
+    <string name="settings_quiet_hours">Quiet hours (23:00–07:00)</string>
+    <string name="settings_haptics_toggle">Breathing vibration</string>
+    <string name="settings_haptics_subtitle">Feel inhale and exhale pace</string>
+    <string name="settings_data_section">Data &amp; Privacy</string>
+    <string name="settings_privacy_item">Data &amp; Privacy</string>
+    <string name="settings_privacy_subtitle">Resting HR only · On-device</string>
+    <string name="settings_guide_section">Guide</string>
+    <string name="settings_replay_onboarding">View beginner guide</string>
+    <string name="settings_reset_onboarding">Reset guide choices</string>
+    <string name="settings_reset_onboarding_sub">History is kept</string>
+    <string name="settings_reset_onboarding_done">Reset complete</string>
+    <string name="settings_demo_section">Demo Mode</string>
+    <string name="settings_demo_subtitle">Preview states without a watch</string>
+    <string name="demo_live">Live</string>
+    <string name="demo_calm">Calm</string>
+    <string name="demo_elevated">Elevated</string>
+    <string name="demo_moving">Moving</string>
     <string name="settings_clear_demo">Clear demo records</string>
     <string name="settings_disclaimer_title">Wellness Notice</string>
-    <string name="settings_disclaimer_body">Omamori Pet is a relaxation and self-awareness companion. It is not a medical device and does not diagnose or treat any condition.</string>
+    <string name="settings_disclaimer_body">A relaxation companion, not a medical device.</string>
 
     <string name="privacy_title">Data &amp; Privacy</string>
-    <string name="privacy_body">Omamori Pet reads only your Resting Heart Rate from Health Connect to calibrate your personal baseline on-device. No biometric data is uploaded to external servers.</string>
+    <string name="privacy_point_read_title">What we read</string>
+    <string name="privacy_point_read_body">Only Resting Heart Rate from Health Connect to tailor your baseline.</string>
+    <string name="privacy_point_local_title">Processed on-device</string>
+    <string name="privacy_point_local_body">Heart rate checks and notes stay on your devices—never uploaded.</string>
 
-    <string name="breathing_inhale">Inhale softly (4s)</string>
-    <string name="breathing_hold">Hold gently (2s)</string>
-    <string name="breathing_exhale">Exhale slowly (6s)</string>
+    <string name="avatar_tap_action">React gently</string>
+    <string name="breathing_cycle_progress">Cycle %1$d of %2$d</string>
+
+    <string name="breathing_inhale">Inhale softly</string>
+    <string name="breathing_hold">Hold gently</string>
+    <string name="breathing_exhale">Exhale slowly</string>
     <string name="breathing_seconds_left">%1$ds left</string>
-    <string name="breathing_complete">Well done. Take your time.</string>
+    <string name="breathing_complete">Saved your 1-min breath</string>
     <string name="breathing_done_back">Done</string>
-    <string name="breathing_restart">Breathe again</string>
+    <string name="breathing_restart">Again</string>
     <string name="breathing_stop">Stop</string>
     <string name="back">Back</string>
+    <string name="section_expanded">Expanded</string>
+    <string name="section_collapsed">Collapsed</string>
+
+    <!-- Onboarding -->
+    <string name="ob_skip">Skip</string>
+    <string name="ob_next">Next</string>
+    <string name="ob_try_later">Try later</string>
+    <string name="ob_home_secondary">Go to Home</string>
+    <string name="ob_select_hint">Tap one to continue</string>
+
+    <string name="ob_p1_title">For days you feel restless for no clear reason.</string>
+    <string name="ob_p1_body">Notice when your heart speeds up at rest, and settle gently with a breath.</string>
+
+    <string name="ob_p2_title">What is on your mind most?</string>
+    <string name="ob_p2_body">We\'ll tailor your first guide to fit your pace.</string>
+    <string name="ob_p2_opt1">My heart races even while I\'m sitting still</string>
+    <string name="ob_p2_opt2">I want to learn my usual calm rhythm</string>
+    <string name="ob_p2_opt3">Not sure yet (just exploring)</string>
+
+    <string name="ob_p3_title">Do you have a Pixel Watch?</string>
+    <string name="ob_p3_body">No watch? You can start on your phone today.</string>
+    <string name="ob_p3_opt1">Yes, I want to pair my watch</string>
+    <string name="ob_p3_opt2">I\'ll try on my phone only for now</string>
+    <string name="ob_p3_opt3">Decide later (not sure yet)</string>
+
+    <string name="ob_p4_fit_title">Omamori Pet fits you naturally.</string>
+    <string name="ob_p4_undecided_title">Let\'s try just one calm minute together.</string>
+    <string name="ob_p4_reflect_calm_watch">For calming racing moments at rest.</string>
+    <string name="ob_p4_body_calm_watch">It ignores post-walk spikes and only nudges when you\'re truly still.</string>
+    <string name="ob_p4_reflect_calm_phone">For settling sudden tension anytime.</string>
+    <string name="ob_p4_body_calm_phone">Even without a watch, a 1-minute guided breath is one tap away.</string>
+    <string name="ob_p4_reflect_calm_undecided">For calming moments when your heart feels quick.</string>
+    <string name="ob_p4_body_calm_undecided">Start with 1-minute phone breathing and add a watch anytime later.</string>
+    <string name="ob_p4_reflect_learn_watch">For learning your everyday calm rhythm.</string>
+    <string name="ob_p4_body_learn_watch">It gently learns your resting baseline between your watch and phone.</string>
+    <string name="ob_p4_reflect_learn_phone">For checking in with your calm rhythm.</string>
+    <string name="ob_p4_body_learn_phone">Track your 1-minute breathing sessions and reflect on calm moments.</string>
+    <string name="ob_p4_reflect_learn_undecided">For noticing how your calm rhythm feels.</string>
+    <string name="ob_p4_body_learn_undecided">Log calm breaths daily now, and add watch sensing whenever you choose.</string>
+    <string name="ob_p4_reflect_open_watch">For pairing gently with your Pixel Watch.</string>
+    <string name="ob_p4_body_open_watch">Quiet watch awareness paired with gentle haptic breathing anytime.</string>
+    <string name="ob_p4_reflect_open_phone">For trying gently on your phone first.</string>
+    <string name="ob_p4_body_open_phone">No complex setup needed—begin a 1-minute breath right away.</string>
+    <string name="ob_p4_reflect_open_undecided">No need to decide right away.</string>
+    <string name="ob_p4_body_open_undecided">You can start a gentle breathing session right from your phone anytime.</string>
+
+    <string name="ob_p5_title">A calm companion, never an alarm.</string>
+    <string name="ob_p5_body">No scary warnings or scores—just a quiet guide beside you.</string>
+
+    <string name="ob_p6_watch_title">Post-walk heart rate won\'t trigger alerts.</string>
+    <string name="ob_p6_watch_body">It waits until you are still, so normal movement never feels like a false alarm.</string>
+    <string name="ob_p6_phone_title">Settle in 1 minute, even without a watch.</string>
+    <string name="ob_p6_phone_body">One tap opens a calm visual and haptic breath whenever you need a pause.</string>
+
+    <string name="ob_p7_title">Feel the breath pace with gentle vibration?</string>
+    <string name="ob_p7_body">You can follow the rhythm without even looking at the screen.</string>
+    <string name="ob_p7_opt1">Yes, guide me with soft vibration</string>
+    <string name="ob_p7_opt2">Screen motion only is enough</string>
+    <string name="ob_p7_opt3">Decide later (default: vibration on)</string>
+
+    <string name="ob_p8_title_haptics">Starting with gentle vibration on.</string>
+    <string name="ob_p8_title_visual">Starting with visual guide only.</string>
+    <string name="ob_p8_title_default">Starting with gentle vibration (default).</string>
+    <string name="ob_p8_body">You can switch this anytime in Settings.</string>
+
+    <string name="ob_p9_title">1. Glance</string>
+    <string name="ob_p9_body">Check how calm things feel from Omamori Pet\'s color and expression.</string>
+    <string name="ob_p10_title">2. Breathe</string>
+    <string name="ob_p10_body">Inhale 4s, hold 2s, exhale 6s—just follow the gentle motion.</string>
+    <string name="ob_p11_title">3. Reflect</string>
+    <string name="ob_p11_body">Look back on your breathing sessions and quiet moments anytime.</string>
+
+    <string name="ob_p12_title">Tap the circle once to try a calm breath</string>
+    <string name="ob_p12_tap_label">Try one breath</string>
+    <string name="ob_p12_inhale">Breathe in gently…</string>
+    <string name="ob_p12_exhale">Let it out slowly…</string>
+
+    <string name="ob_p13_title">That was a calm breath.</string>
+    <string name="ob_p13_body">In the full 1-minute guide, you\'ll settle at this same unhurried pace.</string>
+
+    <string name="ob_p14_title">Day by day, your calm rhythm becomes clear.</string>
+    <string name="ob_p14_body">One quiet minute a day gently builds awareness of your steady pace.</string>
+
+    <string name="ob_p15_title">Let\'s begin with a 1-minute breath</string>
+    <string name="ob_p15_body">Takes about a minute. You can stop anytime.</string>
+    <string name="ob_p15_cta">Start 1-min Breath</string>
+
+    <string name="ob_praise_choice_1">Thanks for sharing—tailoring your guide.</string>
+    <string name="ob_praise_choice_2">Got it. Matching this to your pace.</string>
+    <string name="ob_praise_choice_3">Understood. Setting up what fits you best.</string>
+
+    <string name="ob_praise_try_1">Gentle and steady—that felt calm.</string>
+    <string name="ob_praise_try_2">Nice rhythm. You have got the feel of it.</string>
+    <string name="ob_praise_try_3">Calm and unhurried—nicely done.</string>
+
+    <string name="ob_praise_complete_1">All set. Take everything at your own pace.</string>
+    <string name="ob_praise_complete_2">Well done. You can return to this breath anytime.</string>
+    <string name="ob_praise_complete_3">You are ready. Let\'s begin today\'s calm minute.</string>
 </resources>
