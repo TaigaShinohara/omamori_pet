@@ -41,6 +41,12 @@ class PhoneWearSyncClient(private val context: Context) {
         }
     }
 
+    suspend fun hasConnectedWatch(): Boolean {
+        return runCatching {
+            nodeClient.connectedNodes.await().isNotEmpty()
+        }.getOrDefault(false)
+    }
+
     suspend fun sendStartBreathingToWatch(): Boolean {
         return runCatching {
             val nodes = nodeClient.connectedNodes.await()

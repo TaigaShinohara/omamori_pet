@@ -24,6 +24,7 @@ data class AdvisorInput(
     val todayElevatedCount: Int,
     val todayBreathingCount: Int,
     val lastBreathingDeltaBpm: Int?,
+    val isWatchConnected: Boolean = false,
     val isJapanese: Boolean = Locale.getDefault().language == "ja"
 )
 
@@ -66,21 +67,25 @@ class TemplateCalmAdvisorEngine : CalmAdvisorEngine {
         return when (input.omamoriState) {
             OmamoriState.ELEVATED_AT_REST -> {
                 val deltaStr = delta?.let { if (it >= 0) "+$it" else "$it" } ?: "--"
-                "動いていないのに心拍が ${bpm ?: "--"} bpm（普段より $deltaStr）と少し早めです。身体が反応しているだけなので、まずは1分だけ息を長く吐いてみましょう。"
+                "静止中に ${bpm ?: "--"} bpm（普段より $deltaStr）。自然な反応なので、1分だけ長く吐いてみましょう。"
             }
             OmamoriState.BREATHING -> {
-                "いま深呼吸のリズムに合わせられています。肩の力を抜いて、吐く息を長めにしてみましょう。"
+                "肩の力を抜いて、吐く息を長めに。"
             }
             OmamoriState.CALM -> when {
                 input.lastBreathingDeltaBpm != null && input.lastBreathingDeltaBpm < 0 ->
-                    "先ほどの深呼吸で心拍が ${-input.lastBreathingDeltaBpm} bpm 落ち着きました。今は平常時の安定したリズムに戻っています。"
+                    "深呼吸で ${-input.lastBreathingDeltaBpm} bpm 落ち着きました。安定したリズムです。"
                 input.motionState == MotionState.RECENT_MOVEMENT ->
-                    "直近に動きがあったため心拍は活動モードです。自然な反応なので心配はいりません。"
+                    "歩いたあとの自然な変化です。心配いりません。"
                 else ->
-                    "現在の心拍は ${bpm ?: input.restingBaselineBpm} bpm 付近で、平常時の目安（${input.restingBaselineBpm} bpm）とよく調和しています。このままで大丈夫です。"
+                    "目安（${input.restingBaselineBpm} bpm）と調和した穏やかなペースです。"
             }
             OmamoriState.RESTING -> {
-                "ウォッチを装着すると、平常時の基準（${input.restingBaselineBpm} bpm）と比べた状態をお届けします。"
+                if (input.isWatchConnected) {
+                    "手首につけると、いつものリズムで見守りを再開。"
+                } else {
+                    "時計がなくても1分間の深呼吸ができます。"
+                }
             }
         }
     }
@@ -90,19 +95,24 @@ class TemplateCalmAdvisorEngine : CalmAdvisorEngine {
         val delta = bpm?.minus(input.restingBaselineBpm)
         return when (input.omamoriState) {
             OmamoriState.ELEVATED_AT_REST ->
-                "You are still, and your heart rate is ${bpm ?: "--"} bpm (+${delta ?: 0} above your calm baseline). Nothing is wrong—try a gentle 1-minute exhale."
+                "Still at ${bpm ?: "--"} bpm (+${delta ?: 0}). Try a gentle 1-minute exhale."
             OmamoriState.BREATHING ->
-                "You are pacing a soft 4-2-6 breath. Let your shoulders drop on each slow exhale."
+                "Drop your shoulders and lengthen each exhale."
             OmamoriState.CALM -> when {
                 input.lastBreathingDeltaBpm != null && input.lastBreathingDeltaBpm < 0 ->
-                    "Your recent breathing session lowered your heart rate by ${-input.lastBreathingDeltaBpm} bpm. You are back in a calm, steady range."
+                    "Your breath eased heart rate by ${-input.lastBreathingDeltaBpm} bpm. Steady and calm."
                 input.motionState == MotionState.RECENT_MOVEMENT ->
-                    "You were moving recently, so a higher heart rate is completely natural right now."
+                    "Post-walk rise is completely natural right now."
                 else ->
-                    "Your heart rate (${bpm ?: input.restingBaselineBpm} bpm) aligns peacefully with your resting baseline (${input.restingBaselineBpm} bpm)."
+                    "Steady around your ${input.restingBaselineBpm} bpm baseline."
             }
-            OmamoriState.RESTING ->
-                "Put on your Pixel Watch or switch on Demo Mode to reflect on your resting heart rate."
+            OmamoriState.RESTING -> {
+                if (input.isWatchConnected) {
+                    "Put on your Watch to resume quiet awareness."
+                } else {
+                    "Start a 1-minute breath anytime, no watch required."
+                }
+            }
         }
     }
 }

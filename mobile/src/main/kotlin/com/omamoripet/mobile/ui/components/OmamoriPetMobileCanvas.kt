@@ -1,10 +1,10 @@
 package com.omamoripet.mobile.ui.components
 
-import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,11 +26,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.omamoripet.mobile.R
+import com.omamoripet.mobile.ui.theme.LocalAnimationsEnabled
+import com.omamoripet.mobile.ui.theme.OmamoriMotion
 import com.omamoripet.shared.model.OmamoriState
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -51,21 +56,17 @@ private data class EyePose(
 fun OmamoriPetMobileAvatar(
     state: OmamoriState,
     description: String,
-    breathFraction: Float = 0.5f,
+    breathFractionProvider: () -> Float = { 0.5f },
     size: Dp = 112.dp,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val animationsEnabled = Settings.Global.getFloat(
-        context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f
-    ) > 0f
+    val animationsEnabled = LocalAnimationsEnabled.current
+    val tapLabel = stringResource(R.string.avatar_tap_action)
 
     var targetPose by remember {
         mutableStateOf(EyePose(gazeX = 0.34f, gazeY = -0.24f, leftHeightScale = 1f, rightHeightScale = 1f, widthScale = 1f, cornerFactor = 0.42f))
     }
-    var tapWinkTrigger by remember { mutableStateOf(0) }
+    var tapWinkTrigger by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state, animationsEnabled, tapWinkTrigger) {
         if (!animationsEnabled) {
@@ -133,26 +134,40 @@ fun OmamoriPetMobileAvatar(
     }
 
     val effectiveTarget = if (state == OmamoriState.BREATHING) {
-        // 呼吸の吸う・吐くに合わせて目が上下＆細長↔安らぎバーへ滑らかに変形
         EyePose(
             gazeX = 0f,
-            gazeY = 0.20f - 0.38f * breathFraction,
-            leftHeightScale = 0.28f + 0.78f * breathFraction,
-            rightHeightScale = 0.28f + 0.78f * breathFraction,
-            widthScale = 1.20f - 0.18f * breathFraction,
-            cornerFactor = 0.48f - 0.08f * breathFraction
+            gazeY = 0.01f,
+            leftHeightScale = 0.67f,
+            rightHeightScale = 0.67f,
+            widthScale = 1.11f,
+            cornerFactor = 0.44f
         )
     } else {
         targetPose
     }
 
-    val eyeSpring = spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
-    val gazeX by animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "gazeX")
-    val gazeY by animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "gazeY")
-    val leftH by animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "leftH")
-    val rightH by animateFloatAsState(effectiveTarget.rightHeightScale, animationSpec = tween(160, easing = FastOutSlowInEasing), label = "rightH")
-    val widthScale by animateFloatAsState(effectiveTarget.widthScale, animationSpec = eyeSpring, label = "widthScale")
-    val cornerFactor by animateFloatAsState(effectiveTarget.cornerFactor, animationSpec = eyeSpring, label = "corner")
+    val eyeSpring = remember(animationsEnabled) {
+        if (animationsEnabled) {
+            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
+        } else {
+            snap()
+        }
+    }
+    val blinkSpec = remember(animationsEnabled) {
+        if (animationsEnabled) {
+            tween<Float>(160, easing = FastOutSlowInEasing)
+        } else {
+            snap()
+        }
+    }
+
+    // Draw フェーズでのみ .value を読み取り、アニメーション中の毎フレーム Recomposition を防ぐ
+    val gazeXState = animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "gazeX")
+    val gazeYState = animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "gazeY")
+    val leftHState = animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = blinkSpec, label = "leftH")
+    val rightHState = animateFloatAsState(effectiveTarget.rightHeightScale, animationSpec = blinkSpec, label = "rightH")
+    val widthScaleState = animateFloatAsState(effectiveTarget.widthScale, animationSpec = eyeSpring, label = "widthScale")
+    val cornerFactorState = animateFloatAsState(effectiveTarget.cornerFactor, animationSpec = eyeSpring, label = "corner")
 
     val cs = MaterialTheme.colorScheme
     val targetBodyColor = when (state) {
@@ -161,31 +176,65 @@ fun OmamoriPetMobileAvatar(
         OmamoriState.BREATHING -> cs.secondary
         OmamoriState.RESTING -> cs.outline
     }
-    val bodyColor by animateColorAsState(targetBodyColor, animationSpec = tween(450), label = "bodyColor")
+    val bodyColorState = animateColorAsState(
+        targetValue = targetBodyColor,
+        animationSpec = if (animationsEnabled) OmamoriMotion.effectsDefault() else snap(),
+        label = "bodyColor"
+    )
     val eyeColor = Color.White
-
-    val haloScale = if (!animationsEnabled) {
-        1f
-    } else if (state == OmamoriState.BREATHING) {
-        0.90f + 0.22f * breathFraction
-    } else {
-        1.0f + 0.03f * abs(gazeY)
-    }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Canvas(
         modifier = modifier
             .size(size)
             .semantics { contentDescription = description }
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
+                enabled = state != OmamoriState.BREATHING && animationsEnabled,
+                onClickLabel = tapLabel,
+                role = Role.Button,
                 onClick = { tapWinkTrigger++ }
             )
     ) {
         val w = this.size.width
-        val h = this.size.height
         val cx = w / 2f
-        val cy = h / 2f
+        val cy = this.size.height / 2f
+
+        val isBreathing = state == OmamoriState.BREATHING
+        val breathFraction = if (isBreathing) breathFractionProvider().coerceIn(0f, 1f) else 0.5f
+
+        val gazeX: Float
+        val gazeY: Float
+        val leftH: Float
+        val rightH: Float
+        val widthScale: Float
+        val cornerFactor: Float
+        if (isBreathing) {
+            // 呼吸の吸う・吐くに合わせて目が上下＆細長↔安らぎバーへ滑らかに変形
+            gazeX = 0f
+            gazeY = 0.20f - 0.38f * breathFraction
+            leftH = 0.28f + 0.78f * breathFraction
+            rightH = leftH
+            widthScale = 1.20f - 0.18f * breathFraction
+            cornerFactor = 0.48f - 0.08f * breathFraction
+        } else {
+            gazeX = gazeXState.value
+            gazeY = gazeYState.value
+            leftH = leftHState.value
+            rightH = rightHState.value
+            widthScale = widthScaleState.value
+            cornerFactor = cornerFactorState.value
+        }
+
+        val bodyColor = bodyColorState.value
+        val haloScale = if (!animationsEnabled) {
+            1f
+        } else if (isBreathing) {
+            0.90f + 0.22f * breathFraction
+        } else {
+            1.0f + 0.03f * abs(gazeY)
+        }
 
         // 外周の柔らかいオーラリング
         drawCircle(
@@ -203,7 +252,7 @@ fun OmamoriPetMobileAvatar(
         }
 
         // シンプルな球体シルエット（3D球面錯視）
-        val bodyRadius = w * 0.36f * (if (state == OmamoriState.BREATHING) (0.93f + 0.11f * breathFraction) else 1f)
+        val bodyRadius = w * 0.36f * (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathFraction) else 1f)
         drawCircle(
             color = bodyColor,
             radius = bodyRadius,

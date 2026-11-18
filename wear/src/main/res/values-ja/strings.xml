@@ -21,24 +21,27 @@
 
     <string name="status_calm_detail">平常時の落ち着いた心拍です。</string>
     <string name="status_elevated_detail">静止中に普段より +%1$d bpm 高めです。</string>
-    <string name="status_breathing_detail">4-2-6 のリズムで整えています。</string>
+    <string name="status_breathing_detail">ゆっくり吸って吐くリズムで整えています。</string>
     <string name="status_resting_detail">ウォッチを装着すると静かに見守ります。</string>
 
     <string name="action_breathe_1m">1分深呼吸</string>
-    <string name="action_snooze_1h">いま大丈夫 (1時間休止)</string>
-    <string name="action_demo_settings">設定・デモ</string>
-    <string name="action_calibrate">1分 静止基準を測る</string>
+    <string name="action_snooze_1h">1時間休止</string>
+    <string name="action_demo_settings">設定</string>
+    <string name="action_calibrate">基準心拍を測る</string>
+    <string name="action_calibrate_desc">座って1分計測</string>
     <string name="action_grant_permissions">センサーを許可する</string>
-    <string name="action_open_settings">設定を開く</string>
+    <string name="action_open_settings">設定から許可を開く</string>
+    <string name="action_exit_demo">デモ終了</string>
 
-    <string name="breathing_inhale">鼻からゆっくり吸う</string>
-    <string name="breathing_hold">やさしく止める</string>
-    <string name="breathing_exhale">細く長く吐き出す</string>
+    <string name="breathing_inhale">ゆっくり吸う</string>
+    <string name="breathing_hold">そっと止める</string>
+    <string name="breathing_exhale">長く吐く</string>
     <string name="breathing_seconds_left">あと %1$d秒</string>
+    <string name="breathing_cycle_label">%1$d/%2$d回目</string>
     <string name="breathing_done_title">おつかれさま</string>
-    <string name="breathing_done_reduced">心拍 %1$d → %2$d bpm（-%3$d）に落ち着きました</string>
-    <string name="breathing_done_steady">1分間、自分の呼吸に向き合えました（%1$d bpm）</string>
-    <string name="breathing_done_summary">1分間の深呼吸が完了しました。</string>
+    <string name="breathing_done_reduced">心拍 %1$d → %2$d bpm（-%3$d）</string>
+    <string name="breathing_done_steady">1分間おつかれさま（%1$d bpm）</string>
+    <string name="breathing_done_summary">1分間の深呼吸が完了しました</string>
     <string name="breathing_stop">おわる</string>
     <string name="breathing_back">完了</string>
 
@@ -51,24 +54,32 @@
     <string name="notif_alert_body">静止中に %1$d bpm（普段より +%2$d）です。1分だけ息を整えませんか？</string>
 
     <string name="permission_title">センサーの許可</string>
-    <string name="permission_body">心拍数と静止状態を区別するためだけに端末内で使用し、外部へ送信しません。</string>
-    <string name="permission_denied_recovery">センサー許可がオフです。許可するか、設定のデモ表示で体験できます。</string>
+    <string name="permission_body">心拍と静止状態だけを端末内で確認します。</string>
+    <string name="permission_denied_recovery">センサー許可がオフです。設定から許可するか、設定内のデモで体験できます。</string>
 
-    <string name="baseline_label">平常時の目安: %1$d bpm</string>
-    <string name="still_confirmed">静止中（3分以上）</string>
-    <string name="recent_movement">移動・歩行直後</string>
+    <string name="notif_permission_off">通知の許可がオフです</string>
+    <string name="notif_permission_off_sub">タップして許可または設定を開く</string>
+
+    <string name="calibration_running">基準を計測中… あと %1$d秒</string>
+    <string name="calibration_running_sub">楽な姿勢でじっとお待ちください</string>
+    <string name="calibration_done">落ち着き基準を更新しました（%1$d bpm）</string>
+
+    <string name="baseline_label">目安 %1$d bpm</string>
+    <string name="still_confirmed">静止 3分+</string>
+    <string name="recent_movement">歩行後（除外）</string>
     <string name="off_body">未装着</string>
     <string name="demo_badge">デモ中</string>
-    <string name="non_medical_note">医療・診断ではなくセルフケア支援用です。</string>
+    <string name="non_medical_note">医療・診断用ではありません。</string>
 
-    <string name="settings_section_alerts">通知の設定</string>
-    <string name="settings_alerts_on">通知: オン</string>
-    <string name="settings_alerts_off">通知: オフ</string>
-    <string name="settings_snoozed_confirm">1時間おやすみしました</string>
-    <string name="settings_section_demo">動作デモ切替</string>
+    <string name="settings_section_alerts">通知</string>
+    <string name="settings_alerts_label">やさしい通知</string>
+    <string name="settings_alerts_secondary">静止3分以上で通知</string>
+    <string name="settings_snoozed_confirm">1時間おやすみにしました</string>
+    <string name="settings_section_demo">体験デモ切替</string>
     <string name="demo_live">実センサー</string>
     <string name="demo_calm">デモ: おだやか</string>
     <string name="demo_elevated">デモ: 静止中に高め</string>
     <string name="demo_moving">デモ: 歩行直後</string>
     <string name="calibration_requires_sensors">実センサーかつ権限許可時に計測できます。</string>
+    <string name="avatar_tap_action">ペットとふれあう</string>
 </resources>

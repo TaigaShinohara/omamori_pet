@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 import com.omamoripet.shared.domain.CalmStateEvaluator
+import com.omamoripet.shared.domain.ResolvedBaseline
 import com.omamoripet.shared.domain.RestingBaselineLearner
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
@@ -20,11 +21,14 @@ import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
+import com.omamoripet.shared.sync.PreferencesSyncPayload
 import com.omamoripet.wear.complication.HeartRateComplicationService
 import com.omamoripet.wear.complication.PetStateComplicationService
+import com.omamoripet.wear.sync.WatchSyncClient
 import com.omamoripet.wear.tile.OmamoriTileService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Calendar
+import java.time.LocalTime
 
 private val Context.watchDataStore: DataStore<Preferences> by preferencesDataStore(name = "omamori_watch_prefs")
 
@@ -82,33 +86,48 @@ class WatchStateRepository(private val context: Context) {
         val AI_SOURCE_LABEL = stringPreferencesKey("ai_source_label")
     }
 
+    private companion object {
+        const val MIN_SAMPLE_PERSIST_INTERVAL_MS = 30_000L
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val syncClient by lazy { WatchSyncClient(context) }
+    private val baselineLock = Any()
     private val baselineLearner = RestingBaselineLearner()
 
     private val _uiState = MutableStateFlow(WatchUiState())
     val uiState: StateFlow<WatchUiState> = _uiState.asStateFlow()
 
+    @Volatile
+    private var samplesDirty = false
+    @Volatile
+    private var lastSamplesPersistMs = 0L
+
     private var lastComplicationPushMs: Long = 0L
     private var lastPushedState: OmamoriState? = null
     private var lastPushedBpmBucket: Int? = null
 
-    init {
-        scope.launch {
-            restorePersistedState()
-        }
+    private val initialLoadJob: Job = scope.launch {
+        restorePersistedState()
+    }
+
+    suspend fun awaitInitialized() {
+        initialLoadJob.join()
     }
 
     private suspend fun restorePersistedState() {
         val prefs = context.watchDataStore.data.first()
         val samples = OmamoriJson.decodeOrNull<List<Int>>(prefs[Keys.LEARNED_SAMPLES]) ?: emptyList()
         val hcBaseline = prefs[Keys.HC_BASELINE_BPM]?.toIntOrNull()
-        baselineLearner.loadInitial(samples, hcBaseline)
+        val resolved = synchronized(baselineLock) {
+            baselineLearner.loadInitial(samples, hcBaseline)
+            baselineLearner.resolveBaseline()
+        }
 
         val alertPrefs = OmamoriJson.decodeOrNull<AlertPreferences>(prefs[Keys.ALERT_PREFS]) ?: AlertPreferences()
         val lastAlert = prefs[Keys.LAST_ALERT_MS] ?: 0L
         val advice = prefs[Keys.LATEST_AI_ADVICE]
         val aiSource = prefs[Keys.AI_SOURCE_LABEL]
-        val resolved = baselineLearner.resolveBaseline()
 
         _uiState.update { current ->
             val updatedSnap = current.snapshot.copy(
@@ -125,34 +144,65 @@ class WatchStateRepository(private val context: Context) {
         }
     }
 
-    fun resolveCurrentBaseline() = baselineLearner.resolveBaseline()
+    fun resolveCurrentBaseline(): ResolvedBaseline = synchronized(baselineLock) {
+        baselineLearner.resolveBaseline()
+    }
 
     fun recordStillHeartRateSample(bpm: Int) {
-        baselineLearner.recordStillSample(bpm)
-        val samples = baselineLearner.getCurrentSamples()
-        scope.launch {
-            context.watchDataStore.edit { it[Keys.LEARNED_SAMPLES] = OmamoriJson.encode(samples) }
+        val now = System.currentTimeMillis()
+        val snapshotToPersist: List<Int>? = synchronized(baselineLock) {
+            baselineLearner.recordStillSample(bpm)
+            samplesDirty = true
+            if (now - lastSamplesPersistMs >= MIN_SAMPLE_PERSIST_INTERVAL_MS) {
+                lastSamplesPersistMs = now
+                samplesDirty = false
+                baselineLearner.getCurrentSamples()
+            } else {
+                null
+            }
+        }
+        if (snapshotToPersist != null) {
+            scope.launch {
+                context.watchDataStore.edit { it[Keys.LEARNED_SAMPLES] = OmamoriJson.encode(snapshotToPersist) }
+            }
+        }
+    }
+
+    suspend fun flushLearnedSamples() {
+        val snapshotToPersist: List<Int>? = synchronized(baselineLock) {
+            if (!samplesDirty) return@synchronized null
+            samplesDirty = false
+            lastSamplesPersistMs = System.currentTimeMillis()
+            baselineLearner.getCurrentSamples()
+        }
+        if (snapshotToPersist != null) {
+            context.watchDataStore.edit { it[Keys.LEARNED_SAMPLES] = OmamoriJson.encode(snapshotToPersist) }
         }
     }
 
     fun updateSensorSnapshot(snapshot: BiometricSnapshot): CalmEvaluation {
-        val current = _uiState.value
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        val eval = CalmStateEvaluator.evaluate(
-            snapshot = snapshot,
-            isBreathingActive = current.isBreathingActive,
-            lastAlertEpochMs = current.lastAlertEpochMs,
-            currentHourOfDay = hour,
-            preferences = current.preferences
-        )
-        _uiState.update { it.copy(snapshot = snapshot, evaluation = eval) }
+        val hour = LocalTime.now().hour
+        var evaluated: CalmEvaluation? = null
+        _uiState.update { current ->
+            val eval = CalmStateEvaluator.evaluate(
+                snapshot = snapshot,
+                isBreathingActive = current.isBreathingActive,
+                lastAlertEpochMs = current.lastAlertEpochMs,
+                currentHourOfDay = hour,
+                preferences = current.preferences
+            )
+            evaluated = eval
+            current.copy(snapshot = snapshot, evaluation = eval)
+        }
+        val eval = evaluated!!
         maybeRefreshComplicationsAndTile(eval.state, snapshot.currentHeartRateBpm, snapshot.sampledAtEpochMs)
         return eval
     }
 
     fun setBreathingActive(active: Boolean) {
+        val hour = LocalTime.now().hour
+        var stateAfter: OmamoriState? = null
         _uiState.update { state ->
-            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = state.snapshot,
                 isBreathingActive = active,
@@ -160,9 +210,15 @@ class WatchStateRepository(private val context: Context) {
                 currentHourOfDay = hour,
                 preferences = state.preferences
             )
+            stateAfter = eval.state
             state.copy(isBreathingActive = active, evaluation = eval)
         }
-        forceRefreshComplicationsAndTile()
+        val currentState = stateAfter
+        if (currentState != null && currentState != lastPushedState) {
+            lastPushedState = currentState
+            lastComplicationPushMs = System.currentTimeMillis()
+            forceRefreshComplicationsAndTile()
+        }
     }
 
     fun markAlertSent(epochMs: Long) {
@@ -178,8 +234,8 @@ class WatchStateRepository(private val context: Context) {
     }
 
     fun updatePreferences(preferences: AlertPreferences, syncToPhone: Boolean = true) {
+        val hour = LocalTime.now().hour
         _uiState.update { state ->
-            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = state.snapshot,
                 isBreathingActive = state.isBreathingActive,
@@ -192,7 +248,7 @@ class WatchStateRepository(private val context: Context) {
         scope.launch {
             context.watchDataStore.edit { it[Keys.ALERT_PREFS] = OmamoriJson.encode(preferences) }
             if (syncToPhone) {
-                com.omamoripet.wear.sync.WatchSyncClient(context).pushPreferences(
+                syncClient.pushPreferences(
                     com.omamoripet.shared.sync.PreferencesSyncPayload(preferences, System.currentTimeMillis())
                 )
             }
@@ -201,7 +257,7 @@ class WatchStateRepository(private val context: Context) {
 
     fun setSimulationScenario(scenario: SimulationScenario) {
         val now = System.currentTimeMillis()
-        val baseline = baselineLearner.resolveBaseline()
+        val baseline = resolveCurrentBaseline()
         val current = _uiState.value
         val simulatedSnap = when (scenario) {
             SimulationScenario.LIVE_SENSORS -> current.snapshot.copy(
@@ -246,7 +302,6 @@ class WatchStateRepository(private val context: Context) {
         }
         _uiState.update { it.copy(simulationScenario = scenario) }
         updateSensorSnapshot(simulatedSnap)
-        forceRefreshComplicationsAndTile()
     }
 
     fun setCalibrationProgress(active: Boolean, remainingSeconds: Int) {
@@ -254,14 +309,17 @@ class WatchStateRepository(private val context: Context) {
     }
 
     fun applyPhoneBaselineAndAdvice(payload: PhoneBaselinePayload) {
-        baselineLearner.updateHealthConnectBaseline(payload.healthConnectRestingBpm)
-        val resolved = baselineLearner.resolveBaseline()
+        val resolved = synchronized(baselineLock) {
+            baselineLearner.updateHealthConnectBaseline(payload.healthConnectRestingBpm)
+            baselineLearner.resolveBaseline()
+        }
+        val hour = LocalTime.now().hour
+        var stateAfter: OmamoriState? = null
         _uiState.update { state ->
             val newSnap = state.snapshot.copy(
                 restingBaselineBpm = resolved.bpm,
                 baselineSource = resolved.source
             )
-            val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = newSnap,
                 isBreathingActive = state.isBreathingActive,
@@ -269,6 +327,7 @@ class WatchStateRepository(private val context: Context) {
                 currentHourOfDay = hour,
                 preferences = state.preferences
             )
+            stateAfter = eval.state
             state.copy(
                 snapshot = newSnap,
                 evaluation = eval,
@@ -292,7 +351,12 @@ class WatchStateRepository(private val context: Context) {
                 }
             }
         }
-        forceRefreshComplicationsAndTile()
+        val nextState = stateAfter
+        if (nextState != null) {
+            lastPushedState = nextState
+            lastComplicationPushMs = System.currentTimeMillis()
+            forceRefreshComplicationsAndTile()
+        }
     }
 
     /**

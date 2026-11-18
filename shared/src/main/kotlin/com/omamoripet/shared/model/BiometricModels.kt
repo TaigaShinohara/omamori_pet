@@ -82,7 +82,8 @@ data class AlertPreferences(
     val quietHoursEnabled: Boolean = true,
     val quietHoursStartHour: Int = 23,
     val quietHoursEndHour: Int = 7,
-    val snoozedUntilEpochMs: Long = 0L
+    val snoozedUntilEpochMs: Long = 0L,
+    val breathingHapticsEnabled: Boolean = true
 )
 
 @Serializable

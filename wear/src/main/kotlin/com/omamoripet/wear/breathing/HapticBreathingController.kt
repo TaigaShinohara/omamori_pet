@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
-import kotlin.math.ceil
 
 enum class BreathPhase {
     INHALE,
@@ -24,7 +23,7 @@ enum class BreathPhase {
 data class BreathingUiState(
     val isRunning: Boolean = false,
     val phase: BreathPhase = BreathPhase.INHALE,
-    val phaseProgress: Float = 0f,
+    val phaseDurationMs: Int = 4_000,
     val remainingSecondsInPhase: Int = 4,
     val cycleIndex: Int = 1,
     val totalCycles: Int = 5,
@@ -41,6 +40,7 @@ class HapticBreathingController(
     private val scope: CoroutineScope,
     private val readCurrentBpm: () -> Int?,
     private val isSimulatedMode: () -> Boolean,
+    private val isHapticsEnabled: () -> Boolean = { true },
     private val onActiveChanged: (Boolean) -> Unit,
     private val onSessionCompleted: suspend (BreathingSessionRecord) -> Unit
 ) {
@@ -64,7 +64,9 @@ class HapticBreathingController(
             }
 
             val postBpm = readCurrentBpm()
-            vibrateCompletion()
+            if (isHapticsEnabled()) {
+                vibrateCompletion()
+            }
             val record = BreathingSessionRecord(
                 id = UUID.randomUUID().toString(),
                 startedAtEpochMs = startedAt,
@@ -78,7 +80,7 @@ class HapticBreathingController(
             _state.value = BreathingUiState(
                 isRunning = false,
                 phase = BreathPhase.COMPLETED,
-                phaseProgress = 1f,
+                phaseDurationMs = 0,
                 remainingSecondsInPhase = 0,
                 cycleIndex = totalCycles,
                 totalCycles = totalCycles,
@@ -107,22 +109,23 @@ class HapticBreathingController(
         totalCycles: Int,
         preBpm: Int?
     ) {
-        vibratePhaseCue(phase)
-        val stepMs = 50L
-        var elapsed = 0L
-        while (elapsed <= durationMs) {
-            val remainingSec = ceil(((durationMs - elapsed).coerceAtLeast(0L)) / 1000.0).toInt().coerceAtLeast(1)
+        if (isHapticsEnabled()) {
+            vibratePhaseCue(phase)
+        }
+        // 50ms 毎の StateFlow 連打を避け、UI 側の Animatable で滑らか補間しつつ 1秒ごとにのみ残り秒数を通知
+        val totalSeconds = (durationMs / 1_000L).toInt().coerceAtLeast(1)
+        val durationInt = durationMs.toInt()
+        for (remainingSec in totalSeconds downTo 1) {
             _state.value = BreathingUiState(
                 isRunning = true,
                 phase = phase,
-                phaseProgress = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f),
+                phaseDurationMs = durationInt,
                 remainingSecondsInPhase = remainingSec,
                 cycleIndex = cycle,
                 totalCycles = totalCycles,
                 preBpm = preBpm
             )
-            delay(stepMs)
-            elapsed += stepMs
+            delay(1_000L)
         }
     }
 
