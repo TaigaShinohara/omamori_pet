@@ -974,7 +974,7 @@ private fun StandardInfoPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Heading),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }
@@ -1051,7 +1051,7 @@ private fun ChoiceQuestionPage(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium.copy(lineBreak = LineBreak.Paragraph),
+                style = MaterialTheme.typography.bodyMedium.copy(lineBreak = LineBreak.Heading),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }
@@ -1294,7 +1294,7 @@ private fun SequentialResultPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Heading),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -1957,7 +1957,7 @@ private fun ConnectPage(
             if (tryItCompleted) {
                 Text(
                     text = completePraise,
-                    style = MaterialTheme.typography.titleSmall.copy(lineBreak = LineBreak.Paragraph),
+                    style = MaterialTheme.typography.titleSmall.copy(lineBreak = LineBreak.Heading),
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
@@ -1973,7 +1973,7 @@ private fun ConnectPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Heading),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }
