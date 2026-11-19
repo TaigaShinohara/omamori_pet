@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- 単色ティント時も目が抜けて見えるよう evenOdd で球体から目をくり抜く -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M48,14A34,34 0 1,1 47.99,14Z M47,30h6a2.5,2.5 0 0,1 2.5,2.5v11a2.5,2.5 0 0,1 -2.5,2.5h-6a2.5,2.5 0 0,1 -2.5,-2.5v-11a2.5,2.5 0 0,1 2.5,-2.5z M61,32h4.5a2.2,2.2 0 0,1 2.2,2.2v9a2.2,2.2 0 0,1 -2.2,2.2h-4.5a2.2,2.2 0 0,1 -2.2,-2.2v-9a2.2,2.2 0 0,1 2.2,-2.2z" />
+</vector>

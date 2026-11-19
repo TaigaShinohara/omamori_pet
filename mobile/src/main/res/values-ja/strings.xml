@@ -3,7 +3,7 @@
     <string name="app_name">お守りペット</string>
 
     <string name="nav_now">いま</string>
-    <string name="nav_history">ふりかえり</string>
+    <string name="nav_history">きろく</string>
     <string name="nav_settings">設定</string>
 
     <string name="state_calm_title">おだやか</string>
@@ -15,6 +15,8 @@
     <string name="state_elevated_desc">いつもの +%1$d bpm。1分だけ息を整えましょう。</string>
     <string name="state_breathing_desc">ゆっくり息を合わせています。</string>
     <string name="state_phone_ready_desc">時計なしでも1分で整えられます。</string>
+    <string name="state_watch_paired_waiting_desc">Watch でアプリを開くと心拍も見守ります。スマホだけでも1分で整えられます。</string>
+    <string name="first_breath_hint">まずは1分間の深呼吸をためしてみましょう</string>
 
     <string name="watch_badge_demo">デモ中</string>
     <string name="watch_badge_demo_exit">終了</string>
@@ -62,6 +64,7 @@
 
     <string name="history_title">きろく</string>
     <string name="history_today_summary">きょうの深呼吸 · %1$d 回</string>
+    <string name="history_today_with_demo_summary">きょうの深呼吸 · %1$d 回（＋デモ %2$d 回）</string>
     <string name="history_demo_summary">デモ記録 · %1$d 回</string>
     <string name="history_section_today">今日</string>
     <string name="history_section_earlier">それ以前</string>
@@ -196,7 +199,10 @@
     <string name="ob_p12_title">下の丸を1回押して、ひと息ためす</string>
     <string name="ob_p12_tap_label">ひと息ためす</string>
     <string name="ob_p12_inhale">ゆっくり吸って…</string>
+    <string name="ob_p12_hold">そっと止めて…</string>
     <string name="ob_p12_exhale">細く長く吐き出しましょう…</string>
+    <string name="ob_p12_haptics_on">振動ガイド：オン</string>
+    <string name="ob_p12_haptics_off">振動ガイド：オフ</string>
 
     <string name="ob_p13_title">ひと息つけました。</string>
     <string name="ob_p13_body">1分間の本番でも、同じようにゆったり整えられます。</string>

@@ -4,7 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -47,6 +49,12 @@ enum class SimulationScenario {
     POST_WALK_MOVEMENT
 }
 
+enum class CalibrationResult {
+    NONE,
+    SUCCESS,
+    NO_SIGNAL
+}
+
 data class WatchUiState(
     val snapshot: BiometricSnapshot = BiometricSnapshot(
         currentHeartRateBpm = null,
@@ -72,7 +80,8 @@ data class WatchUiState(
     val simulationScenario: SimulationScenario = SimulationScenario.LIVE_SENSORS,
     val lastAlertEpochMs: Long = 0L,
     val isCalibrating: Boolean = false,
-    val calibrationRemainingSeconds: Int = 0
+    val calibrationRemainingSeconds: Int = 0,
+    val calibrationResult: CalibrationResult = CalibrationResult.NONE
 )
 
 class WatchStateRepository(private val context: Context) {
@@ -84,10 +93,17 @@ class WatchStateRepository(private val context: Context) {
         val LAST_ALERT_MS = longPreferencesKey("last_alert_epoch_ms")
         val LATEST_AI_ADVICE = stringPreferencesKey("latest_ai_advice")
         val AI_SOURCE_LABEL = stringPreferencesKey("ai_source_label")
+        val LAST_LIVE_BPM = intPreferencesKey("last_live_bpm")
+        val LAST_MOTION_STATE = stringPreferencesKey("last_motion_state")
+        val LAST_ON_BODY = booleanPreferencesKey("last_on_body")
+        val LAST_SAMPLE_EPOCH_MS = longPreferencesKey("last_sample_epoch_ms")
+        val LAST_SIM_SCENARIO = stringPreferencesKey("last_sim_scenario")
     }
 
     private companion object {
         const val MIN_SAMPLE_PERSIST_INTERVAL_MS = 30_000L
+        const val MIN_SNAPSHOT_PERSIST_INTERVAL_MS = 30_000L
+        const val SNAPSHOT_RESTORE_TTL_MS = 15 * 60_000L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -102,10 +118,14 @@ class WatchStateRepository(private val context: Context) {
     private var samplesDirty = false
     @Volatile
     private var lastSamplesPersistMs = 0L
+    @Volatile
+    private var lastSnapshotPersistMs = 0L
+    @Volatile
+    private var lastPersistedState: OmamoriState? = null
+    @Volatile
+    private var lastPersistedMotion: MotionState? = null
 
-    private var lastComplicationPushMs: Long = 0L
-    private var lastPushedState: OmamoriState? = null
-    private var lastPushedBpmBucket: Int? = null
+    private var updateTracker = ComplicationUpdateTracker()
 
     private val initialLoadJob: Job = scope.launch {
         restorePersistedState()
@@ -129,14 +149,46 @@ class WatchStateRepository(private val context: Context) {
         val advice = prefs[Keys.LATEST_AI_ADVICE]
         val aiSource = prefs[Keys.AI_SOURCE_LABEL]
 
+        val savedScenario = prefs[Keys.LAST_SIM_SCENARIO]?.let { name ->
+            runCatching { SimulationScenario.valueOf(name) }.getOrNull()
+        } ?: SimulationScenario.LIVE_SENSORS
+        val savedSampleMs = prefs[Keys.LAST_SAMPLE_EPOCH_MS] ?: 0L
+        val nowMs = System.currentTimeMillis()
+        val isFreshSnapshot = savedSampleMs > 0L && (nowMs - savedSampleMs) <= SNAPSHOT_RESTORE_TTL_MS
+
+        val effectiveScenario = if (isFreshSnapshot) savedScenario else SimulationScenario.LIVE_SENSORS
+        val restoredBpm = if (isFreshSnapshot) prefs[Keys.LAST_LIVE_BPM] else null
+        val restoredMotion = if (isFreshSnapshot) {
+            prefs[Keys.LAST_MOTION_STATE]?.let { name ->
+                runCatching { MotionState.valueOf(name) }.getOrNull()
+            } ?: MotionState.RECENT_MOVEMENT
+        } else {
+            MotionState.RECENT_MOVEMENT
+        }
+        val restoredOnBody = if (isFreshSnapshot) (prefs[Keys.LAST_ON_BODY] ?: true) else true
+
         _uiState.update { current ->
             val updatedSnap = current.snapshot.copy(
+                currentHeartRateBpm = restoredBpm,
                 restingBaselineBpm = resolved.bpm,
-                baselineSource = resolved.source
+                baselineSource = resolved.source,
+                motionState = restoredMotion,
+                isWatchOnBody = restoredOnBody,
+                sampledAtEpochMs = if (isFreshSnapshot) savedSampleMs else current.snapshot.sampledAtEpochMs,
+                isSimulated = effectiveScenario != SimulationScenario.LIVE_SENSORS
+            )
+            val eval = CalmStateEvaluator.evaluate(
+                snapshot = updatedSnap,
+                isBreathingActive = current.isBreathingActive,
+                lastAlertEpochMs = lastAlert,
+                currentHourOfDay = LocalTime.now().hour,
+                preferences = alertPrefs
             )
             current.copy(
                 snapshot = updatedSnap,
+                evaluation = eval,
                 preferences = alertPrefs,
+                simulationScenario = effectiveScenario,
                 lastAlertEpochMs = lastAlert,
                 latestAiAdvice = advice,
                 aiAdviceSource = aiSource
@@ -183,7 +235,9 @@ class WatchStateRepository(private val context: Context) {
     fun updateSensorSnapshot(snapshot: BiometricSnapshot): CalmEvaluation {
         val hour = LocalTime.now().hour
         var evaluated: CalmEvaluation? = null
+        var scenario = SimulationScenario.LIVE_SENSORS
         _uiState.update { current ->
+            scenario = current.simulationScenario
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = snapshot,
                 isBreathingActive = current.isBreathingActive,
@@ -195,13 +249,21 @@ class WatchStateRepository(private val context: Context) {
             current.copy(snapshot = snapshot, evaluation = eval)
         }
         val eval = evaluated!!
-        maybeRefreshComplicationsAndTile(eval.state, snapshot.currentHeartRateBpm, snapshot.sampledAtEpochMs)
+        persistSnapshotIfNeeded(snapshot = snapshot, state = eval.state, scenario = scenario)
+        maybeRefreshComplicationsAndTile(
+            state = eval.state,
+            motionState = snapshot.motionState,
+            bpm = snapshot.currentHeartRateBpm,
+            calmScore = eval.calmScore,
+            nowMs = snapshot.sampledAtEpochMs
+        )
         return eval
     }
 
     fun setBreathingActive(active: Boolean) {
         val hour = LocalTime.now().hour
-        var stateAfter: OmamoriState? = null
+        var updatedSnapshot: BiometricSnapshot? = null
+        var updatedEval: CalmEvaluation? = null
         _uiState.update { state ->
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = state.snapshot,
@@ -210,14 +272,20 @@ class WatchStateRepository(private val context: Context) {
                 currentHourOfDay = hour,
                 preferences = state.preferences
             )
-            stateAfter = eval.state
+            updatedSnapshot = state.snapshot
+            updatedEval = eval
             state.copy(isBreathingActive = active, evaluation = eval)
         }
-        val currentState = stateAfter
-        if (currentState != null && currentState != lastPushedState) {
-            lastPushedState = currentState
-            lastComplicationPushMs = System.currentTimeMillis()
-            forceRefreshComplicationsAndTile()
+        val snap = updatedSnapshot
+        val eval = updatedEval
+        if (snap != null && eval != null) {
+            maybeRefreshComplicationsAndTile(
+                state = eval.state,
+                motionState = snap.motionState,
+                bpm = snap.currentHeartRateBpm,
+                calmScore = eval.calmScore,
+                nowMs = System.currentTimeMillis()
+            )
         }
     }
 
@@ -235,6 +303,8 @@ class WatchStateRepository(private val context: Context) {
 
     fun updatePreferences(preferences: AlertPreferences, syncToPhone: Boolean = true) {
         val hour = LocalTime.now().hour
+        var updatedSnap: BiometricSnapshot? = null
+        var updatedEval: CalmEvaluation? = null
         _uiState.update { state ->
             val eval = CalmStateEvaluator.evaluate(
                 snapshot = state.snapshot,
@@ -243,7 +313,20 @@ class WatchStateRepository(private val context: Context) {
                 currentHourOfDay = hour,
                 preferences = preferences
             )
+            updatedSnap = state.snapshot
+            updatedEval = eval
             state.copy(preferences = preferences, evaluation = eval)
+        }
+        val snap = updatedSnap
+        val eval = updatedEval
+        if (snap != null && eval != null) {
+            maybeRefreshComplicationsAndTile(
+                state = eval.state,
+                motionState = snap.motionState,
+                bpm = snap.currentHeartRateBpm,
+                calmScore = eval.calmScore,
+                nowMs = System.currentTimeMillis()
+            )
         }
         scope.launch {
             context.watchDataStore.edit { it[Keys.ALERT_PREFS] = OmamoriJson.encode(preferences) }
@@ -280,7 +363,7 @@ class WatchStateRepository(private val context: Context) {
                 isSimulated = true
             )
             SimulationScenario.ELEVATED_AT_REST -> BiometricSnapshot(
-                currentHeartRateBpm = baseline.bpm + current.preferences.elevationThresholdBpm + 6,
+                currentHeartRateBpm = baseline.bpm + current.preferences.elevationThresholdBpm + 5,
                 restingBaselineBpm = baseline.bpm,
                 baselineSource = baseline.source,
                 motionState = MotionState.STILL_CONFIRMED,
@@ -304,8 +387,22 @@ class WatchStateRepository(private val context: Context) {
         updateSensorSnapshot(simulatedSnap)
     }
 
-    fun setCalibrationProgress(active: Boolean, remainingSeconds: Int) {
-        _uiState.update { it.copy(isCalibrating = active, calibrationRemainingSeconds = remainingSeconds) }
+    fun setCalibrationProgress(
+        active: Boolean,
+        remainingSeconds: Int,
+        result: CalibrationResult = CalibrationResult.NONE
+    ) {
+        _uiState.update {
+            it.copy(
+                isCalibrating = active,
+                calibrationRemainingSeconds = remainingSeconds,
+                calibrationResult = result
+            )
+        }
+    }
+
+    fun clearCalibrationResult() {
+        _uiState.update { it.copy(calibrationResult = CalibrationResult.NONE) }
     }
 
     fun applyPhoneBaselineAndAdvice(payload: PhoneBaselinePayload) {
@@ -314,7 +411,8 @@ class WatchStateRepository(private val context: Context) {
             baselineLearner.resolveBaseline()
         }
         val hour = LocalTime.now().hour
-        var stateAfter: OmamoriState? = null
+        var updatedSnap: BiometricSnapshot? = null
+        var updatedEval: CalmEvaluation? = null
         _uiState.update { state ->
             val newSnap = state.snapshot.copy(
                 restingBaselineBpm = resolved.bpm,
@@ -327,7 +425,8 @@ class WatchStateRepository(private val context: Context) {
                 currentHourOfDay = hour,
                 preferences = state.preferences
             )
-            stateAfter = eval.state
+            updatedSnap = newSnap
+            updatedEval = eval
             state.copy(
                 snapshot = newSnap,
                 evaluation = eval,
@@ -351,27 +450,61 @@ class WatchStateRepository(private val context: Context) {
                 }
             }
         }
-        val nextState = stateAfter
-        if (nextState != null) {
-            lastPushedState = nextState
-            lastComplicationPushMs = System.currentTimeMillis()
+        val snap = updatedSnap
+        val eval = updatedEval
+        if (snap != null && eval != null) {
+            updateTracker.recordForcedPush(
+                state = eval.state,
+                motionState = snap.motionState,
+                bpm = snap.currentHeartRateBpm,
+                calmScore = eval.calmScore,
+                nowMs = System.currentTimeMillis()
+            )
             forceRefreshComplicationsAndTile()
+        }
+    }
+
+    private fun persistSnapshotIfNeeded(
+        snapshot: BiometricSnapshot,
+        state: OmamoriState,
+        scenario: SimulationScenario
+    ) {
+        val now = System.currentTimeMillis()
+        val changedSignificantly = lastPersistedState != state || lastPersistedMotion != snapshot.motionState
+        if (!changedSignificantly && (now - lastSnapshotPersistMs) < MIN_SNAPSHOT_PERSIST_INTERVAL_MS) {
+            return
+        }
+        lastPersistedState = state
+        lastPersistedMotion = snapshot.motionState
+        lastSnapshotPersistMs = now
+        scope.launch {
+            context.watchDataStore.edit { prefs ->
+                val bpm = snapshot.currentHeartRateBpm
+                if (bpm != null) {
+                    prefs[Keys.LAST_LIVE_BPM] = bpm
+                } else {
+                    prefs.remove(Keys.LAST_LIVE_BPM)
+                }
+                prefs[Keys.LAST_MOTION_STATE] = snapshot.motionState.name
+                prefs[Keys.LAST_ON_BODY] = snapshot.isWatchOnBody
+                prefs[Keys.LAST_SAMPLE_EPOCH_MS] = snapshot.sampledAtEpochMs
+                prefs[Keys.LAST_SIM_SCENARIO] = scenario.name
+            }
         }
     }
 
     /**
      * 毎秒のコンプリケーション更新は Wear OS のスロットリング対象になるため、
-     * 状態ランク遷移・3bpm以上の変化・または 5 分経過時のみプッシュする。
+     * 状態・移動文脈・計測有無の切り替わりは即時プッシュし、心拍・落ち着きスコア変化は 30 秒以上間隔を空けてプッシュする。
      */
-    private fun maybeRefreshComplicationsAndTile(state: OmamoriState, bpm: Int?, nowMs: Long) {
-        val bpmBucket = bpm?.let { it / 3 }
-        val stateChanged = lastPushedState != state
-        val significantBpmChange = bpmBucket != null && bpmBucket != lastPushedBpmBucket && (nowMs - lastComplicationPushMs >= 30_000L)
-        val fiveMinutesElapsed = (nowMs - lastComplicationPushMs) >= 300_000L
-        if (stateChanged || significantBpmChange || fiveMinutesElapsed) {
-            lastPushedState = state
-            lastPushedBpmBucket = bpmBucket
-            lastComplicationPushMs = nowMs
+    private fun maybeRefreshComplicationsAndTile(
+        state: OmamoriState,
+        motionState: MotionState,
+        bpm: Int?,
+        calmScore: Int,
+        nowMs: Long
+    ) {
+        if (updateTracker.shouldPushAndMark(state, motionState, bpm, calmScore, nowMs)) {
             forceRefreshComplicationsAndTile()
         }
     }
@@ -386,5 +519,68 @@ class WatchStateRepository(private val context: Context) {
                 .requestUpdateAll()
             TileService.getUpdater(context).requestUpdate(OmamoriTileService::class.java)
         }
+    }
+}
+
+/**
+ * コンプリケーション＆タイルの更新スロットリング判定をカプセル化するヘルパー。
+ */
+internal class ComplicationUpdateTracker {
+    private var lastPushedMs: Long = 0L
+    private var lastState: OmamoriState? = null
+    private var lastMotionState: MotionState? = null
+    private var lastHasBpm: Boolean? = null
+    private var lastBpmBucket: Int? = null
+    private var lastCalmBucket: Int? = null
+
+    @Synchronized
+    fun shouldPushAndMark(
+        state: OmamoriState,
+        motionState: MotionState,
+        bpm: Int?,
+        calmScore: Int,
+        nowMs: Long
+    ): Boolean {
+        val hasBpm = bpm != null
+        val bpmBucket = bpm?.let { it / 3 }
+        val calmBucket = calmScore / 5
+
+        val urgentTransition = lastState != state ||
+            lastMotionState != motionState ||
+            lastHasBpm != hasBpm
+        val elapsed = nowMs - lastPushedMs
+        val throttledMetricChange = elapsed >= 30_000L && (
+            (bpmBucket != null && bpmBucket != lastBpmBucket) ||
+                calmBucket != lastCalmBucket
+            )
+        val heartbeatElapsed = elapsed >= 300_000L
+
+        if (!urgentTransition && !throttledMetricChange && !heartbeatElapsed) {
+            return false
+        }
+
+        lastState = state
+        lastMotionState = motionState
+        lastHasBpm = hasBpm
+        lastBpmBucket = bpmBucket
+        lastCalmBucket = calmBucket
+        lastPushedMs = nowMs
+        return true
+    }
+
+    @Synchronized
+    fun recordForcedPush(
+        state: OmamoriState,
+        motionState: MotionState,
+        bpm: Int?,
+        calmScore: Int,
+        nowMs: Long
+    ) {
+        lastState = state
+        lastMotionState = motionState
+        lastHasBpm = bpm != null
+        lastBpmBucket = bpm?.let { it / 3 }
+        lastCalmBucket = calmScore / 5
+        lastPushedMs = nowMs
     }
 }

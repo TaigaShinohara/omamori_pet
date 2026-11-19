@@ -3,7 +3,7 @@ package com.omamoripet.shared.model
 import kotlinx.serialization.Serializable
 
 const val CURRENT_ONBOARDING_VERSION = 1
-const val ONBOARDING_TOTAL_PAGES = 15
+const val ONBOARDING_TOTAL_PAGES = 10
 
 @Serializable
 enum class OnboardingConcern {
@@ -107,15 +107,10 @@ enum class OnboardingPageRole {
     CHOICE_DEVICE,
     MATCH_DECLARATION,
     IDENTITY,
-    VALUE,
-    CHOICE_HAPTICS,
-    HAPTICS_RESULT,
     STEP_1,
     STEP_2,
     STEP_3,
     TRY_IT,
-    TRY_RESULT,
-    EXPECTATION,
     CONNECT
 }
 

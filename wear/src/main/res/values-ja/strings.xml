@@ -63,11 +63,13 @@
     <string name="calibration_running">基準を計測中… あと %1$d秒</string>
     <string name="calibration_running_sub">楽な姿勢でじっとお待ちください</string>
     <string name="calibration_done">落ち着き基準を更新しました（%1$d bpm）</string>
+    <string name="calibration_failed">心拍を取得できませんでした。手首に密着させてお試しください</string>
 
     <string name="baseline_label">目安 %1$d bpm</string>
     <string name="still_confirmed">静止 3分+</string>
     <string name="recent_movement">歩行後（除外）</string>
     <string name="off_body">未装着</string>
+    <string name="waiting_for_reading">計測を待っています</string>
     <string name="demo_badge">デモ中</string>
     <string name="non_medical_note">医療・診断用ではありません。</string>
 

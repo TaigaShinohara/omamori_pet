@@ -67,7 +67,7 @@ class TemplateCalmAdvisorEngine : CalmAdvisorEngine {
         return when (input.omamoriState) {
             OmamoriState.ELEVATED_AT_REST -> {
                 val deltaStr = delta?.let { if (it >= 0) "+$it" else "$it" } ?: "--"
-                "静止中に ${bpm ?: "--"} bpm（普段より $deltaStr）。自然な反応なので、1分だけ長く吐いてみましょう。"
+                "静止中に ${bpm ?: "--"} bpm（普段より $deltaStr）。肩の力を抜いて、吐く息だけ長めにしてみましょう。"
             }
             OmamoriState.BREATHING -> {
                 "肩の力を抜いて、吐く息を長めに。"
@@ -95,7 +95,7 @@ class TemplateCalmAdvisorEngine : CalmAdvisorEngine {
         val delta = bpm?.minus(input.restingBaselineBpm)
         return when (input.omamoriState) {
             OmamoriState.ELEVATED_AT_REST ->
-                "Still at ${bpm ?: "--"} bpm (+${delta ?: 0}). Try a gentle 1-minute exhale."
+                "Still at ${bpm ?: "--"} bpm (+${delta ?: 0}). Drop your shoulders and lengthen each exhale."
             OmamoriState.BREATHING ->
                 "Drop your shoulders and lengthen each exhale."
             OmamoriState.CALM -> when {

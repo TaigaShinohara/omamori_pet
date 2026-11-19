@@ -26,22 +26,22 @@ class OnboardingModelsTest {
 
     @Test
     fun `window dots edge flags and completion flag match boundaries`() {
-        val first = computeWindowDotsState(0, 15, 5)
+        val first = computeWindowDotsState(0, ONBOARDING_TOTAL_PAGES, 5)
         assertEquals(0, first.windowStart)
         assertEquals(0, first.activeOffsetInWindow)
         assertFalse(first.hasMoreBefore)
         assertTrue(first.hasMoreAfter)
         assertFalse(first.isCompletedPage)
 
-        val middle = computeWindowDotsState(7, 15, 5)
-        assertEquals(5, middle.windowStart)
+        val middle = computeWindowDotsState(5, ONBOARDING_TOTAL_PAGES, 5)
+        assertEquals(3, middle.windowStart)
         assertEquals(2, middle.activeOffsetInWindow)
         assertTrue(middle.hasMoreBefore)
         assertTrue(middle.hasMoreAfter)
         assertFalse(middle.isCompletedPage)
 
-        val last = computeWindowDotsState(14, 15, 5)
-        assertEquals(10, last.windowStart)
+        val last = computeWindowDotsState(ONBOARDING_TOTAL_PAGES - 1, ONBOARDING_TOTAL_PAGES, 5)
+        assertEquals(ONBOARDING_TOTAL_PAGES - 5, last.windowStart)
         assertEquals(4, last.activeOffsetInWindow)
         assertTrue(last.hasMoreBefore)
         assertFalse(last.hasMoreAfter)
@@ -85,7 +85,7 @@ class OnboardingModelsTest {
         val tracker = OnboardingAnalyticsTracker()
         tracker.track(OnboardingAnalyticsEvent.PageViewed(0, OnboardingPageRole.HOOK))
         tracker.track(OnboardingAnalyticsEvent.QuestionAnswered(1, OnboardingPageRole.CHOICE_CONCERN))
-        tracker.track(OnboardingAnalyticsEvent.Completed(14, OnboardingPageRole.CONNECT, startedBreathingDirectly = true))
+        tracker.track(OnboardingAnalyticsEvent.Completed(ONBOARDING_TOTAL_PAGES - 1, OnboardingPageRole.CONNECT, startedBreathingDirectly = true))
 
         assertEquals(3, tracker.events.size)
         assertEquals(OnboardingPageRole.HOOK, tracker.events[0].role)

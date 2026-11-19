@@ -73,6 +73,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -86,9 +87,11 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -109,6 +112,8 @@ import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.OnboardingDeviceStyle
 import java.text.DateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -137,6 +142,7 @@ fun HomeMobileScreen(
         showSecondary = true
     }
 
+    val hasWatchData = uiState.lastWatchSyncMs != null
     val needsHealthConnectAction =
         uiState.healthConnectAvailability != HealthConnectAvailability.UNAVAILABLE &&
             !uiState.hasHealthConnectPermission &&
@@ -144,7 +150,7 @@ fun HomeMobileScreen(
             uiState.onboardingAnswers.deviceStyle != OnboardingDeviceStyle.PHONE_ONLY
     val showWatchGuide =
         uiState.onboardingAnswers.deviceStyle == OnboardingDeviceStyle.HAS_WATCH &&
-            !uiState.isWatchConnected &&
+            !hasWatchData &&
             !uiState.isSimulated &&
             !uiState.watchGuideDismissedOnHome
 
@@ -268,7 +274,8 @@ private fun HeroStatusCard(
         snap()
     }
 
-    val isPhoneOnlyIdle = !uiState.isWatchConnected && !uiState.isSimulated
+    val hasWatchData = uiState.lastWatchSyncMs != null
+    val isPhoneOnlyIdle = !hasWatchData && !uiState.isSimulated
     val targetContainerColor = when (uiState.omamoriState) {
         OmamoriState.CALM -> cs.primaryContainer
         OmamoriState.ELEVATED_AT_REST -> cs.tertiaryContainer
@@ -293,6 +300,7 @@ private fun HeroStatusCard(
         else -> stringResource(R.string.state_resting_title)
     }
     val stateDesc = when {
+        isPhoneOnlyIdle && uiState.isWatchConnected -> stringResource(R.string.state_watch_paired_waiting_desc)
         isPhoneOnlyIdle -> stringResource(R.string.state_phone_ready_desc)
         uiState.omamoriState == OmamoriState.ELEVATED_AT_REST -> stringResource(R.string.state_elevated_desc, delta ?: 0)
         uiState.omamoriState == OmamoriState.BREATHING -> stringResource(R.string.state_breathing_desc)
@@ -359,7 +367,8 @@ private fun HeroStatusCard(
                         TextButton(
                             onClick = onExitDemo,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            colors = ButtonDefaults.textButtonColors(contentColor = contentColor)
+                            colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.watch_badge_demo_exit),
@@ -376,8 +385,8 @@ private fun HeroStatusCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OmamoriPetMobileAvatar(
-                    state = uiState.omamoriState,
-                    description = stateTitle,
+                    state = if (isPhoneOnlyIdle) OmamoriState.CALM else uiState.omamoriState,
+                    description = stringResource(R.string.app_name),
                     size = 92.dp
                 )
                 Column(modifier = Modifier.weight(1f)) {
@@ -400,7 +409,10 @@ private fun HeroStatusCard(
                     }
                     if (!isPhoneOnlyIdle && uiState.currentHeartRateBpm != null) {
                         Spacer(Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.Bottom) {
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier.semantics(mergeDescendants = true) {}
+                        ) {
                             Text(
                                 text = uiState.currentHeartRateBpm.toString(),
                                 style = MaterialTheme.typography.displaySmall
@@ -426,6 +438,13 @@ private fun HeroStatusCard(
                 Text(
                     text = stateDesc,
                     style = MaterialTheme.typography.bodyLarge
+                )
+            }
+            if (!uiState.hasCompletedFirstBreathing && isPhoneOnlyIdle) {
+                Text(
+                    text = stringResource(R.string.first_breath_hint),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor.copy(alpha = 0.85f)
                 )
             }
 
@@ -470,7 +489,7 @@ private fun HeroStatusCard(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.cta_breathe_phone), maxLines = 1)
                 }
-                if (uiState.isWatchConnected && !uiState.isSimulated && uiState.motionState != MotionState.OFF_BODY) {
+                if (uiState.isWatchConnected && !uiState.isSimulated && (!hasWatchData || uiState.motionState != MotionState.OFF_BODY)) {
                     TextButton(
                         onClick = onTriggerWatchBreathing,
                         colors = ButtonDefaults.textButtonColors(
@@ -803,6 +822,8 @@ fun BreathingMobileScreen(
         }
     }
 
+    val wasFirstBreathing = remember { isFirstBreathing }
+    val latestHapticsEnabled by rememberUpdatedState(hapticsEnabled)
     var sessionId by remember { mutableIntStateOf(1) }
     var running by remember { mutableStateOf(true) } // 開いたら即座に呼吸ガイド開始（2回タップの摩擦を排除）
     var completed by remember { mutableStateOf(false) }
@@ -812,14 +833,14 @@ fun BreathingMobileScreen(
     val phaseProgressAnim = remember { Animatable(0f) }
     val phaseDurations = remember { listOf(4_000, 2_000, 6_000) }
 
-    LaunchedEffect(running, sessionId, animationsEnabled, hapticsEnabled) {
+    LaunchedEffect(running, sessionId, animationsEnabled) {
         if (!running) return@LaunchedEffect
         completed = false
         for (c in 1..totalCycles) {
             cycle = c
             for (p in 0..2) {
                 phaseIndex = p
-                if (hapticsEnabled) {
+                if (latestHapticsEnabled) {
                     vibrateMobileBreathCue(vibrator, p)
                 }
                 if (animationsEnabled) {
@@ -829,12 +850,16 @@ fun BreathingMobileScreen(
                         animationSpec = tween(durationMillis = phaseDurations[p], easing = LinearEasing)
                     )
                 } else {
-                    phaseProgressAnim.snapTo(0.5f)
-                    kotlinx.coroutines.delay(phaseDurations[p].toLong())
+                    val phaseSec = (phaseDurations[p] / 1_000).coerceAtLeast(1)
+                    for (sec in 0 until phaseSec) {
+                        phaseProgressAnim.snapTo(sec.toFloat() / phaseSec.toFloat())
+                        kotlinx.coroutines.delay(1_000L)
+                    }
+                    phaseProgressAnim.snapTo(1f)
                 }
             }
         }
-        if (hapticsEnabled) {
+        if (latestHapticsEnabled) {
             vibrateMobileCompletion(vibrator)
         }
         running = false
@@ -882,8 +907,9 @@ fun BreathingMobileScreen(
         ) {
             OmamoriPetMobileAvatar(
                 state = if (running) OmamoriState.BREATHING else OmamoriState.CALM,
-                description = cueText,
+                description = null,
                 breathFractionProvider = breathFractionProvider,
+                interactive = false,
                 size = 160.dp
             )
 
@@ -909,7 +935,7 @@ fun BreathingMobileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    if (targetPhase == -1 && isFirstBreathing) {
+                    if (targetPhase == -1 && wasFirstBreathing) {
                         Text(
                             text = stringResource(R.string.ob_praise_complete_2),
                             style = MaterialTheme.typography.titleSmall,
@@ -920,7 +946,8 @@ fun BreathingMobileScreen(
                     Text(
                         text = targetCueText,
                         style = MaterialTheme.typography.headlineMedium,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
             }
@@ -1092,7 +1119,10 @@ fun HistoryMobileScreen(
 ) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
     val prepared = remember(uiState.breathingSessions, uiState.calmEvents, formatter) {
-        val todayCutoff = System.currentTimeMillis() - 24 * 60 * 60_000L
+        val todayCutoff = LocalDate.now()
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
         val timeline = (uiState.breathingSessions.map { HistoryTimelineItem.Breath(it) } +
             uiState.calmEvents.map { HistoryTimelineItem.Event(it) })
             .sortedByDescending { it.timestampEpochMs }
@@ -1187,10 +1217,13 @@ fun HistoryMobileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = if (prepared.todayBreaths == 0 && prepared.demoTodayBreaths > 0) {
-                                    stringResource(R.string.history_demo_summary, prepared.demoTodayBreaths)
-                                } else {
-                                    stringResource(R.string.history_today_summary, prepared.todayBreaths)
+                                text = when {
+                                    prepared.todayBreaths == 0 && prepared.demoTodayBreaths > 0 ->
+                                        stringResource(R.string.history_demo_summary, prepared.demoTodayBreaths)
+                                    prepared.todayBreaths > 0 && prepared.demoTodayBreaths > 0 ->
+                                        stringResource(R.string.history_today_with_demo_summary, prepared.todayBreaths, prepared.demoTodayBreaths)
+                                    else ->
+                                        stringResource(R.string.history_today_summary, prepared.todayBreaths)
                                 },
                                 style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
                             )
@@ -1556,6 +1589,7 @@ fun SettingsMobileScreen(
                         Text(
                             when {
                                 uiState.isAiPreparing -> stringResource(R.string.ai_preparing)
+                                uiState.aiPrepareFailed -> stringResource(R.string.ai_prepare_failed)
                                 uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_AVAILABLE ->
                                     stringResource(R.string.ai_nano_ready)
                                 else -> stringResource(R.string.ai_nano_downloadable)

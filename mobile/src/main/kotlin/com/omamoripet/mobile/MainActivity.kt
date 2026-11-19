@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -131,6 +132,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
     val lifecycleOwner = LocalLifecycleOwner.current
     val animationsEnabled = LocalAnimationsEnabled.current
     var forceShowOnboarding by remember { mutableStateOf(false) }
+    var pendingOpenBreathing by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -162,21 +164,31 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
 
     val showOnboarding = forceShowOnboarding || uiState.completedOnboardingVersion < CURRENT_ONBOARDING_VERSION
     if (showOnboarding) {
+        val initialOnboardingAnswers = remember(forceShowOnboarding, uiState.onboardingAnswers, uiState.preferences.breathingHapticsEnabled) {
+            uiState.onboardingAnswers.copy(
+                hapticChoice = if (uiState.preferences.breathingHapticsEnabled) {
+                    com.omamoripet.shared.model.OnboardingHapticChoice.WITH_HAPTICS
+                } else {
+                    com.omamoripet.shared.model.OnboardingHapticChoice.VISUAL_ONLY
+                }
+            )
+        }
         OnboardingScreen(
             analyticsTracker = repository.onboardingAnalytics,
+            initialAnswers = initialOnboardingAnswers,
             onFinishToBreathing = { answers ->
                 repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
+                pendingOpenBreathing = true
                 forceShowOnboarding = false
-                navController.navigate("breathing") {
-                    launchSingleTop = true
-                }
             },
             onFinishToHome = { answers ->
                 repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
                 forceShowOnboarding = false
             },
             onSkipOrTryLater = { answers ->
-                repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
+                if (!forceShowOnboarding) {
+                    repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
+                }
                 forceShowOnboarding = false
             }
         )
@@ -186,6 +198,15 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val showTopLevelNav = currentDestination?.route != "breathing"
+
+    LaunchedEffect(pendingOpenBreathing) {
+        if (pendingOpenBreathing) {
+            pendingOpenBreathing = false
+            navController.navigate("breathing") {
+                launchSingleTop = true
+            }
+        }
+    }
     val currentTopDest = TopDestination.entries.firstOrNull { dest ->
         currentDestination?.hierarchy?.any { it.route == dest.route } == true
     } ?: TopDestination.NOW

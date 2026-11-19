@@ -15,6 +15,8 @@
     <string name="state_elevated_desc">+%1$d bpm at rest. Take a 1-min breath.</string>
     <string name="state_breathing_desc">Following a gentle pace.</string>
     <string name="state_phone_ready_desc">Settle in 1 minute, no watch needed.</string>
+    <string name="state_watch_paired_waiting_desc">Open the Watch app to start sensing. You can breathe on your phone anytime.</string>
+    <string name="first_breath_hint">Try your first 1-minute breath to begin</string>
 
     <string name="watch_badge_demo">Demo</string>
     <string name="watch_badge_demo_exit">Exit</string>
@@ -60,8 +62,9 @@
     <string name="hc_later_btn">Later</string>
     <string name="hc_unavailable">Unavailable here. Watch learning and phone breathing still work.</string>
 
-    <string name="history_title">Reflections</string>
+    <string name="history_title">History</string>
     <string name="history_today_summary">Today · %1$d breath(s)</string>
+    <string name="history_today_with_demo_summary">Today · %1$d breath(s) (+%2$d demo)</string>
     <string name="history_demo_summary">Demo · %1$d breath(s)</string>
     <string name="history_section_today">Today</string>
     <string name="history_section_earlier">Earlier</string>
@@ -196,7 +199,10 @@
     <string name="ob_p12_title">Tap the circle once to try a calm breath</string>
     <string name="ob_p12_tap_label">Try one breath</string>
     <string name="ob_p12_inhale">Breathe in gently…</string>
+    <string name="ob_p12_hold">Hold softly…</string>
     <string name="ob_p12_exhale">Let it out slowly…</string>
+    <string name="ob_p12_haptics_on">Vibration guide: On</string>
+    <string name="ob_p12_haptics_off">Vibration guide: Off</string>
 
     <string name="ob_p13_title">That was a calm breath.</string>
     <string name="ob_p13_body">In the full 1-minute guide, you\'ll settle at this same unhurried pace.</string>

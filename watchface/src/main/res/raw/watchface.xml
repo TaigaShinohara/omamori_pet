@@ -15,7 +15,6 @@
             width="450"
             x="0"
             y="0">
-            <Variant mode="AMBIENT" target="alpha" value="60" />
             <Ellipse
                 height="422"
                 width="422"
@@ -25,16 +24,17 @@
                     color="#FF24303D"
                     thickness="8" />
             </Ellipse>
+            <Variant mode="AMBIENT" target="alpha" value="60" />
         </PartDraw>
 
-        <!-- 要素 1（上部）：お守りペット状態スロット -->
+        <!-- 要素 1（上部）：お守りペット状態スロット（4状態・非威圧） -->
         <ComplicationSlot
             displayName="@string/slot_pet_name"
             height="96"
             isCustomizable="TRUE"
             name="omamori_pet_slot"
             slotId="1"
-            supportedTypes="SMALL_IMAGE MONOCHROMATIC_IMAGE SHORT_TEXT EMPTY"
+            supportedTypes="RANGED_VALUE SMALL_IMAGE MONOCHROMATIC_IMAGE SHORT_TEXT EMPTY"
             width="140"
             x="155"
             y="42">
@@ -47,17 +47,158 @@
                 defaultSystemProvider="DATE"
                 defaultSystemProviderType="SHORT_TEXT"
                 primaryProvider="com.omamoripet.app/com.omamoripet.wear.complication.PetStateComplicationService"
-                primaryProviderType="SMALL_IMAGE" />
+                primaryProviderType="RANGED_VALUE" />
+
+            <Complication type="RANGED_VALUE">
+                <Condition>
+                    <Expressions>
+                        <Expression name="is_external_ranged">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_MAX] > 3.5 || [COMPLICATION.RANGED_VALUE_MAX] < 2.5 || [COMPLICATION.RANGED_VALUE_MIN] > 0.5 || [COMPLICATION.RANGED_VALUE_MIN] < -0.5]]>
+                        </Expression>
+                        <Expression name="state_calm">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 0.5]]>
+                        </Expression>
+                        <Expression name="state_elevated">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 1.5]]>
+                        </Expression>
+                        <Expression name="state_resting">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 2.5]]>
+                        </Expression>
+                    </Expressions>
+
+                    <!-- 他社 RANGED_VALUE 差し替え時はテキスト表示へフォールバック -->
+                    <Compare expression="is_external_ranged">
+                        <PartText
+                            alpha="240"
+                            height="44"
+                            width="140"
+                            x="0"
+                            y="26">
+                            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                                <Font
+                                    color="#FFECE8DF"
+                                    family="SYNC_TO_DEVICE"
+                                    size="22"
+                                    weight="MEDIUM">
+                                    <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
+                                </Font>
+                            </Text>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </PartText>
+                    </Compare>
+
+                    <!-- 0: CALM（おだやか）＝お守り深緑・穏やかな視線 -->
+                    <Compare expression="state_calm">
+                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#288FD3B6" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Fill color="#FF8FD3B6" />
+                                </Ellipse>
+                            </PartDraw>
+                            <PartDraw alpha="255" angle="10" height="24" pivotX="0.5" pivotY="0.5" width="32" x="64" y="29">
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="16" width="8" x="4" y="3">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="13" width="6" x="19" y="4">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <!-- 1: ELEVATED_AT_REST（ひと息タイム）＝温かな琥珀・寄り添う正面目（威圧・赤・震えなし） -->
+                    <Compare expression="state_elevated">
+                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#2CE8B878" />
+                                </Ellipse>
+                                <Ellipse height="74" width="74" x="11" y="11">
+                                    <Stroke color="#99E8B878" thickness="2.2" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Fill color="#FFE8B878" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="15" width="11" x="34" y="39">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="15" width="11" x="51" y="39">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <!-- 2: RESTING（待機中）＝静かなグレー・低い水平目 -->
+                    <Compare expression="state_resting">
+                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="80" width="80" x="8" y="8">
+                                    <Fill color="#1A9AA6B2" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Fill color="#FF7B8896" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2" cornerRadiusY="2" height="4" width="14" x="30" y="51">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2" cornerRadiusY="2" height="4" width="14" x="52" y="51">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <!-- 3 / Default: BREATHING（深呼吸中）＝青磁色（ART_DIRECTION v1.1 準拠） -->
+                    <Default>
+                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#2E93C7B5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Fill color="#FF93C7B5" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="51" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Default>
+                </Condition>
+            </Complication>
 
             <Complication type="SMALL_IMAGE">
                 <PartImage
                     alpha="255"
-                    height="88"
-                    width="88"
-                    x="26"
-                    y="4">
-                    <Variant mode="AMBIENT" target="alpha" value="150" />
+                    height="84"
+                    width="84"
+                    x="28"
+                    y="6">
                     <Image resource="[COMPLICATION.SMALL_IMAGE]" />
+                    <Variant mode="AMBIENT" target="alpha" value="150" />
                 </PartImage>
             </Complication>
 
@@ -65,12 +206,12 @@
                 <PartImage
                     alpha="255"
                     height="78"
-                    tintColor="#FF8FD3B6"
+                    tintColor="#FFECE8DF"
                     width="78"
                     x="31"
                     y="9">
-                    <Variant mode="AMBIENT" target="alpha" value="140" />
                     <Image resource="[COMPLICATION.MONOCHROMATIC_IMAGE]" />
+                    <Variant mode="AMBIENT" target="alpha" value="140" />
                 </PartImage>
             </Complication>
 
@@ -81,7 +222,7 @@
                     width="140"
                     x="0"
                     y="26">
-                    <Text align="CENTER">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
                         <Font
                             color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
@@ -90,19 +231,21 @@
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="150" />
                 </PartText>
             </Complication>
         </ComplicationSlot>
 
         <!-- 要素 2（中央）：時刻と日付 -->
         <DigitalClock
+            alpha="255"
             height="100"
             width="320"
             x="65"
             y="148">
             <TimeText
                 align="CENTER"
-                format="HH:mm"
+                format="hh:mm"
                 height="86"
                 hourFormat="SYNC_TO_DEVICE"
                 width="320"
@@ -112,10 +255,9 @@
                     color="#FFECE8DF"
                     family="SYNC_TO_DEVICE"
                     size="76"
-                    weight="SEMI_BOLD">
-                    <Variant mode="AMBIENT" target="color" value="#FFA8A59E" />
-                </Font>
+                    weight="SEMI_BOLD" />
             </TimeText>
+            <Variant mode="AMBIENT" target="alpha" value="175" />
         </DigitalClock>
 
         <PartText
@@ -124,19 +266,19 @@
             width="240"
             x="105"
             y="242">
-            <Variant mode="AMBIENT" target="alpha" value="120" />
-            <Text align="CENTER">
+            <Text align="CENTER" ellipsis="TRUE" maxLines="1">
                 <Font
                     color="#FFB4BCC4"
                     family="SYNC_TO_DEVICE"
                     size="20"
                     weight="NORMAL">
-                    <Template>%s %s<Parameter expression="[MONTH_DAY_OF_MONTH]" /><Parameter expression="[DAY_OF_WEEK_S]" /></Template>
+                    <Template>%s/%s %s<Parameter expression="[MONTH]" /><Parameter expression="[DAY]" /><Parameter expression="[DAY_OF_WEEK_S]" /></Template>
                 </Font>
             </Text>
+            <Variant mode="AMBIENT" target="alpha" value="120" />
         </PartText>
 
-        <!-- 要素 3（下部）：静止/移動文脈付き 心拍＆落ち着きゲージ -->
+        <!-- 要素 3（下部）：静止/移動文脈付き 心拍表示カプセル -->
         <ComplicationSlot
             displayName="@string/slot_heart_name"
             height="92"
@@ -160,56 +302,42 @@
                 primaryProviderType="RANGED_VALUE" />
 
             <Complication type="RANGED_VALUE">
-                <!-- ソフトなカプセル背景 -->
                 <PartDraw
                     alpha="255"
-                    height="78"
+                    height="72"
                     width="284"
                     x="8"
-                    y="7">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
+                    y="10">
                     <RoundRectangle
-                        cornerRadiusX="39"
-                        cornerRadiusY="39"
-                        height="78"
+                        cornerRadiusX="36"
+                        cornerRadiusY="36"
+                        height="72"
                         width="284"
                         x="0"
                         y="0">
                         <Fill color="#FF1B242F" />
+                    </RoundRectangle>
+                    <RoundRectangle
+                        cornerRadiusX="36"
+                        cornerRadiusY="36"
+                        height="72"
+                        width="284"
+                        x="0"
+                        y="0">
                         <Stroke
                             color="#FF2F3E4E"
                             thickness="2" />
                     </RoundRectangle>
-                    <!-- 落ち着きスコア RANGED_VALUE 進捗バー（下部トラック） -->
-                    <RoundRectangle
-                        cornerRadiusX="3"
-                        cornerRadiusY="3"
-                        height="5"
-                        width="160"
-                        x="62"
-                        y="58">
-                        <Fill color="#FF2A3644" />
-                    </RoundRectangle>
-                    <RoundRectangle
-                        cornerRadiusX="3"
-                        cornerRadiusY="3"
-                        height="5"
-                        width="[160 * ([COMPLICATION.RANGED_VALUE_VALUE] / 100)]"
-                        x="62"
-                        y="58">
-                        <Fill color="#FF8FD3B6" />
-                    </RoundRectangle>
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
                 </PartDraw>
 
-                <!-- 静止/移動文脈＋心拍・安静時差テキスト -->
                 <PartText
                     alpha="255"
-                    height="40"
+                    height="44"
                     width="268"
                     x="16"
-                    y="16">
-                    <Variant mode="AMBIENT" target="alpha" value="170" />
-                    <Text align="CENTER">
+                    y="24">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
                         <Font
                             color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
@@ -218,6 +346,7 @@
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="170" />
                 </PartText>
             </Complication>
 
@@ -228,7 +357,6 @@
                     width="284"
                     x="8"
                     y="10">
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
                     <RoundRectangle
                         cornerRadiusX="36"
                         cornerRadiusY="36"
@@ -238,6 +366,7 @@
                         y="0">
                         <Fill color="#FF1B242F" />
                     </RoundRectangle>
+                    <Variant mode="AMBIENT" target="alpha" value="0" />
                 </PartDraw>
                 <PartText
                     alpha="255"
@@ -245,8 +374,7 @@
                     width="268"
                     x="16"
                     y="24">
-                    <Variant mode="AMBIENT" target="alpha" value="170" />
-                    <Text align="CENTER">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
                         <Font
                             color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
@@ -255,6 +383,7 @@
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="170" />
                 </PartText>
             </Complication>
         </ComplicationSlot>

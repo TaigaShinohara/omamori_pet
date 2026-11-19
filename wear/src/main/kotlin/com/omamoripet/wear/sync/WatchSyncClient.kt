@@ -89,12 +89,18 @@ class WatchDataSyncListenerService : WearableListenerService() {
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
-        if (messageEvent.path == DataLayerPaths.COMMAND_START_BREATHING) {
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra(MainActivity.EXTRA_OPEN_BREATHING, true)
+        when (messageEvent.path) {
+            DataLayerPaths.COMMAND_START_BREATHING -> {
+                val intent = Intent(this, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra(MainActivity.EXTRA_OPEN_BREATHING, true)
+                }
+                startActivity(intent)
             }
-            startActivity(intent)
+            DataLayerPaths.COMMAND_EXIT_DEMO -> {
+                val repo = (application as OmamoriWearApplication).repository
+                repo.setSimulationScenario(com.omamoripet.wear.data.SimulationScenario.LIVE_SENSORS)
+            }
         }
     }
 }

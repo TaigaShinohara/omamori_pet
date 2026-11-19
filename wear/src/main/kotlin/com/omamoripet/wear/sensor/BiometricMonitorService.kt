@@ -73,8 +73,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                 context,
                 Manifest.permission.ACTIVITY_RECOGNITION
             ) == PackageManager.PERMISSION_GRANTED
-            val hasHrOn36 = Build.VERSION.SDK_INT >= 36 && hasHeartRatePermission(context)
-            return hasActivity || hasHrOn36
+            return hasActivity && hasHeartRatePermission(context)
         }
 
         fun start(context: Context, startCalibration: Boolean = false) {
@@ -82,7 +81,9 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             val intent = Intent(context, BiometricMonitorService::class.java).apply {
                 if (startCalibration) action = ACTION_START_CALIBRATION
             }
-            context.startForegroundService(intent)
+            runCatching {
+                context.startForegroundService(intent)
+            }
         }
     }
 
@@ -249,9 +250,14 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                             delay(EVAL_TICK_MS)
                         }
                     } else {
-                        // デモ中は実センサー・5秒ティックを止めてバッテリーと CPU を節約し、切替時のみ 1回通知・同期
+                        // デモ中は実センサー・5秒ティックを止めてバッテリーと CPU を節約し、切替や呼吸開始・終了時のみ通知・同期
                         unregisterSensors()
-                        pushCurrentDemoSnapshotOnce()
+                        repository.uiState
+                            .map { it.isBreathingActive }
+                            .distinctUntilChanged()
+                            .collectLatest {
+                                pushCurrentDemoSnapshotOnce()
+                            }
                     }
                 }
         }
@@ -403,17 +409,24 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private fun startOneMinuteCalibration() {
         calibrationJob?.cancel()
         calibrationJob = lifecycleScope.launch {
+            var recordedSamples = 0
             try {
                 for (remaining in 60 downTo 1) {
                     repository.setCalibrationProgress(active = true, remainingSeconds = remaining)
                     val bpm = latestLiveBpm
                     if (bpm != null && isWatchOnBody) {
                         repository.recordStillHeartRateSample(bpm)
+                        recordedSamples++
                     }
                     delay(1_000L)
                 }
             } finally {
-                repository.setCalibrationProgress(active = false, remainingSeconds = 0)
+                val result = if (recordedSamples > 0) {
+                    com.omamoripet.wear.data.CalibrationResult.SUCCESS
+                } else {
+                    com.omamoripet.wear.data.CalibrationResult.NO_SIGNAL
+                }
+                repository.setCalibrationProgress(active = false, remainingSeconds = 0, result = result)
                 repository.flushLearnedSamples()
                 repository.forceRefreshComplicationsAndTile()
             }

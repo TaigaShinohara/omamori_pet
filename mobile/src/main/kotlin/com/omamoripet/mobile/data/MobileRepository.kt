@@ -40,6 +40,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 private val Context.mobileDataStore: DataStore<Preferences> by preferencesDataStore(name = "omamori_mobile_prefs")
@@ -170,7 +172,7 @@ class MobileRepository(
         hasConnectedWearNode = wearSyncClient.hasConnectedWatch()
         _uiState.update { state ->
             state.copy(
-                isWatchConnected = hasConnectedWearNode || lastRealWatchPayload != null
+                isWatchConnected = hasConnectedWearNode
             )
         }
     }
@@ -317,6 +319,9 @@ class MobileRepository(
                 )
             }
         }
+        if (mode == MobileDemoMode.LIVE_WATCH) {
+            scope.launch { wearSyncClient.sendExitDemoToWatch() }
+        }
         scheduleAiAdviceRefresh(debounceMs = 150L)
     }
 
@@ -336,9 +341,12 @@ class MobileRepository(
     private suspend fun refreshAiAdviceInternal() {
         _uiState.update { it.copy(isAiRefreshing = true) }
         val state = _uiState.value
-        val todayStart = System.currentTimeMillis() - 24 * 60 * 60_000L
-        val todayEvents = state.calmEvents.count { it.timestampEpochMs >= todayStart }
-        val todayBreaths = state.breathingSessions.filter { it.startedAtEpochMs >= todayStart }
+        val todayStart = LocalDate.now()
+            .atStartOfDay(ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        val todayEvents = state.calmEvents.count { !it.isSimulated && it.timestampEpochMs >= todayStart }
+        val todayBreaths = state.breathingSessions.filter { !it.isSimulated && it.startedAtEpochMs >= todayStart }
         val lastDelta = todayBreaths.firstOrNull()?.let { s ->
             if (s.preBpm != null && s.postBpm != null) s.postBpm!! - s.preBpm!! else null
         }
@@ -412,7 +420,6 @@ class MobileRepository(
         val updatedPrefs = _uiState.value.preferences.copy(breathingHapticsEnabled = true)
         _uiState.update { state ->
             state.copy(
-                completedOnboardingVersion = 0,
                 onboardingAnswers = defaultAnswers,
                 hcDismissedOnHome = false,
                 watchGuideDismissedOnHome = false,
@@ -421,7 +428,6 @@ class MobileRepository(
         }
         scope.launch {
             context.mobileDataStore.edit { prefs ->
-                prefs.remove(Keys.ONBOARDING_VERSION)
                 prefs.remove(Keys.ONBOARDING_ANSWERS)
                 prefs.remove(Keys.HC_DISMISSED_HOME)
                 prefs.remove(Keys.WATCH_GUIDE_DISMISSED)

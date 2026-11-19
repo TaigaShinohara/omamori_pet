@@ -7,6 +7,7 @@ import android.graphics.drawable.Icon
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.MonochromaticImage
+import androidx.wear.watchface.complications.data.MonochromaticImageComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.RangedValueComplicationData
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
@@ -15,6 +16,7 @@ import androidx.wear.watchface.complications.data.SmallImageComplicationData
 import androidx.wear.watchface.complications.data.SmallImageType
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
+import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
@@ -33,16 +35,58 @@ private fun launchWatchAppPendingIntent(context: Context, openBreathing: Boolean
     )
 }
 
+internal fun resolvePetComplicationCode(state: OmamoriState): Float = when (state) {
+    OmamoriState.CALM -> 0f
+    OmamoriState.ELEVATED_AT_REST -> 1f
+    OmamoriState.RESTING -> 2f
+    OmamoriState.BREATHING -> 3f
+}
+
+internal fun resolvePetDrawableRes(
+    state: OmamoriState,
+    monochromatic: Boolean = false
+): Int = if (monochromatic) {
+    when (state) {
+        OmamoriState.CALM -> R.drawable.pet_calm_mono
+        OmamoriState.ELEVATED_AT_REST -> R.drawable.pet_elevated_mono
+        OmamoriState.BREATHING -> R.drawable.pet_breathing_mono
+        OmamoriState.RESTING -> R.drawable.pet_resting_mono
+    }
+} else {
+    when (state) {
+        OmamoriState.CALM -> R.drawable.pet_calm
+        OmamoriState.ELEVATED_AT_REST -> R.drawable.pet_elevated
+        OmamoriState.BREATHING -> R.drawable.pet_breathing
+        OmamoriState.RESTING -> R.drawable.pet_resting
+    }
+}
+
+internal fun resolveHeartRateDisplayText(
+    context: Context,
+    bpm: Int?,
+    delta: Int?,
+    motion: MotionState,
+    state: OmamoriState
+): String = when {
+    bpm == null || motion == MotionState.OFF_BODY -> "-- bpm"
+    motion == MotionState.RECENT_MOVEMENT ->
+        context.getString(R.string.comp_moving_bpm, bpm)
+    state == OmamoriState.ELEVATED_AT_REST && delta != null ->
+        context.getString(R.string.comp_still_elevated_bpm, bpm, delta)
+    delta != null -> {
+        val sign = if (delta >= 0) "+" else ""
+        context.getString(R.string.comp_calm_bpm, bpm, "$sign$delta")
+    }
+    else -> "$bpm bpm"
+}
+
 class PetStateComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
-        val state = (application as OmamoriWearApplication).repository.uiState.value.evaluation.state
-        val iconRes = when (state) {
-            OmamoriState.CALM -> R.drawable.pet_calm
-            OmamoriState.ELEVATED_AT_REST -> R.drawable.pet_elevated
-            OmamoriState.BREATHING -> R.drawable.pet_breathing
-            OmamoriState.RESTING -> R.drawable.pet_resting
-        }
+        val repository = (application as OmamoriWearApplication).repository
+        repository.awaitInitialized()
+        val state = repository.uiState.value.evaluation.state
+
         val shortLabel = when (state) {
             OmamoriState.CALM -> getString(R.string.state_calm_short)
             OmamoriState.ELEVATED_AT_REST -> getString(R.string.state_elevated_short)
@@ -54,18 +98,37 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
             openBreathing = false
         )
         val contentDescription = PlainComplicationText.Builder(shortLabel).build()
-        val icon = Icon.createWithResource(this, iconRes)
+        val colorIcon = Icon.createWithResource(
+            this,
+            resolvePetDrawableRes(state = state, monochromatic = false)
+        )
+        val monoIcon = Icon.createWithResource(
+            this,
+            resolvePetDrawableRes(state = state, monochromatic = true)
+        )
 
         return when (request.complicationType) {
+            ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
+                value = resolvePetComplicationCode(state),
+                min = 0f,
+                max = 3f,
+                contentDescription = contentDescription
+            )
+                .setSmallImage(SmallImage.Builder(colorIcon, SmallImageType.ICON).build())
+                .setMonochromaticImage(MonochromaticImage.Builder(monoIcon).build())
+                .setText(PlainComplicationText.Builder(shortLabel).build())
+                .setTapAction(tapAction)
+                .build()
+
             ComplicationType.SMALL_IMAGE -> SmallImageComplicationData.Builder(
-                smallImage = SmallImage.Builder(icon, SmallImageType.ICON).build(),
+                smallImage = SmallImage.Builder(colorIcon, SmallImageType.ICON).build(),
                 contentDescription = contentDescription
             )
                 .setTapAction(tapAction)
                 .build()
 
-            ComplicationType.MONOCHROMATIC_IMAGE -> androidx.wear.watchface.complications.data.MonochromaticImageComplicationData.Builder(
-                monochromaticImage = MonochromaticImage.Builder(icon).build(),
+            ComplicationType.MONOCHROMATIC_IMAGE -> MonochromaticImageComplicationData.Builder(
+                monochromaticImage = MonochromaticImage.Builder(monoIcon).build(),
                 contentDescription = contentDescription
             )
                 .setTapAction(tapAction)
@@ -83,12 +146,30 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
     override fun getPreviewData(type: ComplicationType): ComplicationData {
         val label = getString(R.string.state_calm_short)
         val desc = PlainComplicationText.Builder(label).build()
-        val icon = Icon.createWithResource(this, R.drawable.pet_calm)
+        val colorIcon = Icon.createWithResource(this, R.drawable.pet_calm)
+        val monoIcon = Icon.createWithResource(this, R.drawable.pet_calm_mono)
         return when (type) {
+            ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
+                value = resolvePetComplicationCode(OmamoriState.CALM),
+                min = 0f,
+                max = 3f,
+                contentDescription = desc
+            )
+                .setSmallImage(SmallImage.Builder(colorIcon, SmallImageType.ICON).build())
+                .setMonochromaticImage(MonochromaticImage.Builder(monoIcon).build())
+                .setText(PlainComplicationText.Builder(label).build())
+                .build()
+
             ComplicationType.SMALL_IMAGE -> SmallImageComplicationData.Builder(
-                smallImage = SmallImage.Builder(icon, SmallImageType.ICON).build(),
+                smallImage = SmallImage.Builder(colorIcon, SmallImageType.ICON).build(),
                 contentDescription = desc
             ).build()
+
+            ComplicationType.MONOCHROMATIC_IMAGE -> MonochromaticImageComplicationData.Builder(
+                monochromaticImage = MonochromaticImage.Builder(monoIcon).build(),
+                contentDescription = desc
+            ).build()
+
             else -> ShortTextComplicationData.Builder(
                 text = PlainComplicationText.Builder(label).build(),
                 contentDescription = desc
@@ -100,25 +181,22 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
 class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
-        val uiState = (application as OmamoriWearApplication).repository.uiState.value
+        val repository = (application as OmamoriWearApplication).repository
+        repository.awaitInitialized()
+        val uiState = repository.uiState.value
         val bpm = uiState.snapshot.currentHeartRateBpm
         val delta = uiState.evaluation.deltaFromRestingBpm
         val calmScore = uiState.evaluation.calmScore.toFloat().coerceIn(0f, 100f)
         val motion = uiState.snapshot.motionState
         val state = uiState.evaluation.state
 
-        val display = when {
-            bpm == null || motion == com.omamoripet.shared.model.MotionState.OFF_BODY -> "-- bpm"
-            motion == com.omamoripet.shared.model.MotionState.RECENT_MOVEMENT ->
-                getString(R.string.comp_moving_bpm, bpm)
-            state == OmamoriState.ELEVATED_AT_REST && delta != null ->
-                getString(R.string.comp_still_elevated_bpm, bpm, delta)
-            delta != null -> {
-                val sign = if (delta >= 0) "+" else ""
-                getString(R.string.comp_calm_bpm, bpm, "$sign$delta")
-            }
-            else -> "$bpm bpm"
-        }
+        val display = resolveHeartRateDisplayText(
+            context = this,
+            bpm = bpm,
+            delta = delta,
+            motion = motion,
+            state = state
+        )
         val tapAction = launchWatchAppPendingIntent(
             context = this,
             openBreathing = false
@@ -146,7 +224,8 @@ class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
-        val text = PlainComplicationText.Builder("68 bpm (+2)").build()
+        val previewLabel = getString(R.string.comp_calm_bpm, 68, "+2")
+        val text = PlainComplicationText.Builder(previewLabel).build()
         return when (type) {
             ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
                 value = 88f,

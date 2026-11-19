@@ -96,11 +96,9 @@ import com.omamoripet.shared.model.OnboardingConcern
 import com.omamoripet.shared.model.OnboardingDeviceStyle
 import com.omamoripet.shared.model.OnboardingHapticChoice
 import com.omamoripet.shared.model.OnboardingPageRole
-import com.omamoripet.shared.model.OnboardingValuePriority
 import com.omamoripet.shared.model.PraiseSelector
 import com.omamoripet.shared.model.PraiseTier
 import com.omamoripet.shared.model.computeWindowDotsState
-import com.omamoripet.shared.model.resolveValuePriority
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -109,6 +107,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun OnboardingScreen(
     analyticsTracker: OnboardingAnalyticsTracker,
+    initialAnswers: OnboardingAnswers = OnboardingAnswers(),
     onFinishToBreathing: (OnboardingAnswers) -> Unit,
     onFinishToHome: (OnboardingAnswers) -> Unit,
     onSkipOrTryLater: (OnboardingAnswers) -> Unit,
@@ -119,10 +118,9 @@ fun OnboardingScreen(
     val view = LocalView.current
     val animationsEnabled = LocalAnimationsEnabled.current
 
-    var answers by remember { mutableStateOf(OnboardingAnswers()) }
+    var answers by remember(initialAnswers) { mutableStateOf(initialAnswers) }
     var concernAnswered by remember { mutableStateOf(false) }
     var deviceAnswered by remember { mutableStateOf(false) }
-    var hapticsAnswered by remember { mutableStateOf(false) }
     var tryItCompleted by remember { mutableStateOf(false) }
     var isAutoTransitioning by remember { mutableStateOf(false) }
     val praiseSelector = remember { PraiseSelector() }
@@ -142,6 +140,9 @@ fun OnboardingScreen(
         stringResource(R.string.ob_praise_complete_2),
         stringResource(R.string.ob_praise_complete_3)
     )
+    val completePraise = remember(completePraisePool) {
+        completePraisePool[praiseSelector.nextIndex(PraiseTier.LARGE, completePraisePool.size)]
+    }
 
     val roles = remember { OnboardingPageRole.entries }
 
@@ -156,24 +157,29 @@ fun OnboardingScreen(
     val isCurrentChoiceBlocked = when (currentPage) {
         1 -> !concernAnswered
         2 -> !deviceAnswered
-        6 -> !hapticsAnswered
+        8 -> !tryItCompleted
         else -> false
+    }
+
+    suspend fun goToPage(target: Int) {
+        val clamped = target.coerceIn(0, ONBOARDING_TOTAL_PAGES - 1)
+        if (animationsEnabled) {
+            pagerState.animateScrollToPage(clamped)
+        } else {
+            pagerState.scrollToPage(clamped)
+        }
     }
 
     BackHandler(enabled = currentPage > 0) {
         if (!isAutoTransitioning) {
-            scope.launch {
-                pagerState.animateScrollToPage((currentPage - 1).coerceAtLeast(0))
-            }
+            scope.launch { goToPage(currentPage - 1) }
         }
     }
 
     fun performSmallAdvance(targetPage: Int) {
         if (isAutoTransitioning) return
         performStandardHaptic(view, PraiseTier.SMALL)
-        scope.launch {
-            pagerState.animateScrollToPage(targetPage.coerceIn(0, ONBOARDING_TOTAL_PAGES - 1))
-        }
+        scope.launch { goToPage(targetPage) }
     }
 
     Surface(
@@ -196,20 +202,17 @@ fun OnboardingScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Box(modifier = Modifier.width(88.dp), contentAlignment = Alignment.CenterStart) {
-                    val canGoBack = currentPage > 0 && !isAutoTransitioning
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage((currentPage - 1).coerceAtLeast(0))
-                            }
-                        },
-                        enabled = canGoBack,
-                        modifier = Modifier
-                            .defaultMinSize(minHeight = 48.dp)
-                            .alpha(if (currentPage > 0) 1f else 0f)
-                    ) {
-                        Text(stringResource(R.string.back), maxLines = 1)
+                Box(modifier = Modifier.widthIn(min = 88.dp), contentAlignment = Alignment.CenterStart) {
+                    if (currentPage > 0) {
+                        TextButton(
+                            onClick = {
+                                scope.launch { goToPage(currentPage - 1) }
+                            },
+                            enabled = !isAutoTransitioning,
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                        ) {
+                            Text(stringResource(R.string.back), maxLines = 1)
+                        }
                     }
                 }
 
@@ -218,25 +221,23 @@ fun OnboardingScreen(
                     totalPages = ONBOARDING_TOTAL_PAGES
                 )
 
-                Box(modifier = Modifier.width(88.dp), contentAlignment = Alignment.CenterEnd) {
-                    val canSkip = currentPage < ONBOARDING_TOTAL_PAGES - 1
-                    TextButton(
-                        onClick = {
-                            isAutoTransitioning = false
-                            analyticsTracker.track(
-                                OnboardingAnalyticsEvent.Skipped(
-                                    pageIndex = currentPage,
-                                    role = roles[currentPage]
+                Box(modifier = Modifier.widthIn(min = 88.dp), contentAlignment = Alignment.CenterEnd) {
+                    if (currentPage < ONBOARDING_TOTAL_PAGES - 1) {
+                        TextButton(
+                            onClick = {
+                                isAutoTransitioning = false
+                                analyticsTracker.track(
+                                    OnboardingAnalyticsEvent.Skipped(
+                                        pageIndex = currentPage,
+                                        role = roles[currentPage]
+                                    )
                                 )
-                            )
-                            onSkipOrTryLater(answers)
-                        },
-                        enabled = canSkip,
-                        modifier = Modifier
-                            .defaultMinSize(minHeight = 48.dp)
-                            .alpha(if (canSkip) 1f else 0f)
-                    ) {
-                        Text(stringResource(R.string.ob_skip), maxLines = 1)
+                                onSkipOrTryLater(answers)
+                            },
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                        ) {
+                            Text(stringResource(R.string.ob_skip), maxLines = 1)
+                        }
                     }
                 }
             }
@@ -275,7 +276,7 @@ fun OnboardingScreen(
                             )
                         },
                         onAdvance = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
+                            scope.launch { goToPage(2) }
                         }
                     )
                     2 -> ChoiceQuestionPage(
@@ -299,7 +300,7 @@ fun OnboardingScreen(
                             )
                         },
                         onAdvance = {
-                            scope.launch { pagerState.animateScrollToPage(3) }
+                            scope.launch { goToPage(3) }
                         }
                     )
                     3 -> MatchDeclarationPage(
@@ -322,133 +323,73 @@ fun OnboardingScreen(
                                 )
                                 OmamoriPetMobileAvatar(
                                     state = OmamoriState.CALM,
-                                    description = stringResource(R.string.ob_p5_title),
+                                    description = null,
+                                    interactive = false,
                                     size = 120.dp
                                 )
                             }
                         },
                         onNext = { performSmallAdvance(5) }
                     )
-                    5 -> ValuePage(
-                        priority = resolveValuePriority(answers),
-                        animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(6) }
-                    )
-                    6 -> ChoiceQuestionPage(
-                        title = stringResource(R.string.ob_p7_title),
-                        subtitle = stringResource(R.string.ob_p7_body),
-                        options = listOf(
-                            stringResource(R.string.ob_p7_opt1),
-                            stringResource(R.string.ob_p7_opt2),
-                            stringResource(R.string.ob_p7_opt3)
-                        ),
-                        selectedIndex = if (hapticsAnswered) answers.hapticChoice.ordinal else null,
-                        praisePool = choicePraisePool,
-                        praiseSelector = praiseSelector,
-                        animationsEnabled = animationsEnabled,
-                        onLockChange = { isAutoTransitioning = it },
-                        onAnswered = { idx ->
-                            answers = answers.copy(hapticChoice = OnboardingHapticChoice.entries[idx])
-                            hapticsAnswered = true
-                            analyticsTracker.track(
-                                OnboardingAnalyticsEvent.QuestionAnswered(6, OnboardingPageRole.CHOICE_HAPTICS)
-                            )
-                        },
-                        onAdvance = {
-                            scope.launch { pagerState.animateScrollToPage(7) }
-                        }
-                    )
-                    7 -> HapticResultPage(
-                        hapticChoice = answers.hapticChoice,
-                        animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(8) }
-                    )
-                    8 -> StepPage(
+                    5 -> StepPage(
                         stepNumber = 1,
                         title = stringResource(R.string.ob_p9_title),
                         body = stringResource(R.string.ob_p9_body),
                         iconRes = R.drawable.ic_spa_rounded,
                         animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(9) }
+                        onNext = { performSmallAdvance(6) }
                     )
-                    9 -> StepPage(
+                    6 -> StepPage(
                         stepNumber = 2,
                         title = stringResource(R.string.ob_p10_title),
                         body = stringResource(R.string.ob_p10_body),
                         iconRes = R.drawable.ic_self_improvement_rounded,
                         animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(10) }
+                        onNext = { performSmallAdvance(7) }
                     )
-                    10 -> StepPage(
+                    7 -> StepPage(
                         stepNumber = 3,
                         title = stringResource(R.string.ob_p11_title),
                         body = stringResource(R.string.ob_p11_body),
                         iconRes = R.drawable.ic_history_rounded,
                         animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(11) }
+                        onNext = { performSmallAdvance(8) }
                     )
-                    11 -> TryItBreathingPage(
+                    8 -> TryItBreathingPage(
                         hapticsEnabled = answers.hapticChoice != OnboardingHapticChoice.VISUAL_ONLY,
+                        onToggleHaptics = { enabled ->
+                            answers = answers.copy(
+                                hapticChoice = if (enabled) {
+                                    OnboardingHapticChoice.WITH_HAPTICS
+                                } else {
+                                    OnboardingHapticChoice.VISUAL_ONLY
+                                }
+                            )
+                        },
                         praisePool = tryPraisePool,
                         praiseSelector = praiseSelector,
                         animationsEnabled = animationsEnabled,
                         onLockChange = { isAutoTransitioning = it },
                         onCompletedTry = {
                             tryItCompleted = true
-                            scope.launch { pagerState.animateScrollToPage(12) }
+                            scope.launch { goToPage(9) }
                         },
                         onTryLater = {
                             analyticsTracker.track(
-                                OnboardingAnalyticsEvent.TryLaterSelected(11, OnboardingPageRole.TRY_IT)
+                                OnboardingAnalyticsEvent.TryLaterSelected(8, OnboardingPageRole.TRY_IT)
                             )
                             onSkipOrTryLater(answers)
                         }
                     )
-                    12 -> StandardInfoPage(
-                        paneLabel = stringResource(R.string.ob_p13_title),
-                        title = stringResource(R.string.ob_p13_title),
-                        body = stringResource(R.string.ob_p13_body),
-                        animationsEnabled = animationsEnabled,
-                        visualContent = {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                OmamoriPetMobileAvatar(
-                                    state = OmamoriState.CALM,
-                                    description = stringResource(R.string.ob_p13_title),
-                                    size = 128.dp
-                                )
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = CircleShape
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_check_rounded),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(10.dp).size(24.dp)
-                                    )
-                                }
-                            }
-                        },
-                        onNext = { performSmallAdvance(13) }
-                    )
-                    13 -> ExpectationPage(
-                        animationsEnabled = animationsEnabled,
-                        onNext = { performSmallAdvance(14) }
-                    )
-                    14 -> ConnectPage(
-                        completePraise = completePraisePool[
-                            praiseSelector.nextIndex(PraiseTier.LARGE, completePraisePool.size)
-                        ],
+                    9 -> ConnectPage(
+                        completePraise = completePraise,
                         tryItCompleted = tryItCompleted,
                         animationsEnabled = animationsEnabled,
                         onStartBreathing = {
                             performStandardHaptic(view, PraiseTier.LARGE)
                             analyticsTracker.track(
                                 OnboardingAnalyticsEvent.Completed(
-                                    pageIndex = 14,
+                                    pageIndex = 9,
                                     role = OnboardingPageRole.CONNECT,
                                     startedBreathingDirectly = true
                                 )
@@ -459,7 +400,7 @@ fun OnboardingScreen(
                             performStandardHaptic(view, PraiseTier.SMALL)
                             analyticsTracker.track(
                                 OnboardingAnalyticsEvent.Completed(
-                                    pageIndex = 14,
+                                    pageIndex = 9,
                                     role = OnboardingPageRole.CONNECT,
                                     startedBreathingDirectly = false
                                 )
@@ -628,17 +569,12 @@ private fun HookPage(
         visualContent = {
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .scale(scale)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onNext
-                    )
+                modifier = Modifier.scale(scale)
             ) {
                 OmamoriPetMobileAvatar(
                     state = OmamoriState.ELEVATED_AT_REST,
-                    description = stringResource(R.string.ob_p1_title),
+                    description = null,
+                    interactive = false,
                     size = 136.dp
                 )
             }
@@ -808,8 +744,8 @@ private fun ChoiceQuestionPage(
                         val signal = CompletableDeferred<Unit>()
                         interruptSignal = signal
                         scope.launch {
-                            // 反応（250-400ms）＋余韻（合計約1,000ms、タップで即割り込み）
-                            withTimeoutOrNull(950L) { signal.await() }
+                            // 軽快な反応＋余韻（合計約650ms、タップで即割り込み）
+                            withTimeoutOrNull(650L) { signal.await() }
                             isTransitioning = false
                             onLockChange(false)
                             onAdvance()
@@ -875,7 +811,21 @@ private fun MatchDeclarationPage(
         stage = 3
     }
 
-    val enterSpec = if (animationsEnabled) fadeIn(tween(220)) else EnterTransition.None
+    val stage1Alpha by animateFloatAsState(
+        targetValue = if (stage >= 1) 1f else 0f,
+        animationSpec = if (animationsEnabled) tween(220) else snap(),
+        label = "matchStage1"
+    )
+    val stage2Alpha by animateFloatAsState(
+        targetValue = if (stage >= 2) 1f else 0f,
+        animationSpec = if (animationsEnabled) tween(220) else snap(),
+        label = "matchStage2"
+    )
+    val stage3Alpha by animateFloatAsState(
+        targetValue = if (stage >= 3) 1f else 0f,
+        animationSpec = if (animationsEnabled) tween(220) else snap(),
+        label = "matchStage3"
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -889,69 +839,68 @@ private fun MatchDeclarationPage(
                 paneTitle = title
             }
     ) {
-        AnimatedVisibility(visible = stage >= 1, enter = enterSpec) {
-            Text(
-                text = reflection,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
+        Text(
+            text = reflection,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .alpha(stage1Alpha)
+                .semantics { traversalIndex = 0f }
+        )
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .defaultMinSize(minHeight = 190.dp)
+                .alpha(stage2Alpha)
+                .semantics { traversalIndex = 2f }
+        ) {
+            // ハートは心拍専用のため使わず、お守り輪の重なりで一致を表現
+            Box(
                 modifier = Modifier
-                    .padding(top = 8.dp)
-                    .semantics { traversalIndex = 0f }
+                    .size(168.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
+            )
+            Box(
+                modifier = Modifier
+                    .size(136.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f))
+            )
+            OmamoriPetMobileAvatar(
+                state = OmamoriState.CALM,
+                description = null,
+                interactive = false,
+                size = 112.dp
             )
         }
 
-        AnimatedVisibility(visible = stage >= 2, enter = enterSpec) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .defaultMinSize(minHeight = 190.dp)
-                    .semantics { traversalIndex = 2f }
-            ) {
-                // ハートは心拍専用のため使わず、お守り輪の重なりで一致を表現
-                Box(
-                    modifier = Modifier
-                        .size(168.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
-                )
-                Box(
-                    modifier = Modifier
-                        .size(136.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f))
-                )
-                OmamoriPetMobileAvatar(
-                    state = OmamoriState.CALM,
-                    description = title,
-                    size = 112.dp
-                )
-            }
-        }
-
-        AnimatedVisibility(visible = stage >= 3, enter = enterSpec) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.semantics {
-                        heading()
-                        traversalIndex = 0.5f
-                    }
-                )
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.semantics { traversalIndex = 1f }
-                )
-            }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(stage3Alpha)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics {
+                    heading()
+                    traversalIndex = 0.5f
+                }
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { traversalIndex = 1f }
+            )
         }
 
         Button(
@@ -1032,83 +981,6 @@ private fun resolveMatchStrings(answers: OnboardingAnswers): Triple<String, Stri
 }
 
 @Composable
-private fun ValuePage(
-    priority: OnboardingValuePriority,
-    animationsEnabled: Boolean,
-    onNext: () -> Unit
-) {
-    val isWatchFirst = priority == OnboardingValuePriority.WATCH_FILTER_FIRST
-    val title = stringResource(if (isWatchFirst) R.string.ob_p6_watch_title else R.string.ob_p6_phone_title)
-    val body = stringResource(if (isWatchFirst) R.string.ob_p6_watch_body else R.string.ob_p6_phone_body)
-
-    StandardInfoPage(
-        paneLabel = title,
-        title = title,
-        body = body,
-        animationsEnabled = animationsEnabled,
-        visualContent = {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                shape = MaterialTheme.shapes.extraLarge,
-                modifier = Modifier.fillMaxWidth(0.85f)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (isWatchFirst) R.drawable.ic_directions_walk_rounded else R.drawable.ic_spa_rounded
-                        ),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(44.dp)
-                    )
-                    Text(
-                        text = stringResource(
-                            if (isWatchFirst) R.string.motion_moving else R.string.cta_breathe_phone
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        },
-        onNext = onNext
-    )
-}
-
-@Composable
-private fun HapticResultPage(
-    hapticChoice: OnboardingHapticChoice,
-    animationsEnabled: Boolean,
-    onNext: () -> Unit
-) {
-    val title = when (hapticChoice) {
-        OnboardingHapticChoice.WITH_HAPTICS -> stringResource(R.string.ob_p8_title_haptics)
-        OnboardingHapticChoice.VISUAL_ONLY -> stringResource(R.string.ob_p8_title_visual)
-        OnboardingHapticChoice.UNDECIDED -> stringResource(R.string.ob_p8_title_default)
-    }
-    StandardInfoPage(
-        paneLabel = title,
-        title = title,
-        body = stringResource(R.string.ob_p8_body),
-        animationsEnabled = animationsEnabled,
-        visualContent = {
-            OmamoriPetMobileAvatar(
-                state = OmamoriState.BREATHING,
-                description = title,
-                size = 128.dp
-            )
-        },
-        onNext = onNext
-    )
-}
-
-@Composable
 private fun StepPage(
     stepNumber: Int,
     title: String,
@@ -1163,6 +1035,7 @@ private fun StepPage(
 @Composable
 private fun TryItBreathingPage(
     hapticsEnabled: Boolean,
+    onToggleHaptics: (Boolean) -> Unit,
     praisePool: List<String>,
     praiseSelector: PraiseSelector,
     animationsEnabled: Boolean,
@@ -1189,6 +1062,7 @@ private fun TryItBreathingPage(
     }
 
     val inhaleText = stringResource(R.string.ob_p12_inhale)
+    val holdText = stringResource(R.string.ob_p12_hold)
     val exhaleText = stringResource(R.string.ob_p12_exhale)
     val title = stringResource(R.string.ob_p12_title)
 
@@ -1202,7 +1076,7 @@ private fun TryItBreathingPage(
         val waitSignal = CompletableDeferred<Unit>()
         interruptWaitSignal = waitSignal
         scope.launch {
-            withTimeoutOrNull(950L) { waitSignal.await() }
+            withTimeoutOrNull(850L) { waitSignal.await() }
             onLockChange(false)
             onCompletedTry()
         }
@@ -1251,13 +1125,18 @@ private fun TryItBreathingPage(
                     .clip(CircleShape)
                     .clickable(
                         role = Role.Button,
-                        onClickLabel = stringResource(R.string.ob_p12_tap_label),
-                        enabled = !isDone
+                        onClickLabel = stringResource(R.string.ob_p12_tap_label)
                     ) {
                         if (isBreathingMini) {
-                            // 4秒間の途中タップで即完了へ割り込み可能
+                            // 途中タップで即完了へ割り込み可能
                             interruptMiniSignal?.complete(Unit)
                             return@clickable
+                        }
+                        if (isDone) {
+                            // 戻ってきた場合も再試行できるようにリセットして開始
+                            interruptWaitSignal?.cancel()
+                            isDone = false
+                            praiseText = null
                         }
                         isBreathingMini = true
                         onLockChange(true)
@@ -1267,16 +1146,25 @@ private fun TryItBreathingPage(
                         val miniInterrupt = CompletableDeferred<Unit>()
                         interruptMiniSignal = miniInterrupt
                         scope.launch {
+                            // 本番 4-2-6 と同比率のミニ呼吸（吸う2s → 止める1s → 吐く3s）
                             miniCueLabel = inhaleText
                             if (animationsEnabled) {
                                 breathAnim.snapTo(0.25f)
                                 val inhaleJob = launch {
-                                    breathAnim.animateTo(1f, tween(1_500, easing = LinearEasing))
+                                    breathAnim.animateTo(1f, tween(2_000, easing = LinearEasing))
                                 }
-                                withTimeoutOrNull(1_500L) { miniInterrupt.await() }
+                                withTimeoutOrNull(2_000L) { miniInterrupt.await() }
                                 inhaleJob.cancel()
                             } else {
-                                withTimeoutOrNull(1_500L) { miniInterrupt.await() }
+                                withTimeoutOrNull(2_000L) { miniInterrupt.await() }
+                            }
+
+                            if (!miniInterrupt.isCompleted) {
+                                miniCueLabel = holdText
+                                if (hapticsEnabled) {
+                                    performStandardHaptic(view, PraiseTier.SMALL)
+                                }
+                                withTimeoutOrNull(1_000L) { miniInterrupt.await() }
                             }
 
                             if (!miniInterrupt.isCompleted) {
@@ -1286,12 +1174,12 @@ private fun TryItBreathingPage(
                                 }
                                 if (animationsEnabled) {
                                     val exhaleJob = launch {
-                                        breathAnim.animateTo(0.15f, tween(2_500, easing = LinearEasing))
+                                        breathAnim.animateTo(0.15f, tween(3_000, easing = LinearEasing))
                                     }
-                                    withTimeoutOrNull(2_500L) { miniInterrupt.await() }
+                                    withTimeoutOrNull(3_000L) { miniInterrupt.await() }
                                     exhaleJob.cancel()
                                 } else {
-                                    withTimeoutOrNull(2_500L) { miniInterrupt.await() }
+                                    withTimeoutOrNull(3_000L) { miniInterrupt.await() }
                                 }
                             }
                             finishTryAndAdvance()
@@ -1300,8 +1188,9 @@ private fun TryItBreathingPage(
             ) {
                 OmamoriPetMobileAvatar(
                     state = if (isBreathingMini || isDone) OmamoriState.BREATHING else OmamoriState.CALM,
-                    description = stringResource(R.string.ob_p12_tap_label),
+                    description = null,
                     breathFractionProvider = { breathAnim.value },
+                    interactive = false,
                     size = 152.dp
                 )
             }
@@ -1326,58 +1215,55 @@ private fun TryItBreathingPage(
             }
         }
 
-        TextButton(
-            onClick = {
-                interruptMiniSignal?.cancel()
-                interruptWaitSignal?.cancel()
-                onLockChange(false)
-                onTryLater()
-            },
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier
-                .defaultMinSize(minHeight = 48.dp)
+                .fillMaxWidth()
                 .padding(bottom = 8.dp)
                 .semantics { traversalIndex = 3f }
         ) {
-            Text(stringResource(R.string.ob_try_later))
-        }
-    }
-}
-
-@Composable
-private fun ExpectationPage(
-    animationsEnabled: Boolean,
-    onNext: () -> Unit
-) {
-    StandardInfoPage(
-        paneLabel = stringResource(R.string.ob_p14_title),
-        title = stringResource(R.string.ob_p14_title),
-        body = stringResource(R.string.ob_p14_body),
-        animationsEnabled = animationsEnabled,
-        visualContent = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(3) { idx ->
-                    Surface(
-                        color = if (idx == 2) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = CircleShape,
-                        modifier = Modifier.size((48 + idx * 8).dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_spa_rounded),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size((24 + idx * 4).dp)
-                            )
-                        }
-                    }
+            if (isDone) {
+                Button(
+                    onClick = {
+                        interruptWaitSignal?.cancel()
+                        onLockChange(false)
+                        onCompletedTry()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 52.dp)
+                ) {
+                    Text(stringResource(R.string.ob_next))
                 }
             }
-        },
-        onNext = onNext
-    )
+            TextButton(
+                onClick = { onToggleHaptics(!hapticsEnabled) },
+                enabled = !isBreathingMini,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+            ) {
+                Text(
+                    text = stringResource(
+                        if (hapticsEnabled) R.string.ob_p12_haptics_on else R.string.ob_p12_haptics_off
+                    ),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+            if (!isDone) {
+                TextButton(
+                    onClick = {
+                        interruptMiniSignal?.cancel()
+                        interruptWaitSignal?.cancel()
+                        onLockChange(false)
+                        onTryLater()
+                    },
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(stringResource(R.string.ob_try_later))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -1413,7 +1299,8 @@ private fun ConnectPage(
         ) {
             OmamoriPetMobileAvatar(
                 state = OmamoriState.CALM,
-                description = title,
+                description = null,
+                interactive = false,
                 size = 136.dp
             )
         }

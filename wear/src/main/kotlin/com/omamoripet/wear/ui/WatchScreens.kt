@@ -43,6 +43,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
@@ -69,6 +72,7 @@ import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.wear.R
 import com.omamoripet.wear.breathing.BreathPhase
 import com.omamoripet.wear.breathing.BreathingUiState
+import com.omamoripet.wear.data.CalibrationResult
 import com.omamoripet.wear.data.SimulationScenario
 import com.omamoripet.wear.data.WatchUiState
 import kotlinx.coroutines.delay
@@ -83,6 +87,7 @@ fun HomeWatchScreen(
     onStartBreathing: () -> Unit,
     onSnooze1h: () -> Unit,
     onExitDemo: () -> Unit,
+    onDismissCalibrationResult: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
@@ -98,19 +103,17 @@ fun HomeWatchScreen(
     val baselineBpm = uiState.snapshot.restingBaselineBpm
     val isSimulated = uiState.snapshot.isSimulated
 
-    var wasCalibrating by remember { mutableStateOf(false) }
-    var showCalibrationDone by remember { mutableStateOf(false) }
+    var showCalibrationBanner by remember { mutableStateOf(CalibrationResult.NONE) }
     var snoozedFeedback by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.isCalibrating) {
+    LaunchedEffect(uiState.calibrationResult, uiState.isCalibrating) {
         if (uiState.isCalibrating) {
-            wasCalibrating = true
-            showCalibrationDone = false
-        } else if (wasCalibrating) {
-            wasCalibrating = false
-            showCalibrationDone = true
-            delay(4_000L)
-            showCalibrationDone = false
+            showCalibrationBanner = CalibrationResult.NONE
+        } else if (uiState.calibrationResult != CalibrationResult.NONE) {
+            showCalibrationBanner = uiState.calibrationResult
+            delay(4_500L)
+            showCalibrationBanner = CalibrationResult.NONE
+            onDismissCalibrationResult()
         }
     }
 
@@ -122,9 +125,8 @@ fun HomeWatchScreen(
     }
 
     val snoozedUntil = uiState.preferences.snoozedUntilEpochMs
-    val isCurrentlySnoozed = snoozedFeedback || remember(snoozedUntil) {
-        snoozedUntil > System.currentTimeMillis()
-    }
+    val nowMs = maxOf(System.currentTimeMillis(), uiState.snapshot.sampledAtEpochMs)
+    val isCurrentlySnoozed = snoozedFeedback || snoozedUntil > nowMs
 
     ScreenScaffold(
         scrollState = listState,
@@ -170,13 +172,21 @@ fun HomeWatchScreen(
                         )
                     }
                 }
-            } else if (showCalibrationDone) {
+            } else if (showCalibrationBanner != CalibrationResult.NONE) {
                 item(key = "calibration_done") {
                     val transformation = remember(this, transformationSpec) { SurfaceTransformation(transformationSpec) }
+                    val isSuccess = showCalibrationBanner == CalibrationResult.SUCCESS
                     Card(
-                        onClick = { showCalibrationDone = false },
+                        onClick = {
+                            showCalibrationBanner = CalibrationResult.NONE
+                            onDismissCalibrationResult()
+                        },
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                            containerColor = if (isSuccess) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            }
                         ),
                         transformation = transformation,
                         modifier = Modifier
@@ -184,9 +194,17 @@ fun HomeWatchScreen(
                             .transformedHeight(this, transformationSpec)
                     ) {
                         Text(
-                            text = stringResource(R.string.calibration_done, baselineBpm),
+                            text = if (isSuccess) {
+                                stringResource(R.string.calibration_done, baselineBpm)
+                            } else {
+                                stringResource(R.string.calibration_failed)
+                            },
                             style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = if (isSuccess) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onTertiaryContainer
+                            }
                         )
                     }
                 }
@@ -338,7 +356,7 @@ private fun WatchPetHeader(
     ) {
         OmamoriPetWearAvatar(
             state = state,
-            contentDescriptionText = stateTitle,
+            contentDescriptionText = stringResource(R.string.app_name),
             size = 48.dp
         )
         Spacer(Modifier.height(2.dp))
@@ -441,7 +459,11 @@ private fun BiometricSummaryPanel(
             )
         } else {
             Text(
-                text = motionText,
+                text = if (motionState == MotionState.OFF_BODY) {
+                    stringResource(R.string.off_body)
+                } else {
+                    stringResource(R.string.waiting_for_reading)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -510,9 +532,7 @@ fun BreathingWatchScreen(
         if (!breathingState.isRunning || breathingState.phase == BreathPhase.COMPLETED) {
             return@LaunchedEffect
         }
-        if (!animationsEnabled) {
-            phaseProgressAnim.snapTo(0.5f)
-        } else {
+        if (animationsEnabled) {
             phaseProgressAnim.snapTo(0f)
             phaseProgressAnim.animateTo(
                 targetValue = 1f,
@@ -521,6 +541,20 @@ fun BreathingWatchScreen(
                     easing = LinearEasing
                 )
             )
+        }
+    }
+
+    LaunchedEffect(
+        breathingState.isRunning,
+        breathingState.phase,
+        breathingState.remainingSecondsInPhase,
+        breathingState.phaseDurationMs,
+        animationsEnabled
+    ) {
+        if (!animationsEnabled && breathingState.isRunning && breathingState.phase != BreathPhase.COMPLETED) {
+            val totalSec = (breathingState.phaseDurationMs / 1_000).coerceAtLeast(1)
+            val elapsedSec = (totalSec - breathingState.remainingSecondsInPhase + 1).coerceIn(1, totalSec)
+            phaseProgressAnim.snapTo(elapsedSec.toFloat() / totalSec.toFloat())
         }
     }
 
@@ -568,14 +602,16 @@ fun BreathingWatchScreen(
                     if (isCompleted) {
                         OmamoriPetWearAvatar(
                             state = OmamoriState.CALM,
-                            contentDescriptionText = stringResource(R.string.breathing_done_title),
+                            contentDescriptionText = null,
+                            interactive = false,
                             size = 54.dp
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = stringResource(R.string.breathing_done_title),
                             style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                         )
                         val pre = breathingState.preBpm
                         val post = breathingState.postBpm
@@ -607,8 +643,9 @@ fun BreathingWatchScreen(
                         }
                         OmamoriPetWearAvatar(
                             state = OmamoriState.BREATHING,
-                            contentDescriptionText = cueText,
+                            contentDescriptionText = null,
                             breathProgressProvider = breathFractionProvider,
+                            interactive = false,
                             size = 70.dp
                         )
                         Spacer(Modifier.height(6.dp))
@@ -627,7 +664,8 @@ fun BreathingWatchScreen(
                                 text = label,
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                             )
                         }
                         Text(
@@ -717,9 +755,8 @@ fun DemoSettingsWatchScreen(
     }
 
     val snoozedUntil = uiState.preferences.snoozedUntilEpochMs
-    val isCurrentlySnoozed = snoozedFeedback || remember(snoozedUntil) {
-        snoozedUntil > System.currentTimeMillis()
-    }
+    val nowMs = maxOf(System.currentTimeMillis(), uiState.snapshot.sampledAtEpochMs)
+    val isCurrentlySnoozed = snoozedFeedback || snoozedUntil > nowMs
 
     ScreenScaffold(
         scrollState = listState,

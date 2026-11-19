@@ -219,6 +219,9 @@ class MainActivity : ComponentActivity() {
                                 onExitDemo = {
                                     repository.setSimulationScenario(SimulationScenario.LIVE_SENSORS)
                                 },
+                                onDismissCalibrationResult = {
+                                    repository.clearCalibrationResult()
+                                },
                                 onOpenSettings = {
                                     navController.navigate("settings") {
                                         launchSingleTop = true
@@ -227,6 +230,11 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("breathing") {
+                            DisposableEffect(Unit) {
+                                onDispose {
+                                    breathingController.stop()
+                                }
+                            }
                             BreathingWatchScreen(
                                 breathingState = breathingState,
                                 onStop = {

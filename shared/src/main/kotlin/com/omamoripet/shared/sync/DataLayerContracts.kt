@@ -16,6 +16,7 @@ object DataLayerPaths {
     const val CALM_EVENT = "/omamori/calm_event"
     const val ALERT_PREFERENCES = "/omamori/alert_preferences"
     const val COMMAND_START_BREATHING = "/omamori/command/start_breathing"
+    const val COMMAND_EXIT_DEMO = "/omamori/command/exit_demo"
     const val KEY_PAYLOAD = "payload_json"
 }
 

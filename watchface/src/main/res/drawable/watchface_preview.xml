@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="240dp"
-    android:height="240dp"
+    android:width="192dp"
+    android:height="192dp"
     android:viewportWidth="240"
     android:viewportHeight="240">
+    <!-- 背景と外周リング -->
     <path
         android:fillColor="#11161D"
         android:pathData="M120,0A120,120 0 1,1 119.99,0Z" />
@@ -12,27 +13,47 @@
         android:pathData="M120,16A104,104 0 1,1 119.99,16Z"
         android:strokeColor="#24303D"
         android:strokeWidth="6" />
+
+    <!-- 上部：お守りペットのオーラとシルエット -->
     <path
         android:fillColor="#248FD3B6"
-        android:pathData="M120,42A30,30 0 1,1 119.99,42Z" />
+        android:pathData="M120,38A30,30 0 1,1 119.99,38Z" />
     <path
         android:fillColor="#8FD3B6"
-        android:pathData="M120,48A24,24 0 1,1 119.99,48Z" />
+        android:pathData="M120,44A24,24 0 1,1 119.99,44Z" />
     <group
         android:pivotX="126"
-        android:pivotY="66"
+        android:pivotY="62"
         android:rotation="10">
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M118,60 h4.5 a1.8,1.8 0 0,1 1.8,1.8 v8 a1.8,1.8 0 0,1 -1.8,1.8 h-4.5 a1.8,1.8 0 0,1 -1.8,-1.8 v-8 a1.8,1.8 0 0,1 1.8,-1.8 z" />
+            android:pathData="M118,56 h4.5 a1.8,1.8 0 0,1 1.8,1.8 v8 a1.8,1.8 0 0,1 -1.8,1.8 h-4.5 a1.8,1.8 0 0,1 -1.8,-1.8 v-8 a1.8,1.8 0 0,1 1.8,-1.8 z" />
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M129,61 h3.5 a1.5,1.5 0 0,1 1.5,1.5 v6.5 a1.5,1.5 0 0,1 -1.5,1.5 h-3.5 a1.5,1.5 0 0,1 -1.5,-1.5 v-6.5 a1.5,1.5 0 0,1 1.5,-1.5 z" />
+            android:pathData="M129,57 h3.5 a1.5,1.5 0 0,1 1.5,1.5 v6.5 a1.5,1.5 0 0,1 -1.5,1.5 h-3.5 a1.5,1.5 0 0,1 -1.5,-1.5 v-6.5 a1.5,1.5 0 0,1 1.5,-1.5 z" />
     </group>
+
+    <!-- 中央：時刻と日付 -->
     <path
         android:fillColor="#ECE8DF"
-        android:pathData="M78,118 h84 a4,4 0 0,1 4,4 v14 a4,4 0 0,1 -4,4 h-84 a4,4 0 0,1 -4,-4 v-14 a4,4 0 0,1 4,-4 z" />
+        android:pathData="M78,108 h84 a4,4 0 0,1 4,4 v14 a4,4 0 0,1 -4,4 h-84 a4,4 0 0,1 -4,-4 v-14 a4,4 0 0,1 4,-4 z" />
+    <path
+        android:fillColor="#B4BCC4"
+        android:pathData="M94,138 h52 a2.5,2.5 0 0,1 2.5,2.5 v0 a2.5,2.5 0 0,1 -2.5,2.5 h-52 a2.5,2.5 0 0,1 -2.5,-2.5 v0 a2.5,2.5 0 0,1 2.5,-2.5 z" />
+
+    <!-- 下部：心拍＆落ち着きカプセル＋ゲージ -->
     <path
         android:fillColor="#1B242F"
-        android:pathData="M62,164 h116 a15,15 0 0,1 15,15 v0 a15,15 0 0,1 -15,15 h-116 a15,15 0 0,1 -15,-15 v0 a15,15 0 0,1 15,-15 z" />
+        android:pathData="M62,158 h116 a18,18 0 0,1 18,18 v0 a18,18 0 0,1 -18,18 h-116 a18,18 0 0,1 -18,-18 v0 a18,18 0 0,1 18,-18 z"
+        android:strokeColor="#2F3E4E"
+        android:strokeWidth="1.5" />
+    <path
+        android:fillColor="#ECE8DF"
+        android:pathData="M86,168 h68 a2.5,2.5 0 0,1 2.5,2.5 v0 a2.5,2.5 0 0,1 -2.5,2.5 h-68 a2.5,2.5 0 0,1 -2.5,-2.5 v0 a2.5,2.5 0 0,1 2.5,-2.5 z" />
+    <path
+        android:fillColor="#2A3644"
+        android:pathData="M80,181 h80 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-80 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
+    <path
+        android:fillColor="#8FD3B6"
+        android:pathData="M80,181 h66 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-66 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
 </vector>

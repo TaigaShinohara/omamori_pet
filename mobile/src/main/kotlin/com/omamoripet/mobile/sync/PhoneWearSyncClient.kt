@@ -57,6 +57,15 @@ class PhoneWearSyncClient(private val context: Context) {
             true
         }.getOrDefault(false)
     }
+
+    suspend fun sendExitDemoToWatch() {
+        runCatching {
+            val nodes = nodeClient.connectedNodes.await()
+            nodes.forEach { node ->
+                messageClient.sendMessage(node.id, DataLayerPaths.COMMAND_EXIT_DEMO, ByteArray(0)).await()
+            }
+        }
+    }
 }
 
 class PhoneWearSyncListenerService : WearableListenerService() {

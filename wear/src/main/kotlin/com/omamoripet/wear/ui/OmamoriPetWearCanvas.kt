@@ -23,10 +23,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -47,13 +47,15 @@ private data class WearEyePose(
 )
 
 /**
- * Wear OS 円形ディスプレイに最適化した、角丸スクエアの目が動くシンプルなお守りボットアイコン。
+ * Wear OS 円形ディスプレイに最適化したお守りボットアイコン。
+ * 不安を煽らない4状態（CALM: 深緑 / ELEVATED_AT_REST: 温かな琥珀 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
  */
 @Composable
 fun OmamoriPetWearAvatar(
     state: OmamoriState,
-    contentDescriptionText: String,
+    contentDescriptionText: String? = null,
     breathProgressProvider: () -> Float = { 0.5f },
+    interactive: Boolean = true,
     size: Dp = 64.dp,
     modifier: Modifier = Modifier
 ) {
@@ -69,7 +71,7 @@ fun OmamoriPetWearAvatar(
         if (!animationsEnabled) {
             targetPose = when (state) {
                 OmamoriState.CALM -> WearEyePose(0.32f, -0.22f, 1f, 1f, 1f, 0.42f)
-                OmamoriState.ELEVATED_AT_REST -> WearEyePose(0f, -0.05f, 0.92f, 0.92f, 1.18f, 0.34f)
+                OmamoriState.ELEVATED_AT_REST -> WearEyePose(0f, -0.02f, 0.96f, 0.96f, 1.04f, 0.44f)
                 OmamoriState.BREATHING -> WearEyePose(0f, 0.05f, 0.35f, 0.35f, 1.15f, 0.5f)
                 OmamoriState.RESTING -> WearEyePose(0f, 0.14f, 0.24f, 0.24f, 1.2f, 0.5f)
             }
@@ -83,7 +85,6 @@ fun OmamoriPetWearAvatar(
 
         when (state) {
             OmamoriState.CALM -> {
-                delay(900L)
                 val script = listOf(
                     WearEyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L,
                     WearEyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,
@@ -100,12 +101,14 @@ fun OmamoriPetWearAvatar(
                     }
                 }
             }
+
             OmamoriState.ELEVATED_AT_REST -> {
                 val script = listOf(
-                    WearEyePose(0.00f, -0.06f, 0.92f, 0.92f, 1.18f, 0.32f) to 2200L,
-                    WearEyePose(0.00f, -0.06f, 0.14f, 0.14f, 1.18f, 0.48f) to 150L,
-                    WearEyePose(0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L,
-                    WearEyePose(-0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L
+                    WearEyePose(0.00f, -0.04f, 0.96f, 0.96f, 1.04f, 0.44f) to 1800L,
+                    WearEyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.08f, 0.50f) to 150L,
+                    WearEyePose(0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
+                    WearEyePose(-0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
+                    WearEyePose(0.00f, 0.00f, 0.96f, 0.96f, 1.04f, 0.44f) to 1500L
                 )
                 while (true) {
                     for ((pose, waitMs) in script) {
@@ -114,6 +117,7 @@ fun OmamoriPetWearAvatar(
                     }
                 }
             }
+
             OmamoriState.RESTING -> {
                 val script = listOf(
                     WearEyePose(0.00f, 0.16f, 0.22f, 0.22f, 1.22f, 0.50f) to 2800L,
@@ -127,6 +131,7 @@ fun OmamoriPetWearAvatar(
                     }
                 }
             }
+
             OmamoriState.BREATHING -> Unit
         }
     }
@@ -145,21 +150,20 @@ fun OmamoriPetWearAvatar(
     }
 
     val eyeSpring = remember(animationsEnabled) {
-        if (animationsEnabled) {
-            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
-        } else {
+        if (!animationsEnabled) {
             snap()
+        } else {
+            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
         }
     }
     val blinkSpec = remember(animationsEnabled) {
-        if (animationsEnabled) {
-            tween<Float>(160, easing = FastOutSlowInEasing)
-        } else {
+        if (!animationsEnabled) {
             snap()
+        } else {
+            tween<Float>(160, easing = FastOutSlowInEasing)
         }
     }
 
-    // Draw フェーズでのみ .value を読み取り、アニメーション中の毎フレーム Recomposition を防ぐ
     val gazeXState = animateFloatAsState(effectiveTarget.gazeX, animationSpec = eyeSpring, label = "wGazeX")
     val gazeYState = animateFloatAsState(effectiveTarget.gazeY, animationSpec = eyeSpring, label = "wGazeY")
     val leftHState = animateFloatAsState(effectiveTarget.leftHeightScale, animationSpec = blinkSpec, label = "wLeftH")
@@ -181,19 +185,30 @@ fun OmamoriPetWearAvatar(
     )
     val eyeColor = Color.White
     val interactionSource = remember { MutableInteractionSource() }
+    val canTap = interactive && state != OmamoriState.BREATHING && animationsEnabled
 
-    Canvas(
-        modifier = modifier
-            .size(size)
-            .semantics { contentDescription = contentDescriptionText }
+    val semanticsModifier = when {
+        canTap -> Modifier
+            .semantics {
+                if (!contentDescriptionText.isNullOrBlank()) {
+                    contentDescription = contentDescriptionText
+                }
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                enabled = state != OmamoriState.BREATHING && animationsEnabled,
                 onClickLabel = tapLabel,
                 role = Role.Button,
                 onClick = { tapWinkTrigger++ }
             )
+        !contentDescriptionText.isNullOrBlank() -> Modifier.semantics { contentDescription = contentDescriptionText }
+        else -> Modifier.clearAndSetSemantics {}
+    }
+
+    Canvas(
+        modifier = modifier
+            .size(size)
+            .then(semanticsModifier)
     ) {
         val w = this.size.width
         val cx = w / 2f
@@ -238,16 +253,9 @@ fun OmamoriPetWearAvatar(
             radius = w * 0.46f * haloScale,
             center = Offset(cx, cy)
         )
-        if (state == OmamoriState.ELEVATED_AT_REST) {
-            drawCircle(
-                color = bodyColor.copy(alpha = 0.6f),
-                radius = w * 0.42f * haloScale,
-                center = Offset(cx, cy),
-                style = Stroke(width = w * 0.03f)
-            )
-        }
 
-        val bodyRadius = w * 0.36f * (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathProgress) else 1f)
+        val bodyRadius = w * 0.36f *
+            (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathProgress) else 1f)
         drawCircle(
             color = bodyColor,
             radius = bodyRadius,

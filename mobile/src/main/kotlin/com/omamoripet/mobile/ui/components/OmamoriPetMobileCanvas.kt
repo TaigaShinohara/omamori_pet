@@ -24,10 +24,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -49,14 +49,15 @@ private data class EyePose(
 )
 
 /**
- * 角丸スクエア／カプセル型の目が立体球面上で様々な方向へ動き、
- * 状態に応じて形を変えるシンプルなお守りボットアイコン。
+ * 角丸スクエア／カプセル型の目が立体球面上で穏やかに動くお守りボットアイコン。
+ * 不安を煽らない4状態（CALM: 深緑 / ELEVATED_AT_REST: 温かな琥珀 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
  */
 @Composable
 fun OmamoriPetMobileAvatar(
     state: OmamoriState,
-    description: String,
+    description: String? = null,
     breathFractionProvider: () -> Float = { 0.5f },
+    interactive: Boolean = true,
     size: Dp = 112.dp,
     modifier: Modifier = Modifier
 ) {
@@ -64,7 +65,16 @@ fun OmamoriPetMobileAvatar(
     val tapLabel = stringResource(R.string.avatar_tap_action)
 
     var targetPose by remember {
-        mutableStateOf(EyePose(gazeX = 0.34f, gazeY = -0.24f, leftHeightScale = 1f, rightHeightScale = 1f, widthScale = 1f, cornerFactor = 0.42f))
+        mutableStateOf(
+            EyePose(
+                gazeX = 0.34f,
+                gazeY = -0.24f,
+                leftHeightScale = 1f,
+                rightHeightScale = 1f,
+                widthScale = 1f,
+                cornerFactor = 0.42f
+            )
+        )
     }
     var tapWinkTrigger by remember { mutableIntStateOf(0) }
 
@@ -72,7 +82,7 @@ fun OmamoriPetMobileAvatar(
         if (!animationsEnabled) {
             targetPose = when (state) {
                 OmamoriState.CALM -> EyePose(0.32f, -0.22f, 1f, 1f, 1f, 0.42f)
-                OmamoriState.ELEVATED_AT_REST -> EyePose(0f, -0.05f, 0.92f, 0.92f, 1.18f, 0.34f)
+                OmamoriState.ELEVATED_AT_REST -> EyePose(0f, -0.02f, 0.96f, 0.96f, 1.04f, 0.44f)
                 OmamoriState.BREATHING -> EyePose(0f, 0.05f, 0.35f, 0.35f, 1.15f, 0.5f)
                 OmamoriState.RESTING -> EyePose(0f, 0.14f, 0.24f, 0.24f, 1.2f, 0.5f)
             }
@@ -87,12 +97,12 @@ fun OmamoriPetMobileAvatar(
         when (state) {
             OmamoriState.CALM -> {
                 val script = listOf(
-                    EyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L, // 右上を眺める
-                    EyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,  // まばたき
-                    EyePose(0.00f, -0.04f, 1.00f, 1.00f, 1.05f, 0.38f) to 1800L, // 正面
-                    EyePose(-0.32f, -0.18f, 1.00f, 1.00f, 1.00f, 0.42f) to 1900L, // 左上を見る
-                    EyePose(-0.24f, 0.12f, 1.05f, 0.20f, 1.05f, 0.48f) to 480L,  // 優しいウインク
-                    EyePose(0.18f, 0.18f, 1.08f, 1.08f, 0.96f, 0.44f) to 1600L,  // 下向きにきょろきょろ
+                    EyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L,
+                    EyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,
+                    EyePose(0.00f, -0.04f, 1.00f, 1.00f, 1.05f, 0.38f) to 1800L,
+                    EyePose(-0.32f, -0.18f, 1.00f, 1.00f, 1.00f, 0.42f) to 1900L,
+                    EyePose(-0.24f, 0.12f, 1.05f, 0.20f, 1.05f, 0.48f) to 480L,
+                    EyePose(0.18f, 0.18f, 1.08f, 1.08f, 0.96f, 0.44f) to 1600L,
                     EyePose(0.18f, 0.18f, 0.12f, 0.12f, 1.08f, 0.50f) to 130L
                 )
                 while (true) {
@@ -102,12 +112,15 @@ fun OmamoriPetMobileAvatar(
                     }
                 }
             }
+
             OmamoriState.ELEVATED_AT_REST -> {
+                // 静止中の上昇時は不安を煽らず、正面からそっと見守る穏やかなまばたきと視線に留める
                 val script = listOf(
-                    EyePose(0.00f, -0.06f, 0.92f, 0.92f, 1.18f, 0.32f) to 2200L, // しっかりした角丸スクエアの目
-                    EyePose(0.00f, -0.06f, 0.14f, 0.14f, 1.18f, 0.48f) to 150L,  // ゆっくりまばたき
-                    EyePose(0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L,
-                    EyePose(-0.16f, -0.12f, 0.94f, 0.94f, 1.15f, 0.34f) to 1600L
+                    EyePose(0.00f, -0.04f, 0.96f, 0.96f, 1.04f, 0.44f) to 1800L,
+                    EyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.08f, 0.50f) to 150L,
+                    EyePose(0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
+                    EyePose(-0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
+                    EyePose(0.00f, 0.00f, 0.96f, 0.96f, 1.04f, 0.44f) to 1500L
                 )
                 while (true) {
                     for ((pose, waitMs) in script) {
@@ -116,6 +129,7 @@ fun OmamoriPetMobileAvatar(
                     }
                 }
             }
+
             OmamoriState.RESTING -> {
                 val script = listOf(
                     EyePose(0.00f, 0.16f, 0.22f, 0.22f, 1.22f, 0.50f) to 2800L,
@@ -129,6 +143,7 @@ fun OmamoriPetMobileAvatar(
                     }
                 }
             }
+
             OmamoriState.BREATHING -> Unit
         }
     }
@@ -147,17 +162,17 @@ fun OmamoriPetMobileAvatar(
     }
 
     val eyeSpring = remember(animationsEnabled) {
-        if (animationsEnabled) {
-            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
-        } else {
+        if (!animationsEnabled) {
             snap()
+        } else {
+            spring<Float>(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)
         }
     }
     val blinkSpec = remember(animationsEnabled) {
-        if (animationsEnabled) {
-            tween<Float>(160, easing = FastOutSlowInEasing)
-        } else {
+        if (!animationsEnabled) {
             snap()
+        } else {
+            tween<Float>(160, easing = FastOutSlowInEasing)
         }
     }
 
@@ -183,19 +198,30 @@ fun OmamoriPetMobileAvatar(
     )
     val eyeColor = Color.White
     val interactionSource = remember { MutableInteractionSource() }
+    val canTap = interactive && state != OmamoriState.BREATHING && animationsEnabled
 
-    Canvas(
-        modifier = modifier
-            .size(size)
-            .semantics { contentDescription = description }
+    val semanticsModifier = when {
+        canTap -> Modifier
+            .semantics {
+                if (!description.isNullOrBlank()) {
+                    contentDescription = description
+                }
+            }
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                enabled = state != OmamoriState.BREATHING && animationsEnabled,
                 onClickLabel = tapLabel,
                 role = Role.Button,
                 onClick = { tapWinkTrigger++ }
             )
+        !description.isNullOrBlank() -> Modifier.semantics { contentDescription = description }
+        else -> Modifier.clearAndSetSemantics {}
+    }
+
+    Canvas(
+        modifier = modifier
+            .size(size)
+            .then(semanticsModifier)
     ) {
         val w = this.size.width
         val cx = w / 2f
@@ -211,7 +237,6 @@ fun OmamoriPetMobileAvatar(
         val widthScale: Float
         val cornerFactor: Float
         if (isBreathing) {
-            // 呼吸の吸う・吐くに合わせて目が上下＆細長↔安らぎバーへ滑らかに変形
             gazeX = 0f
             gazeY = 0.20f - 0.38f * breathFraction
             leftH = 0.28f + 0.78f * breathFraction
@@ -236,37 +261,29 @@ fun OmamoriPetMobileAvatar(
             1.0f + 0.03f * abs(gazeY)
         }
 
-        // 外周の柔らかいオーラリング
+        // 穏やかな外周オーラ
         drawCircle(
             color = bodyColor.copy(alpha = 0.20f),
             radius = w * 0.46f * haloScale,
             center = Offset(cx, cy)
         )
-        if (state == OmamoriState.ELEVATED_AT_REST) {
-            drawCircle(
-                color = bodyColor.copy(alpha = 0.55f),
-                radius = w * 0.42f * haloScale,
-                center = Offset(cx, cy),
-                style = Stroke(width = w * 0.025f)
-            )
-        }
 
-        // シンプルな球体シルエット（3D球面錯視）
-        val bodyRadius = w * 0.36f * (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathFraction) else 1f)
+        // シンプルな球体シルエット
+        val bodyRadius = w * 0.36f *
+            (if (isBreathing && animationsEnabled) (0.93f + 0.11f * breathFraction) else 1f)
         drawCircle(
             color = bodyColor,
             radius = bodyRadius,
             center = Offset(cx, cy)
         )
 
-        // 立体球面上の目の配置・透視縮小・傾き計算
+        // 立体球面上の目の配置と透視縮小
         val shiftX = gazeX * bodyRadius * 0.62f
         val shiftY = gazeY * bodyRadius * 0.54f
         val eyeGap = bodyRadius * 0.34f * (1f - abs(gazeX) * 0.22f)
         val baseEyeW = bodyRadius * 0.21f * widthScale
         val baseEyeH = bodyRadius * 0.44f
 
-        // 奥側の目を少し細く・小さくして球体の回転感を出す
         val leftPerspX = if (gazeX < 0f) 1f - abs(gazeX) * 0.36f else 1f
         val rightPerspX = if (gazeX > 0f) 1f - abs(gazeX) * 0.36f else 1f
         val leftScale = if (gazeX < 0f) 1f - abs(gazeX) * 0.14f else 1f
@@ -280,7 +297,7 @@ fun OmamoriPetMobileAvatar(
         rotate(degrees = tiltDegrees, pivot = Offset(cx + shiftX, cy + shiftY)) {
             val lw = baseEyeW * leftPerspX * leftScale
             val lh = (baseEyeH * leftH * leftScale).coerceAtLeast(w * 0.028f)
-            val lCorner = (minOf(lw, lh) * cornerFactor)
+            val lCorner = minOf(lw, lh) * cornerFactor
             drawRoundRect(
                 color = eyeColor,
                 topLeft = Offset(leftCenter.x - lw / 2f, leftCenter.y - lh / 2f),
@@ -290,7 +307,7 @@ fun OmamoriPetMobileAvatar(
 
             val rw = baseEyeW * rightPerspX * rightScale
             val rh = (baseEyeH * rightH * rightScale).coerceAtLeast(w * 0.028f)
-            val rCorner = (minOf(rw, rh) * cornerFactor)
+            val rCorner = minOf(rw, rh) * cornerFactor
             drawRoundRect(
                 color = eyeColor,
                 topLeft = Offset(rightCenter.x - rw / 2f, rightCenter.y - rh / 2f),

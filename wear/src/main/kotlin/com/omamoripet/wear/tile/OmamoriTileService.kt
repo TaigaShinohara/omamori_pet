@@ -1,6 +1,5 @@
 package com.omamoripet.wear.tile
 
-import android.content.ComponentName
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.ColorBuilders
 import androidx.wear.protolayout.DimensionBuilders
@@ -18,6 +17,7 @@ import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
+import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
@@ -27,7 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 
-private const val RESOURCES_VERSION = "1"
+private const val RESOURCES_VERSION = "3"
 private const val ID_PET_CALM = "pet_calm"
 private const val ID_PET_ELEVATED = "pet_elevated"
 private const val ID_PET_BREATHING = "pet_breathing"
@@ -45,7 +45,9 @@ class OmamoriTileService : TileService() {
 
     override fun onTileRequest(requestParams: RequestBuilders.TileRequest): ListenableFuture<TileBuilders.Tile> =
         serviceScope.future {
-            val uiState = (application as OmamoriWearApplication).repository.uiState.value
+            val repository = (application as OmamoriWearApplication).repository
+            repository.awaitInitialized()
+            val uiState = repository.uiState.value
             val state = uiState.evaluation.state
             val bpm = uiState.snapshot.currentHeartRateBpm
             val delta = uiState.evaluation.deltaFromRestingBpm
@@ -60,12 +62,13 @@ class OmamoriTileService : TileService() {
                 val sign = if (delta >= 0) "+" else ""
                 "$bpm bpm ($sign$delta)"
             } else {
-                "-- bpm"
+                null
             }
-            val motionLabel = when (uiState.snapshot.motionState) {
-                com.omamoripet.shared.model.MotionState.STILL_CONFIRMED -> getString(R.string.still_confirmed)
-                com.omamoripet.shared.model.MotionState.RECENT_MOVEMENT -> getString(R.string.recent_movement)
-                com.omamoripet.shared.model.MotionState.OFF_BODY -> getString(R.string.off_body)
+            val motionLabel = when {
+                uiState.snapshot.motionState == MotionState.OFF_BODY -> getString(R.string.off_body)
+                bpm == null -> getString(R.string.waiting_for_reading)
+                uiState.snapshot.motionState == MotionState.STILL_CONFIRMED -> getString(R.string.still_confirmed)
+                else -> getString(R.string.recent_movement)
             }
             val petResourceId = when (state) {
                 OmamoriState.CALM -> ID_PET_CALM
@@ -104,7 +107,7 @@ class OmamoriTileService : TileService() {
                 0xFFECE8DF.toInt()
             )
 
-            val content = LayoutElementBuilders.Column.Builder()
+            val contentBuilder = LayoutElementBuilders.Column.Builder()
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .addContent(
                     LayoutElementBuilders.Image.Builder()
@@ -119,12 +122,15 @@ class OmamoriTileService : TileService() {
                         .setColor(ColorBuilders.argb(0xFFECE8DF.toInt()))
                         .build()
                 )
-                .addContent(
+            if (bpmText != null) {
+                contentBuilder.addContent(
                     Text.Builder(this@OmamoriTileService, bpmText)
                         .setTypography(Typography.TYPOGRAPHY_BODY1)
                         .setColor(ColorBuilders.argb(primaryColor))
                         .build()
                 )
+            }
+            val content = contentBuilder
                 .addContent(
                     Text.Builder(this@OmamoriTileService, motionLabel)
                         .setTypography(Typography.TYPOGRAPHY_CAPTION1)

@@ -63,11 +63,13 @@
     <string name="calibration_running">Measuring baseline… %1$ds</string>
     <string name="calibration_running_sub">Sit comfortably and stay still</string>
     <string name="calibration_done">Resting baseline updated (%1$d bpm)</string>
+    <string name="calibration_failed">No heart rate reading. Snug your watch and try again.</string>
 
     <string name="baseline_label">Base %1$d bpm</string>
     <string name="still_confirmed">Still 3m+</string>
     <string name="recent_movement">Post-walk</string>
     <string name="off_body">Off wrist</string>
+    <string name="waiting_for_reading">Waiting for reading</string>
     <string name="demo_badge">DEMO</string>
     <string name="non_medical_note">Wellness use only; not medical.</string>
 
