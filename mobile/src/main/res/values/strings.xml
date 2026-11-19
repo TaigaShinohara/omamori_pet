@@ -180,7 +180,7 @@
     <string name="ob_p6_phone_body">One tap opens a calm visual and haptic breath whenever you need a pause.</string>
 
     <string name="ob_p7_title">Feel the breath pace with gentle vibration?</string>
-    <string name="ob_p7_body">You can follow the rhythm without even looking at the screen.</string>
+    <string name="ob_p7_body">We can also guide the upcoming breath with a gentle vibration.</string>
     <string name="ob_p7_opt1">Yes, guide me with soft vibration</string>
     <string name="ob_p7_opt2">Screen motion only is enough</string>
     <string name="ob_p7_opt3">Decide later (default: vibration on)</string>
@@ -197,7 +197,7 @@
     <string name="ob_p11_title">3. Reflect</string>
     <string name="ob_p11_body">Look back on your breathing sessions and quiet moments anytime.</string>
 
-    <string name="ob_p12_title">Tap the circle once to try a calm breath</string>
+    <string name="ob_p12_title">Tap the pet once to try a calm breath</string>
     <string name="ob_p12_tap_label">Try one breath</string>
     <string name="ob_p12_inhale">Breathe in gently…</string>
     <string name="ob_p12_hold">Hold softly…</string>

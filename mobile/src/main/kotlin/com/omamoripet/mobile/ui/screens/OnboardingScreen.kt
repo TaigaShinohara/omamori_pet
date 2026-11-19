@@ -80,6 +80,7 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.omamoripet.mobile.R
@@ -375,7 +376,7 @@ fun OnboardingScreen(
                         stepNumber = 2,
                         title = stringResource(R.string.ob_p10_title),
                         body = stringResource(R.string.ob_p10_body),
-                        iconRes = R.drawable.ic_self_improvement_rounded,
+                        iconRes = R.drawable.ic_spa_rounded,
                         isCurrentPage = isCurrent,
                         animationsEnabled = animationsEnabled,
                         onNext = { performSmallAdvance(10) }
@@ -674,22 +675,43 @@ private fun IdentityPage(
         body = stringResource(R.string.ob_p5_body),
         animationsEnabled = animationsEnabled,
         visualContent = {
+            // #4 マッチの同心円と差別化し、お守りカード＋盾バッジで非威圧の安心感を表現
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier.alpha(fade.value)
             ) {
-                Box(
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                    ),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    modifier = Modifier.size(width = 168.dp, height = 188.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        OmamoriPetMobileAvatar(
+                            state = OmamoriState.CALM,
+                            description = null,
+                            interactive = false,
+                            size = 112.dp
+                        )
+                    }
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape,
                     modifier = Modifier
-                        .size(164.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
-                )
-                OmamoriPetMobileAvatar(
-                    state = OmamoriState.CALM,
-                    description = null,
-                    interactive = false,
-                    size = 120.dp
-                )
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 8.dp, y = 8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_shield_rounded),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(20.dp)
+                    )
+                }
             }
         },
         onNext = onNext
@@ -737,42 +759,74 @@ private fun ValuePage(
                     label = "valueWalkAlpha"
                 )
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                        ),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        modifier = Modifier
-                            .size(108.dp)
-                            .alpha(walkAlpha)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.alpha(walkAlpha)) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.size(108.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_directions_walk_rounded),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(44.dp)
+                                )
+                            }
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 6.dp, y = (-6).dp)
+                        ) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_directions_walk_rounded),
+                                painter = painterResource(R.drawable.ic_notifications_paused_rounded),
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(44.dp)
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(16.dp)
                             )
                         }
                     }
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        ),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        modifier = Modifier
-                            .size(120.dp)
-                            .scale(stillScale)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.scale(stillScale)) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            modifier = Modifier.size(120.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_self_improvement_rounded),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            }
+                        }
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 6.dp, y = 6.dp)
+                        ) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_self_improvement_rounded),
+                                painter = painterResource(R.drawable.ic_check_rounded),
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(52.dp)
+                                modifier = Modifier
+                                    .padding(6.dp)
+                                    .size(16.dp)
                             )
                         }
                     }
@@ -911,7 +965,7 @@ private fun StandardInfoPage(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(lineBreak = LineBreak.Heading),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics {
                     heading()
@@ -920,7 +974,7 @@ private fun StandardInfoPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }
@@ -988,7 +1042,7 @@ private fun ChoiceQuestionPage(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(lineBreak = LineBreak.Heading),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics {
                     heading()
@@ -997,7 +1051,7 @@ private fun ChoiceQuestionPage(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(lineBreak = LineBreak.Paragraph),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }
@@ -1231,7 +1285,7 @@ private fun SequentialResultPage(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(lineBreak = LineBreak.Heading),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics {
                     heading()
@@ -1240,7 +1294,7 @@ private fun SequentialResultPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
@@ -1443,19 +1497,30 @@ private fun StepPage(
                             }
                         }
                         else -> {
+                            // ステップ1「1. みる」：ペットの色と表情で落ち着きを確かめることを直接示す
                             val iconAlpha by animateFloatAsState(
                                 targetValue = if (stepReveal >= 2) 1f else 0f,
                                 animationSpec = if (animationsEnabled) tween(240) else snap(),
-                                label = "step1Icon"
+                                label = "step1Pets"
                             )
-                            Icon(
-                                painter = painterResource(iconRes),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .alpha(iconAlpha)
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.alpha(iconAlpha)
+                            ) {
+                                OmamoriPetMobileAvatar(
+                                    state = OmamoriState.CALM,
+                                    description = null,
+                                    interactive = false,
+                                    size = 58.dp
+                                )
+                                OmamoriPetMobileAvatar(
+                                    state = OmamoriState.ELEVATED_AT_REST,
+                                    description = null,
+                                    interactive = false,
+                                    size = 58.dp
+                                )
+                            }
                         }
                     }
                 }
@@ -1536,7 +1601,7 @@ private fun TryItBreathingPage(
         // 試し操作ページは「見出し1行だけ」ルールを厳守（補足文なし、動作も1つだけ）
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineSmall.copy(lineBreak = LineBreak.Heading),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(top = 8.dp)
@@ -1551,10 +1616,16 @@ private fun TryItBreathingPage(
             verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.semantics { traversalIndex = 2f }
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = if (!isBreathingMini && !isDone) {
+                    BorderStroke(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                } else {
+                    null
+                },
                 modifier = Modifier
-                    .size(188.dp)
+                    .size(196.dp)
                     .clip(CircleShape)
                     .clickable(
                         role = Role.Button,
@@ -1618,13 +1689,15 @@ private fun TryItBreathingPage(
                         }
                     }
             ) {
-                OmamoriPetMobileAvatar(
-                    state = if (isBreathingMini || isDone) OmamoriState.BREATHING else OmamoriState.CALM,
-                    description = null,
-                    breathFractionProvider = { breathAnim.value },
-                    interactive = false,
-                    size = 152.dp
-                )
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    OmamoriPetMobileAvatar(
+                        state = if (isBreathingMini || isDone) OmamoriState.BREATHING else OmamoriState.CALM,
+                        description = null,
+                        breathFractionProvider = { breathAnim.value },
+                        interactive = false,
+                        size = 152.dp
+                    )
+                }
             }
 
             AnimatedContent(
@@ -1884,14 +1957,14 @@ private fun ConnectPage(
             if (tryItCompleted) {
                 Text(
                     text = completePraise,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(lineBreak = LineBreak.Paragraph),
                     color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center
                 )
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(lineBreak = LineBreak.Heading),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics {
                     heading()
@@ -1900,7 +1973,7 @@ private fun ConnectPage(
             )
             Text(
                 text = body,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { traversalIndex = 1f }

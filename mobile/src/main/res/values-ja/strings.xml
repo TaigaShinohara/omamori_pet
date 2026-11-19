@@ -180,7 +180,7 @@
     <string name="ob_p6_phone_body">開いたら1タップで、画面と手元のリズムに合わせて深呼吸できます。</string>
 
     <string name="ob_p7_title">深呼吸のリズムを振動でも伝えますか？</string>
-    <string name="ob_p7_body">画面を見つめなくても、手元の震えで息を合わせられます。</string>
+    <string name="ob_p7_body">これから試す深呼吸を、手元のやさしい振動でも案内できます。</string>
     <string name="ob_p7_opt1">やさしい振動で教えてほしい</string>
     <string name="ob_p7_opt2">画面の動きだけで十分</string>
     <string name="ob_p7_opt3">あとで決める（標準: 振動あり）</string>
@@ -197,7 +197,7 @@
     <string name="ob_p11_title">3. ふりかえる</string>
     <string name="ob_p11_body">深呼吸できた回数や気づきが、あとから静かに見返せます。</string>
 
-    <string name="ob_p12_title">下の丸を1回押して、ひと息ためす</string>
+    <string name="ob_p12_title">下のペットを1回押して、ひと息ためす</string>
     <string name="ob_p12_tap_label">ひと息ためす</string>
     <string name="ob_p12_inhale">ゆっくり吸って…</string>
     <string name="ob_p12_hold">そっと止めて…</string>
