@@ -131,6 +131,7 @@
     <string name="ob_skip">スキップ</string>
     <string name="ob_next">つぎへ</string>
     <string name="ob_try_later">あとで試す</string>
+    <string name="ob_try_later_snackbar">あとでホームからいつでも試せます</string>
     <string name="ob_home_secondary">ホームへ</string>
     <string name="ob_select_hint">選ぶと自動で進みます</string>
 

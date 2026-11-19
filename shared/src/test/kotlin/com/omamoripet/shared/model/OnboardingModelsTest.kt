@@ -81,14 +81,24 @@ class OnboardingModelsTest {
     }
 
     @Test
+    fun `page roles match total onboarding pages count of 15`() {
+        assertEquals(15, ONBOARDING_TOTAL_PAGES)
+        assertEquals(ONBOARDING_TOTAL_PAGES, OnboardingPageRole.entries.size)
+        assertEquals(OnboardingPageRole.HOOK, OnboardingPageRole.entries.first())
+        assertEquals(OnboardingPageRole.CONNECT, OnboardingPageRole.entries.last())
+    }
+
+    @Test
     fun `analytics tracker records page events without PII`() {
         val tracker = OnboardingAnalyticsTracker()
         tracker.track(OnboardingAnalyticsEvent.PageViewed(0, OnboardingPageRole.HOOK))
         tracker.track(OnboardingAnalyticsEvent.QuestionAnswered(1, OnboardingPageRole.CHOICE_CONCERN))
+        tracker.track(OnboardingAnalyticsEvent.Abandoned(5, OnboardingPageRole.VALUE))
         tracker.track(OnboardingAnalyticsEvent.Completed(ONBOARDING_TOTAL_PAGES - 1, OnboardingPageRole.CONNECT, startedBreathingDirectly = true))
 
-        assertEquals(3, tracker.events.size)
+        assertEquals(4, tracker.events.size)
         assertEquals(OnboardingPageRole.HOOK, tracker.events[0].role)
-        assertTrue((tracker.events[2] as OnboardingAnalyticsEvent.Completed).startedBreathingDirectly)
+        assertEquals(OnboardingPageRole.VALUE, (tracker.events[2] as OnboardingAnalyticsEvent.Abandoned).role)
+        assertTrue((tracker.events[3] as OnboardingAnalyticsEvent.Completed).startedBreathingDirectly)
     }
 }

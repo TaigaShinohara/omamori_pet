@@ -131,6 +131,7 @@
     <string name="ob_skip">Skip</string>
     <string name="ob_next">Next</string>
     <string name="ob_try_later">Try later</string>
+    <string name="ob_try_later_snackbar">You can try a calm breath from Home anytime.</string>
     <string name="ob_home_secondary">Go to Home</string>
     <string name="ob_select_hint">Tap one to continue</string>
 

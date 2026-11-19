@@ -133,6 +133,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
     val animationsEnabled = LocalAnimationsEnabled.current
     var forceShowOnboarding by remember { mutableStateOf(false) }
     var pendingOpenBreathing by remember { mutableStateOf(false) }
+    var pendingTryLaterMessage by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -185,10 +186,17 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                 repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
                 forceShowOnboarding = false
             },
-            onSkipOrTryLater = { answers ->
+            onSkip = { answers ->
                 if (!forceShowOnboarding) {
                     repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
                 }
+                forceShowOnboarding = false
+            },
+            onTryLater = { answers ->
+                if (!forceShowOnboarding) {
+                    repository.completeOnboarding(answers, CURRENT_ONBOARDING_VERSION)
+                }
+                pendingTryLaterMessage = true
                 forceShowOnboarding = false
             }
         )
@@ -205,6 +213,13 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
             navController.navigate("breathing") {
                 launchSingleTop = true
             }
+        }
+    }
+    val tryLaterSnackbarText = stringResource(R.string.ob_try_later_snackbar)
+    LaunchedEffect(pendingTryLaterMessage) {
+        if (pendingTryLaterMessage) {
+            pendingTryLaterMessage = false
+            snackbarHostState.showSnackbar(tryLaterSnackbarText)
         }
     }
     val currentTopDest = TopDestination.entries.firstOrNull { dest ->
