@@ -5,15 +5,15 @@
     android:viewportWidth="96"
     android:viewportHeight="96">
     <path
-        android:fillColor="#2CE8B878"
+        android:fillColor="#288FD3B6"
         android:pathData="M48,6A42,42 0 1,1 47.99,6Z" />
     <path
         android:fillColor="@android:color/transparent"
         android:pathData="M48,11A37,37 0 1,1 47.99,11Z"
-        android:strokeColor="#E8B878"
+        android:strokeColor="#8FD3B6"
         android:strokeWidth="2.5" />
     <path
-        android:fillColor="#E8B878"
+        android:fillColor="#8FD3B6"
         android:pathData="M48,15A33,33 0 1,1 47.99,15Z" />
     <!-- Attentive centered rounded-square eyes -->
     <path

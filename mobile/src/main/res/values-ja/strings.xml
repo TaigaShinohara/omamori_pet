@@ -226,4 +226,8 @@
     <string name="ob_praise_complete_1">準備が整いました。あとはあなたのペースで大丈夫です。</string>
     <string name="ob_praise_complete_2">おつかれさま。いつでもこのひと息に戻れます。</string>
     <string name="ob_praise_complete_3">ここまでで準備は完了です。今日の落ち着きを始めましょう。</string>
+    <string name="pet_expression_preview">ペットの表情プレビュー</string>
+    <string name="pet_expression_unwell">調子が悪い時</string>
+    <string name="pet_expression_worse">さらに悪い時</string>
+    <string name="pet_expression_worst">最悪な時</string>
 </resources>

@@ -91,14 +91,12 @@ class OmamoriTileService : TileService() {
                 .build()
 
             val primaryColor = when (state) {
-                OmamoriState.ELEVATED_AT_REST -> 0xFFE8B878.toInt()
                 OmamoriState.BREATHING -> 0xFF93C7B5.toInt()
-                OmamoriState.CALM, OmamoriState.RESTING -> 0xFF8FD3B6.toInt()
+                OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST, OmamoriState.RESTING -> 0xFF8FD3B6.toInt()
             }
             val onPrimaryColor = when (state) {
-                OmamoriState.ELEVATED_AT_REST -> 0xFF2E1E08.toInt()
                 OmamoriState.BREATHING -> 0xFF0B251D.toInt()
-                OmamoriState.CALM, OmamoriState.RESTING -> 0xFF0A261B.toInt()
+                OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST, OmamoriState.RESTING -> 0xFF0A261B.toInt()
             }
             val materialColors = Colors(
                 primaryColor,

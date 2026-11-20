@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- Purple aura and outer ring -->
+    <path
+        android:fillColor="#2C9F67EA"
+        android:pathData="M48,5A43,43 0 1,1 47.99,5Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M48,10A38,38 0 1,1 47.99,10Z"
+        android:strokeColor="#9F67EA"
+        android:strokeWidth="2.5" />
+    <path
+        android:fillColor="#9F67EA"
+        android:pathData="M48,16A32,32 0 1,1 47.99,16Z" />
+    <!-- Lowered, nearly closed eyes -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,53 h12 a2.2,2.2 0 0,1 2.2,2.2 a2.2,2.2 0 0,1 -2.2,2.2 h-12 a2.2,2.2 0 0,1 -2.2,-2.2 a2.2,2.2 0 0,1 2.2,-2.2 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,53 h12 a2.2,2.2 0 0,1 2.2,2.2 a2.2,2.2 0 0,1 -2.2,2.2 h-12 a2.2,2.2 0 0,1 -2.2,-2.2 a2.2,2.2 0 0,1 2.2,-2.2 z" />
+</vector>

@@ -84,4 +84,8 @@
     <string name="demo_moving">デモ: 歩行直後</string>
     <string name="calibration_requires_sensors">実センサーかつ権限許可時に計測できます。</string>
     <string name="avatar_tap_action">ペットとふれあう</string>
+    <string name="pet_expression_preview">ペットの表情プレビュー</string>
+    <string name="pet_expression_unwell">調子が悪い時</string>
+    <string name="pet_expression_worse">さらに悪い時</string>
+    <string name="pet_expression_worst">最悪な時</string>
 </resources>

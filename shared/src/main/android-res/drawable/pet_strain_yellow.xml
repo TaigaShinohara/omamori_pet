@@ -4,12 +4,12 @@
     android:height="96dp"
     android:viewportWidth="96"
     android:viewportHeight="96">
-    <!-- Blue mild strain aura -->
+    <!-- Warm yellow aura -->
     <path
-        android:fillColor="#284C8DF6"
+        android:fillColor="#28B4840C"
         android:pathData="M48,6A42,42 0 1,1 47.99,6Z" />
     <path
-        android:fillColor="#4C8DF6"
+        android:fillColor="#B4840C"
         android:pathData="M48,15A33,33 0 1,1 47.99,15Z" />
     <!-- Slightly narrowed, uneasy slanted eyes -->
     <group
