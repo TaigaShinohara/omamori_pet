@@ -12,18 +12,36 @@ import com.google.android.gms.wearable.WearableListenerService
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.sync.DataLayerPaths
+import com.omamoripet.shared.sync.HistoryOutbox
 import com.omamoripet.shared.sync.OmamoriJson
+import com.omamoripet.shared.sync.PendingHistoryItem
 import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
 import com.omamoripet.shared.sync.WatchLivePayload
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 
 class WatchSyncClient(private val context: Context) {
+    private companion object {
+        val historyDeliveryMutex = Mutex()
+    }
+
     private val dataClient by lazy { Wearable.getDataClient(context) }
-    private val messageClient by lazy { Wearable.getMessageClient(context) }
-    private val nodeClient by lazy { Wearable.getNodeClient(context) }
+    private val historyOutbox by lazy {
+        HistoryOutbox(
+            WatchHistoryOutboxStore(context.applicationContext.historyOutboxDataStore),
+            historyDeliveryMutex
+        ) { item ->
+            val request = PutDataMapRequest.create(item.path).apply {
+                dataMap.putString(DataLayerPaths.KEY_PAYLOAD, item.payload)
+            }.asPutDataRequest().setUrgent()
+            // DataClient persists locally and synchronizes after reconnection.
+            dataClient.putDataItem(request).await()
+        }
+    }
 
     suspend fun pushLiveState(payload: WatchLivePayload, urgent: Boolean = true) {
         runCatching {
@@ -46,28 +64,21 @@ class WatchSyncClient(private val context: Context) {
     }
 
     suspend fun sendBreathingSession(record: BreathingSessionRecord) {
-        sendMessageToAllNodes(DataLayerPaths.BREATHING_SESSION, OmamoriJson.encode(record))
+        historyOutbox.send(PendingHistoryItem("${DataLayerPaths.BREATHING_SESSION}/${record.id}", OmamoriJson.encode(record)))
     }
 
     suspend fun sendCalmEvent(record: CalmEventRecord) {
-        sendMessageToAllNodes(DataLayerPaths.CALM_EVENT, OmamoriJson.encode(record))
+        historyOutbox.send(PendingHistoryItem("${DataLayerPaths.CALM_EVENT}/${record.id}", OmamoriJson.encode(record)))
     }
 
-    private suspend fun sendMessageToAllNodes(path: String, json: String) {
-        runCatching {
-            val nodes = nodeClient.connectedNodes.await()
-            val bytes = json.toByteArray(Charsets.UTF_8)
-            nodes.forEach { node ->
-                messageClient.sendMessage(node.id, path, bytes).await()
-            }
-        }
-    }
+    suspend fun flushPendingHistory() = historyOutbox.flush()
 }
 
 class WatchDataSyncListenerService : WearableListenerService() {
 
-    override fun onDataChanged(dataEvents: DataEventBuffer) {
+    override fun onDataChanged(dataEvents: DataEventBuffer) = runBlocking {
         val repo = (application as OmamoriWearApplication).repository
+        repo.awaitInitialized()
         dataEvents.forEach { event ->
             if (event.type == DataEvent.TYPE_CHANGED) {
                 val path = event.dataItem.uri.path ?: return@forEach

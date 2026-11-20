@@ -1,5 +1,6 @@
 package com.omamoripet.mobile.ui.screens
 
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.activity.compose.BackHandler
@@ -76,6 +77,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -104,6 +106,7 @@ import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.ui.components.OmamoriPetMobileAvatar
 import com.omamoripet.mobile.ui.theme.LocalAnimationsEnabled
 import com.omamoripet.mobile.ui.theme.OmamoriMotion
+import com.omamoripet.shared.domain.BreathingTimeline
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventAction
@@ -115,6 +118,7 @@ import java.text.DateFormat
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
+import java.util.UUID
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -801,8 +805,9 @@ fun BreathingMobileScreen(
     hapticsEnabled: Boolean = true,
     isFirstBreathing: Boolean = false,
     onBack: () -> Unit,
-    onCompleted: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    onCompleted: (String, Long, Int) -> Unit,
+    modifier: Modifier = Modifier,
+    elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() }
 ) {
     val context = LocalContext.current
     val view = LocalView.current
@@ -822,49 +827,49 @@ fun BreathingMobileScreen(
         }
     }
 
-    val wasFirstBreathing = remember { isFirstBreathing }
+    val wasFirstBreathing = rememberSaveable { isFirstBreathing }
     val latestHapticsEnabled by rememberUpdatedState(hapticsEnabled)
-    var sessionId by remember { mutableIntStateOf(1) }
-    var running by remember { mutableStateOf(true) } // 開いたら即座に呼吸ガイド開始（2回タップの摩擦を排除）
-    var completed by remember { mutableStateOf(false) }
+    val latestAnimationsEnabled by rememberUpdatedState(animationsEnabled)
+    val latestOnCompleted by rememberUpdatedState(onCompleted)
+    val latestClock by rememberUpdatedState(elapsedRealtimeMs)
+    var sessionId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
+    var startedElapsedMs by rememberSaveable { mutableStateOf(elapsedRealtimeMs()) }
+    var startedAtEpochMs by rememberSaveable { mutableStateOf(System.currentTimeMillis()) }
+    var running by rememberSaveable { mutableStateOf(true) }
+    var completed by rememberSaveable { mutableStateOf(false) }
+    var lastCuedPhase by rememberSaveable { mutableIntStateOf(-1) }
     var phaseIndex by remember { mutableIntStateOf(0) }
     var cycle by remember { mutableIntStateOf(1) }
-    val totalCycles = 5
+    val totalCycles = BreathingTimeline.TOTAL_CYCLES
     val phaseProgressAnim = remember { Animatable(0f) }
     val phaseDurations = remember { listOf(4_000, 2_000, 6_000) }
 
-    LaunchedEffect(running, sessionId, animationsEnabled) {
+    // The monotonic clock owns the session; frames only draw its current position.
+    // Save the start and completion so rotation never restarts or re-records it.
+    LaunchedEffect(running, sessionId) {
         if (!running) return@LaunchedEffect
-        completed = false
-        for (c in 1..totalCycles) {
-            cycle = c
-            for (p in 0..2) {
-                phaseIndex = p
-                if (latestHapticsEnabled) {
-                    vibrateMobileBreathCue(vibrator, p)
-                }
-                if (animationsEnabled) {
-                    phaseProgressAnim.snapTo(0f)
-                    phaseProgressAnim.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(durationMillis = phaseDurations[p], easing = LinearEasing)
-                    )
-                } else {
-                    val phaseSec = (phaseDurations[p] / 1_000).coerceAtLeast(1)
-                    for (sec in 0 until phaseSec) {
-                        phaseProgressAnim.snapTo(sec.toFloat() / phaseSec.toFloat())
-                        kotlinx.coroutines.delay(1_000L)
-                    }
-                    phaseProgressAnim.snapTo(1f)
-                }
+        while (true) {
+            val now = latestClock()
+            val elapsed = if (now >= startedElapsedMs) now - startedElapsedMs
+                else (System.currentTimeMillis() - startedAtEpochMs).coerceAtLeast(0L)
+            val position = BreathingTimeline.at(elapsed)
+            phaseIndex = position.phaseIndex
+            cycle = position.cycle
+            phaseProgressAnim.snapTo(position.progress)
+            if (position.completed) {
+                running = false
+                completed = true
+                latestOnCompleted(sessionId, startedAtEpochMs, BreathingTimeline.DURATION_SECONDS)
+                if (latestHapticsEnabled) vibrateMobileCompletion(vibrator)
+                break
             }
+            val cue = (position.cycle - 1) * 3 + position.phaseIndex
+            if (cue != lastCuedPhase) {
+                lastCuedPhase = cue
+                if (latestHapticsEnabled) vibrateMobileBreathCue(vibrator, position.phaseIndex)
+            }
+            if (latestAnimationsEnabled) withFrameNanos { } else kotlinx.coroutines.delay(100L)
         }
-        if (latestHapticsEnabled) {
-            vibrateMobileCompletion(vibrator)
-        }
-        running = false
-        completed = true
-        onCompleted(totalCycles * 12)
     }
 
     val breathFractionProvider = remember {
@@ -1014,7 +1019,11 @@ fun BreathingMobileScreen(
                     if (isDone) {
                         OutlinedButton(
                             onClick = {
-                                sessionId++
+                                sessionId = UUID.randomUUID().toString()
+                                startedElapsedMs = elapsedRealtimeMs()
+                                startedAtEpochMs = System.currentTimeMillis()
+                                lastCuedPhase = -1
+                                completed = false
                                 running = true
                             },
                             modifier = Modifier.defaultMinSize(minHeight = 48.dp)

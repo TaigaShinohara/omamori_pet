@@ -68,13 +68,14 @@ class RestingBaselineLearner(
 ) {
     private val stillHrSamples = ArrayDeque<Int>()
     private var healthConnectBaselineBpm: Int? = null
+    private var healthConnectMeasuredAtMs: Long? = null
 
-    fun loadInitial(samples: List<Int>, healthConnectBpm: Int?) {
+    fun loadInitial(samples: List<Int>, healthConnectBpm: Int?, measuredAtEpochMs: Long? = null) {
         stillHrSamples.clear()
         samples.takeLast(maxSamples).forEach { bpm ->
             if (bpm in 38..140) stillHrSamples.addLast(bpm)
         }
-        healthConnectBaselineBpm = healthConnectBpm?.takeIf { it in 38..120 }
+        updateHealthConnectBaseline(healthConnectBpm, measuredAtEpochMs)
     }
 
     fun recordStillSample(bpm: Int) {
@@ -85,14 +86,17 @@ class RestingBaselineLearner(
         stillHrSamples.addLast(bpm)
     }
 
-    fun updateHealthConnectBaseline(bpm: Int?) {
+    fun updateHealthConnectBaseline(bpm: Int?, measuredAtEpochMs: Long? = System.currentTimeMillis()) {
         healthConnectBaselineBpm = bpm?.takeIf { it in 38..120 }
+        healthConnectMeasuredAtMs = measuredAtEpochMs.takeIf { healthConnectBaselineBpm != null }
     }
 
     fun getCurrentSamples(): List<Int> = stillHrSamples.toList()
 
-    fun resolveBaseline(): ResolvedBaseline {
-        val hc = healthConnectBaselineBpm
+    fun resolveBaseline(nowEpochMs: Long = System.currentTimeMillis()): ResolvedBaseline {
+        val hc = healthConnectBaselineBpm?.takeIf {
+            MeasurementFreshness.isFresh(healthConnectMeasuredAtMs, nowEpochMs, MeasurementFreshness.HEALTH_CONNECT_MAX_AGE_MS)
+        }
         if (hc != null) {
             return ResolvedBaseline(bpm = hc, source = BaselineSource.HEALTH_CONNECT)
         }
