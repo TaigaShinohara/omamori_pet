@@ -6,8 +6,10 @@ import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -31,6 +33,53 @@ class CalmStateEvaluatorTest {
         sustainedElevationSeconds = sustainedSeconds,
         sampledAtEpochMs = sampledAt
     )
+
+    @Test
+    fun `pet colors follow the heart rate difference above the configured threshold`() {
+        val expectations = listOf(
+            0 to null,
+            4 to null,
+            5 to PetHeartRateColor.YELLOW,
+            14 to PetHeartRateColor.YELLOW,
+            15 to PetHeartRateColor.RED,
+            24 to PetHeartRateColor.RED,
+            25 to PetHeartRateColor.PURPLE
+        )
+        for (threshold in listOf(15, 25)) {
+            for ((offset, color) in expectations) {
+                val snapshot = baseSnapshot(bpm = 64 + threshold + offset, sustainedSeconds = 90)
+                val evaluation = CalmStateEvaluator.evaluate(
+                    snapshot = snapshot,
+                    isBreathingActive = false,
+                    lastAlertEpochMs = 0L,
+                    currentHourOfDay = 14,
+                    preferences = defaultPrefs.copy(elevationThresholdBpm = threshold)
+                )
+                assertEquals(OmamoriState.ELEVATED_AT_REST, evaluation.state)
+                assertEquals(color, evaluation.petHeartRateColor)
+            }
+        }
+    }
+
+    @Test
+    fun `pet colors require an available sustained at rest reading outside guided breathing`() {
+        val high = baseSnapshot(bpm = 120, sustainedSeconds = 90)
+        for (snapshot in listOf(
+            high.copy(isWatchOnBody = false),
+            high.copy(currentHeartRateBpm = null),
+            high.copy(motionState = MotionState.RECENT_MOVEMENT),
+            high.copy(sustainedElevationSeconds = 89),
+            high.copy(currentHeartRateBpm = 78)
+        )) {
+            val evaluation = CalmStateEvaluator.evaluate(snapshot, false, 0L, 14, defaultPrefs)
+            assertNull(evaluation.petHeartRateColor)
+        }
+        val breathing = CalmStateEvaluator.evaluate(high, true, 0L, 14, defaultPrefs)
+        assertNull(breathing.petHeartRateColor)
+        val alertsOff = CalmStateEvaluator.evaluate(high, false, 0L, 14, defaultPrefs.copy(alertsEnabled = false))
+        assertEquals(PetHeartRateColor.PURPLE, alertsOff.petHeartRateColor)
+        assertFalse(alertsOff.shouldTriggerAlert)
+    }
 
     @Test
     fun `off body returns RESTING without alert`() {

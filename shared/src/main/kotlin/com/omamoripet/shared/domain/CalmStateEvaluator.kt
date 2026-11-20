@@ -6,6 +6,7 @@ import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import kotlin.math.roundToInt
 
 /**
@@ -82,12 +83,21 @@ object CalmStateEvaluator {
             preferences = preferences
         )
 
+        // 静止と持続時間を確認したあと、通知のしきい値を超えた幅でペットの色を選ぶ。
+        val bpmAboveThreshold = delta - preferences.elevationThresholdBpm
+        val petHeartRateColor = when {
+            bpmAboveThreshold >= 25 -> PetHeartRateColor.PURPLE
+            bpmAboveThreshold >= 15 -> PetHeartRateColor.RED
+            bpmAboveThreshold >= 5 -> PetHeartRateColor.YELLOW
+            else -> null
+        }
         return CalmEvaluation(
             state = OmamoriState.ELEVATED_AT_REST,
             calmScore = calmScore,
             deltaFromRestingBpm = delta,
             shouldTriggerAlert = suppression == AlertSuppressionReason.NONE,
-            suppressionReason = suppression
+            suppressionReason = suppression,
+            petHeartRateColor = petHeartRateColor
         )
     }
 

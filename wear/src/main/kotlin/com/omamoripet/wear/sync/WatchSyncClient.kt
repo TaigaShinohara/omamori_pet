@@ -43,7 +43,7 @@ class WatchSyncClient(private val context: Context) {
         }
     }
 
-    suspend fun pushLiveState(payload: WatchLivePayload, urgent: Boolean = true) {
+    suspend fun pushLiveState(payload: WatchLivePayload, urgent: Boolean = true): Boolean =
         runCatching {
             val request = PutDataMapRequest.create(DataLayerPaths.WATCH_LIVE_STATE).apply {
                 dataMap.putString(DataLayerPaths.KEY_PAYLOAD, OmamoriJson.encode(payload))
@@ -51,8 +51,7 @@ class WatchSyncClient(private val context: Context) {
                 if (urgent) setUrgent()
             }
             dataClient.putDataItem(request).await()
-        }
-    }
+        }.isSuccess
 
     suspend fun pushPreferences(payload: PreferencesSyncPayload) {
         runCatching {

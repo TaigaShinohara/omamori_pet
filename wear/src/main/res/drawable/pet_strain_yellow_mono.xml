@@ -4,6 +4,7 @@
     android:height="96dp"
     android:viewportWidth="96"
     android:viewportHeight="96">
+    <!-- Slightly slanted eyes -->
     <path
         android:fillColor="#FFFFFFFF"
         android:fillType="evenOdd"

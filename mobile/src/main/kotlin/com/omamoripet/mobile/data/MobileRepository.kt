@@ -24,6 +24,7 @@ import com.omamoripet.shared.model.CURRENT_ONBOARDING_VERSION
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.shared.model.OnboardingAnalyticsTracker
 import com.omamoripet.shared.model.OnboardingAnswers
 import com.omamoripet.shared.model.OnboardingHapticChoice
@@ -86,7 +87,8 @@ data class MobileUiState(
     val completedOnboardingVersion: Int = 0,
     val onboardingAnswers: OnboardingAnswers = OnboardingAnswers(),
     val hasCompletedFirstBreathing: Boolean = false,
-    val watchGuideDismissedOnHome: Boolean = false
+    val watchGuideDismissedOnHome: Boolean = false,
+    val petHeartRateColor: PetHeartRateColor? = null
 )
 
 class MobileRepository(
@@ -218,13 +220,15 @@ class MobileRepository(
                 } else null
             }
             val watch = lastRealWatchPayload?.takeIf { isFreshWatchPayload(it) && it.baselineSource != BaselineSource.HEALTH_CONNECT }
+            val restingBaselineBpm = baseline?.bpm ?: watch?.restingBaselineBpm ?: 65
             _uiState.update { state ->
                 state.copy(
                     healthConnectAvailability = availability,
                     hasHealthConnectPermission = hasPerm,
                     healthConnectRestingBpm = baseline?.bpm,
                     healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs,
-                    restingBaselineBpm = baseline?.bpm ?: watch?.restingBaselineBpm ?: 65,
+                    restingBaselineBpm = restingBaselineBpm,
+                    petHeartRateColor = state.petHeartRateColor.takeIf { state.restingBaselineBpm == restingBaselineBpm },
                     baselineSource = if (baseline != null) BaselineSource.HEALTH_CONNECT else watch?.baselineSource ?: BaselineSource.DEFAULT_FALLBACK
                 )
             }
@@ -279,19 +283,7 @@ class MobileRepository(
         val stateChanged = previous.omamoriState != payload.omamoriState ||
             previous.motionState != payload.motionState ||
             !previous.isWatchConnected
-        _uiState.update { state ->
-            state.copy(
-                omamoriState = payload.omamoriState,
-                currentHeartRateBpm = payload.currentHeartRateBpm,
-                restingBaselineBpm = state.healthConnectRestingBpm ?: payload.restingBaselineBpm,
-                baselineSource = if (state.healthConnectRestingBpm != null) BaselineSource.HEALTH_CONNECT else payload.baselineSource,
-                motionState = payload.motionState,
-                calmScore = payload.calmScore,
-                isSimulated = payload.isSimulated,
-                lastWatchSyncMs = payload.updatedAtEpochMs,
-                isWatchConnected = true
-            )
-        }
+        _uiState.update { it.withWatchMeasurements(payload) }
         if (stateChanged) {
             scheduleAiAdviceRefresh(debounceMs = 300L)
         }
@@ -304,22 +296,12 @@ class MobileRepository(
                 MobileDemoMode.LIVE_WATCH -> {
                     val real = lastRealWatchPayload?.takeIf { hasConnectedWearNode && isFreshWatchPayload(it) }
                     if (real != null) {
-                        state.copy(
-                            demoMode = mode,
-                            omamoriState = real.omamoriState,
-                            currentHeartRateBpm = real.currentHeartRateBpm,
-                            restingBaselineBpm = state.healthConnectRestingBpm ?: real.restingBaselineBpm,
-                            baselineSource = if (state.healthConnectRestingBpm != null) BaselineSource.HEALTH_CONNECT else real.baselineSource,
-                            motionState = real.motionState,
-                            calmScore = real.calmScore,
-                            isSimulated = false,
-                            lastWatchSyncMs = real.updatedAtEpochMs,
-                            isWatchConnected = true
-                        )
+                        state.withWatchMeasurements(real).copy(demoMode = mode)
                     } else {
                         state.copy(
                             demoMode = mode,
                             omamoriState = OmamoriState.RESTING,
+                            petHeartRateColor = null,
                             currentHeartRateBpm = null,
                             restingBaselineBpm = state.healthConnectRestingBpm ?: 65,
                             baselineSource = if (state.healthConnectRestingBpm != null) BaselineSource.HEALTH_CONNECT else BaselineSource.DEFAULT_FALLBACK,
@@ -334,6 +316,7 @@ class MobileRepository(
                 MobileDemoMode.DEMO_CALM -> state.copy(
                     demoMode = mode,
                     omamoriState = OmamoriState.CALM,
+                    petHeartRateColor = null,
                     currentHeartRateBpm = base + 2,
                     restingBaselineBpm = base,
                     motionState = MotionState.STILL_CONFIRMED,
@@ -343,7 +326,8 @@ class MobileRepository(
                 MobileDemoMode.DEMO_ELEVATED_AT_REST -> state.copy(
                     demoMode = mode,
                     omamoriState = OmamoriState.ELEVATED_AT_REST,
-                    currentHeartRateBpm = base + state.preferences.elevationThresholdBpm + 5,
+                    petHeartRateColor = null,
+                    currentHeartRateBpm = base + state.preferences.elevationThresholdBpm + 3,
                     restingBaselineBpm = base,
                     motionState = MotionState.STILL_CONFIRMED,
                     calmScore = 60,
@@ -352,6 +336,7 @@ class MobileRepository(
                 MobileDemoMode.DEMO_MOVING -> state.copy(
                     demoMode = mode,
                     omamoriState = OmamoriState.CALM,
+                    petHeartRateColor = null,
                     currentHeartRateBpm = base + 24,
                     restingBaselineBpm = base,
                     motionState = MotionState.RECENT_MOVEMENT,

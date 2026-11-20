@@ -22,6 +22,7 @@ import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
@@ -254,6 +255,7 @@ class WatchStateRepository(private val context: Context) {
         persistSnapshotIfNeeded(snapshot = snapshot, state = eval.state, scenario = scenario)
         maybeRefreshComplicationsAndTile(
             state = eval.state,
+            petHeartRateColor = eval.petHeartRateColor,
             motionState = snapshot.motionState,
             bpm = snapshot.currentHeartRateBpm,
             calmScore = eval.calmScore,
@@ -283,6 +285,7 @@ class WatchStateRepository(private val context: Context) {
         if (snap != null && eval != null) {
             maybeRefreshComplicationsAndTile(
                 state = eval.state,
+                petHeartRateColor = eval.petHeartRateColor,
                 motionState = snap.motionState,
                 bpm = snap.currentHeartRateBpm,
                 calmScore = eval.calmScore,
@@ -324,6 +327,7 @@ class WatchStateRepository(private val context: Context) {
         if (snap != null && eval != null) {
             maybeRefreshComplicationsAndTile(
                 state = eval.state,
+                petHeartRateColor = eval.petHeartRateColor,
                 motionState = snap.motionState,
                 bpm = snap.currentHeartRateBpm,
                 calmScore = eval.calmScore,
@@ -365,7 +369,7 @@ class WatchStateRepository(private val context: Context) {
                 isSimulated = true
             )
             SimulationScenario.ELEVATED_AT_REST -> BiometricSnapshot(
-                currentHeartRateBpm = baseline.bpm + current.preferences.elevationThresholdBpm + 5,
+                currentHeartRateBpm = baseline.bpm + current.preferences.elevationThresholdBpm + 3,
                 restingBaselineBpm = baseline.bpm,
                 baselineSource = baseline.source,
                 motionState = MotionState.STILL_CONFIRMED,
@@ -455,6 +459,7 @@ class WatchStateRepository(private val context: Context) {
         if (snap != null && eval != null) {
             updateTracker.recordForcedPush(
                 state = eval.state,
+                petHeartRateColor = eval.petHeartRateColor,
                 motionState = snap.motionState,
                 bpm = snap.currentHeartRateBpm,
                 calmScore = eval.calmScore,
@@ -499,12 +504,13 @@ class WatchStateRepository(private val context: Context) {
      */
     private fun maybeRefreshComplicationsAndTile(
         state: OmamoriState,
+        petHeartRateColor: PetHeartRateColor?,
         motionState: MotionState,
         bpm: Int?,
         calmScore: Int,
         nowMs: Long
     ) {
-        if (updateTracker.shouldPushAndMark(state, motionState, bpm, calmScore, nowMs)) {
+        if (updateTracker.shouldPushAndMark(state, motionState, bpm, calmScore, nowMs, petHeartRateColor)) {
             forceRefreshComplicationsAndTile()
         }
     }
@@ -528,6 +534,7 @@ class WatchStateRepository(private val context: Context) {
 internal class ComplicationUpdateTracker {
     private var lastPushedMs: Long = 0L
     private var lastState: OmamoriState? = null
+    private var lastPetHeartRateColor: PetHeartRateColor? = null
     private var lastMotionState: MotionState? = null
     private var lastHasBpm: Boolean? = null
     private var lastBpmBucket: Int? = null
@@ -539,13 +546,15 @@ internal class ComplicationUpdateTracker {
         motionState: MotionState,
         bpm: Int?,
         calmScore: Int,
-        nowMs: Long
+        nowMs: Long,
+        petHeartRateColor: PetHeartRateColor? = null
     ): Boolean {
         val hasBpm = bpm != null
         val bpmBucket = bpm?.let { it / 3 }
         val calmBucket = calmScore / 5
 
         val urgentTransition = lastState != state ||
+            lastPetHeartRateColor != petHeartRateColor ||
             lastMotionState != motionState ||
             lastHasBpm != hasBpm
         val elapsed = nowMs - lastPushedMs
@@ -560,6 +569,7 @@ internal class ComplicationUpdateTracker {
         }
 
         lastState = state
+        lastPetHeartRateColor = petHeartRateColor
         lastMotionState = motionState
         lastHasBpm = hasBpm
         lastBpmBucket = bpmBucket
@@ -574,9 +584,11 @@ internal class ComplicationUpdateTracker {
         motionState: MotionState,
         bpm: Int?,
         calmScore: Int,
-        nowMs: Long
+        nowMs: Long,
+        petHeartRateColor: PetHeartRateColor?
     ) {
         lastState = state
+        lastPetHeartRateColor = petHeartRateColor
         lastMotionState = motionState
         lastHasBpm = bpm != null
         lastBpmBucket = bpm?.let { it / 3 }

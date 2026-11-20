@@ -7,6 +7,7 @@ import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -31,14 +32,16 @@ data class WatchLivePayload(
     val calmScore: Int,
     val isWatchOnBody: Boolean,
     val isSimulated: Boolean,
-    val updatedAtEpochMs: Long
+    val updatedAtEpochMs: Long,
+    val petHeartRateColor: PetHeartRateColor? = null
 )
 
 /** Demo transitions have a publication time; live measurements retain their actual sample age. */
 fun BiometricSnapshot.toWatchLivePayload(
     state: OmamoriState,
     calmScore: Int,
-    publishedAtEpochMs: Long
+    publishedAtEpochMs: Long,
+    petHeartRateColor: PetHeartRateColor? = null
 ): WatchLivePayload = WatchLivePayload(
     currentHeartRateBpm = currentHeartRateBpm,
     restingBaselineBpm = restingBaselineBpm,
@@ -48,7 +51,8 @@ fun BiometricSnapshot.toWatchLivePayload(
     calmScore = calmScore,
     isWatchOnBody = isWatchOnBody,
     isSimulated = isSimulated,
-    updatedAtEpochMs = if (isSimulated) publishedAtEpochMs else sampledAtEpochMs
+    updatedAtEpochMs = if (isSimulated) publishedAtEpochMs else sampledAtEpochMs,
+    petHeartRateColor = petHeartRateColor
 )
 
 @Serializable
