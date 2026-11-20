@@ -28,7 +28,7 @@ import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
-import com.omamoripet.shared.sync.WatchLivePayload
+import com.omamoripet.shared.sync.toWatchLivePayload
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
 import com.omamoripet.wear.alert.CalmAlertNotifier
@@ -382,17 +382,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             lastSyncedOnBody = snapshot.isWatchOnBody
             lastSyncedBpm = snapshot.currentHeartRateBpm
             syncClient.pushLiveState(
-                payload = WatchLivePayload(
-                    currentHeartRateBpm = snapshot.currentHeartRateBpm,
-                    restingBaselineBpm = snapshot.restingBaselineBpm,
-                    baselineSource = snapshot.baselineSource,
-                    motionState = snapshot.motionState,
-                    omamoriState = state,
-                    calmScore = calmScore,
-                    isWatchOnBody = snapshot.isWatchOnBody,
-                    isSimulated = snapshot.isSimulated,
-                    updatedAtEpochMs = snapshot.sampledAtEpochMs
-                ),
+                payload = snapshot.toWatchLivePayload(state, calmScore, now),
                 urgent = urgent
             )
         }

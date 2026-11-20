@@ -2,6 +2,7 @@ package com.omamoripet.shared.sync
 
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
+import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
@@ -31,6 +32,23 @@ data class WatchLivePayload(
     val isWatchOnBody: Boolean,
     val isSimulated: Boolean,
     val updatedAtEpochMs: Long
+)
+
+/** Demo transitions have a publication time; live measurements retain their actual sample age. */
+fun BiometricSnapshot.toWatchLivePayload(
+    state: OmamoriState,
+    calmScore: Int,
+    publishedAtEpochMs: Long
+): WatchLivePayload = WatchLivePayload(
+    currentHeartRateBpm = currentHeartRateBpm,
+    restingBaselineBpm = restingBaselineBpm,
+    baselineSource = baselineSource,
+    motionState = motionState,
+    omamoriState = state,
+    calmScore = calmScore,
+    isWatchOnBody = isWatchOnBody,
+    isSimulated = isSimulated,
+    updatedAtEpochMs = if (isSimulated) publishedAtEpochMs else sampledAtEpochMs
 )
 
 @Serializable
