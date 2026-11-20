@@ -802,6 +802,7 @@ private fun DemoModeSelector(
 @Composable
 private fun PetExpressionPreview() {
     val expressions = listOf(
+        R.drawable.pet_calm to R.string.state_calm_title,
         R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
         R.drawable.pet_strain_red to R.string.pet_expression_worse,
         R.drawable.pet_strain_purple to R.string.pet_expression_worst
@@ -814,12 +815,16 @@ private fun PetExpressionPreview() {
     )
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        maxItemsInEachRow = 2,
+        modifier = Modifier
+            .widthIn(max = 440.dp)
+            .fillMaxWidth()
     ) {
         expressions.forEach { (drawable, label) ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.widthIn(min = 96.dp)
+                modifier = Modifier.weight(1f)
             ) {
                 Image(
                     painter = painterResource(drawable),

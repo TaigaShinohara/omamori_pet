@@ -850,6 +850,7 @@ fun DemoSettingsWatchScreen(
                 }
             }
             val expressions = listOf(
+                R.drawable.pet_calm to R.string.state_calm,
                 R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
                 R.drawable.pet_strain_red to R.string.pet_expression_worse,
                 R.drawable.pet_strain_purple to R.string.pet_expression_worst
