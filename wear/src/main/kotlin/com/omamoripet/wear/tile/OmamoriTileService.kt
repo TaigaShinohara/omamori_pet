@@ -22,16 +22,22 @@ import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
+import com.omamoripet.wear.ui.resolvePetDrawableRes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 
-private const val RESOURCES_VERSION = "3"
-private const val ID_PET_CALM = "pet_calm"
-private const val ID_PET_ELEVATED = "pet_elevated"
-private const val ID_PET_BREATHING = "pet_breathing"
-private const val ID_PET_RESTING = "pet_resting"
+private const val RESOURCES_VERSION = "4"
+private val petDrawables = intArrayOf(
+    R.drawable.pet_calm,
+    R.drawable.pet_elevated,
+    R.drawable.pet_strain_yellow,
+    R.drawable.pet_strain_red,
+    R.drawable.pet_strain_purple,
+    R.drawable.pet_breathing,
+    R.drawable.pet_resting
+)
 
 class OmamoriTileService : TileService() {
 
@@ -49,12 +55,15 @@ class OmamoriTileService : TileService() {
             repository.awaitInitialized()
             val uiState = repository.uiState.value
             val state = uiState.evaluation.state
+            val petHeartRateColor = uiState.evaluation.petHeartRateColor
             val bpm = uiState.snapshot.currentHeartRateBpm
             val delta = uiState.evaluation.deltaFromRestingBpm
 
             val stateTitle = when (state) {
                 OmamoriState.CALM -> getString(R.string.state_calm)
-                OmamoriState.ELEVATED_AT_REST -> getString(R.string.state_elevated)
+                OmamoriState.ELEVATED_AT_REST -> getString(
+                    if (petHeartRateColor == null) R.string.state_elevated else R.string.state_heart_rate_high
+                )
                 OmamoriState.BREATHING -> getString(R.string.state_breathing)
                 OmamoriState.RESTING -> getString(R.string.state_resting)
             }
@@ -70,12 +79,9 @@ class OmamoriTileService : TileService() {
                 uiState.snapshot.motionState == MotionState.STILL_CONFIRMED -> getString(R.string.still_confirmed)
                 else -> getString(R.string.recent_movement)
             }
-            val petResourceId = when (state) {
-                OmamoriState.CALM -> ID_PET_CALM
-                OmamoriState.ELEVATED_AT_REST -> ID_PET_ELEVATED
-                OmamoriState.BREATHING -> ID_PET_BREATHING
-                OmamoriState.RESTING -> ID_PET_RESTING
-            }
+            val petResourceId = resources.getResourceEntryName(
+                resolvePetDrawableRes(state, petHeartRateColor = petHeartRateColor)
+            )
 
             val openBreathingAction = ActionBuilders.LaunchAction.Builder()
                 .setAndroidActivity(
@@ -176,44 +182,18 @@ class OmamoriTileService : TileService() {
     override fun onTileResourcesRequest(
         requestParams: RequestBuilders.ResourcesRequest
     ): ListenableFuture<ResourceBuilders.Resources> = serviceScope.future {
-        ResourceBuilders.Resources.Builder()
-            .setVersion(RESOURCES_VERSION)
-            .addIdToImageMapping(
-                ID_PET_CALM,
+        val tileResources = ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION)
+        for (drawable in petDrawables) {
+            tileResources.addIdToImageMapping(
+                resources.getResourceEntryName(drawable),
                 ResourceBuilders.ImageResource.Builder()
                     .setAndroidResourceByResId(
                         ResourceBuilders.AndroidImageResourceByResId.Builder()
-                            .setResourceId(R.drawable.pet_calm)
+                            .setResourceId(drawable)
                             .build()
                     ).build()
             )
-            .addIdToImageMapping(
-                ID_PET_ELEVATED,
-                ResourceBuilders.ImageResource.Builder()
-                    .setAndroidResourceByResId(
-                        ResourceBuilders.AndroidImageResourceByResId.Builder()
-                            .setResourceId(R.drawable.pet_elevated)
-                            .build()
-                    ).build()
-            )
-            .addIdToImageMapping(
-                ID_PET_BREATHING,
-                ResourceBuilders.ImageResource.Builder()
-                    .setAndroidResourceByResId(
-                        ResourceBuilders.AndroidImageResourceByResId.Builder()
-                            .setResourceId(R.drawable.pet_breathing)
-                            .build()
-                    ).build()
-            )
-            .addIdToImageMapping(
-                ID_PET_RESTING,
-                ResourceBuilders.ImageResource.Builder()
-                    .setAndroidResourceByResId(
-                        ResourceBuilders.AndroidImageResourceByResId.Builder()
-                            .setResourceId(R.drawable.pet_resting)
-                            .build()
-                    ).build()
-            )
-            .build()
+        }
+        tileResources.build()
     }
 }

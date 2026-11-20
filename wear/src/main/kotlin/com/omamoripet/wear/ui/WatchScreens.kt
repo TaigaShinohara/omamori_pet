@@ -68,6 +68,7 @@ import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.wear.R
 import com.omamoripet.wear.breathing.BreathPhase
 import com.omamoripet.wear.breathing.BreathingUiState
@@ -139,6 +140,7 @@ fun HomeWatchScreen(
             item(key = "pet_header") {
                 WatchPetHeader(
                     state = state,
+                    petHeartRateColor = uiState.evaluation.petHeartRateColor,
                     isSimulated = isSimulated,
                     animationsEnabled = animationsEnabled,
                     modifier = Modifier.fillMaxWidth()
@@ -336,13 +338,16 @@ fun HomeWatchScreen(
 @Composable
 private fun WatchPetHeader(
     state: OmamoriState,
+    petHeartRateColor: PetHeartRateColor?,
     isSimulated: Boolean,
     animationsEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
     val stateTitle = when (state) {
         OmamoriState.CALM -> stringResource(R.string.state_calm)
-        OmamoriState.ELEVATED_AT_REST -> stringResource(R.string.state_elevated)
+        OmamoriState.ELEVATED_AT_REST -> stringResource(
+            if (petHeartRateColor == null) R.string.state_elevated else R.string.state_heart_rate_high
+        )
         OmamoriState.BREATHING -> stringResource(R.string.state_breathing)
         OmamoriState.RESTING -> stringResource(R.string.state_resting)
     }
@@ -350,11 +355,19 @@ private fun WatchPetHeader(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(top = 2.dp, bottom = 2.dp)
     ) {
-        OmamoriPetWearAvatar(
-            state = state,
-            contentDescriptionText = stringResource(R.string.app_name),
-            size = 48.dp
-        )
+        if (state == OmamoriState.ELEVATED_AT_REST && petHeartRateColor != null) {
+            Image(
+                painter = painterResource(resolvePetDrawableRes(state, petHeartRateColor = petHeartRateColor)),
+                contentDescription = null,
+                modifier = Modifier.size(48.dp)
+            )
+        } else {
+            OmamoriPetWearAvatar(
+                state = state,
+                contentDescriptionText = stringResource(R.string.app_name),
+                size = 48.dp
+            )
+        }
         Spacer(Modifier.height(2.dp))
         AnimatedContent(
             targetState = stateTitle,

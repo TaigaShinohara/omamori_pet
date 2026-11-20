@@ -26,8 +26,10 @@ import com.omamoripet.shared.domain.FreshHeartRateTracker
 import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
+import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.shared.sync.toWatchLivePayload
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
@@ -110,6 +112,8 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
 
     private var lastSyncPushMs = 0L
     private var lastSyncedState: OmamoriState? = null
+    private var lastSyncedPetHeartRateColor: PetHeartRateColor? = null
+    private var lastSyncedBaselineBpm: Int? = null
     private var lastSyncedMotion: MotionState? = null
     private var lastSyncedOnBody: Boolean? = null
     private var lastSyncedBpm: Int? = null
@@ -285,8 +289,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         }
         pushLiveStateIfNeeded(
             snapshot = snapshot,
-            state = evaluation.state,
-            calmScore = evaluation.calmScore,
+            evaluation = evaluation,
             forceUrgent = true,
             now = System.currentTimeMillis()
         )
@@ -352,8 +355,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
 
         pushLiveStateIfNeeded(
             snapshot = snapshot,
-            state = evaluation.state,
-            calmScore = evaluation.calmScore,
+            evaluation = evaluation,
             forceUrgent = evaluation.shouldTriggerAlert,
             now = now
         )
@@ -361,12 +363,13 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
 
     private suspend fun pushLiveStateIfNeeded(
         snapshot: BiometricSnapshot,
-        state: OmamoriState,
-        calmScore: Int,
+        evaluation: CalmEvaluation,
         forceUrgent: Boolean,
         now: Long
     ) {
-        val stateChanged = lastSyncedState != state ||
+        val stateChanged = lastSyncedState != evaluation.state ||
+            lastSyncedPetHeartRateColor != evaluation.petHeartRateColor ||
+            (evaluation.state == OmamoriState.ELEVATED_AT_REST && lastSyncedBaselineBpm != snapshot.restingBaselineBpm) ||
             lastSyncedMotion != snapshot.motionState ||
             lastSyncedOnBody != snapshot.isWatchOnBody
         val bpmDelta = abs((snapshot.currentHeartRateBpm ?: -1) - (lastSyncedBpm ?: -1))
@@ -376,15 +379,24 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
 
         if (forceUrgent || stateChanged || significantBpmChange || heartbeatDue) {
             val urgent = forceUrgent || stateChanged || heartbeatDue
-            lastSyncPushMs = now
-            lastSyncedState = state
-            lastSyncedMotion = snapshot.motionState
-            lastSyncedOnBody = snapshot.isWatchOnBody
-            lastSyncedBpm = snapshot.currentHeartRateBpm
-            syncClient.pushLiveState(
-                payload = snapshot.toWatchLivePayload(state, calmScore, now),
+            val sent = syncClient.pushLiveState(
+                payload = snapshot.toWatchLivePayload(
+                    state = evaluation.state,
+                    calmScore = evaluation.calmScore,
+                    publishedAtEpochMs = now,
+                    petHeartRateColor = evaluation.petHeartRateColor
+                ),
                 urgent = urgent
             )
+            if (sent) {
+                lastSyncPushMs = now
+                lastSyncedState = evaluation.state
+                lastSyncedPetHeartRateColor = evaluation.petHeartRateColor
+                lastSyncedBaselineBpm = snapshot.restingBaselineBpm
+                lastSyncedMotion = snapshot.motionState
+                lastSyncedOnBody = snapshot.isWatchOnBody
+                lastSyncedBpm = snapshot.currentHeartRateBpm
+            }
         }
     }
 

@@ -12,6 +12,8 @@
 
     <string name="state_calm_short">穏やか</string>
     <string name="state_elevated_short">ひと息</string>
+    <string name="state_heart_rate_high">心拍が高め</string>
+    <string name="state_heart_rate_high_short">心拍高め</string>
     <string name="state_breathing_short">呼吸中</string>
     <string name="state_resting_short">待機</string>
 

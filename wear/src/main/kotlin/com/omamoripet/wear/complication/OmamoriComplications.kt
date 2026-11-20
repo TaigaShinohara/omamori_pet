@@ -18,9 +18,11 @@ import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
+import com.omamoripet.wear.ui.resolvePetDrawableRes
 
 private fun launchWatchAppPendingIntent(context: Context, openBreathing: Boolean): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
@@ -35,30 +37,20 @@ private fun launchWatchAppPendingIntent(context: Context, openBreathing: Boolean
     )
 }
 
-internal fun resolvePetComplicationCode(state: OmamoriState): Float = when (state) {
+internal fun resolvePetComplicationCode(
+    state: OmamoriState,
+    petHeartRateColor: PetHeartRateColor? = null
+): Float = when (state) {
     OmamoriState.CALM -> 0f
-    OmamoriState.ELEVATED_AT_REST -> 1f
+    // Older watch faces render all values in this band as the green elevated face.
+    OmamoriState.ELEVATED_AT_REST -> when (petHeartRateColor) {
+        PetHeartRateColor.YELLOW -> 1.125f
+        PetHeartRateColor.RED -> 1.25f
+        PetHeartRateColor.PURPLE -> 1.375f
+        null -> 1f
+    }
     OmamoriState.RESTING -> 2f
     OmamoriState.BREATHING -> 3f
-}
-
-internal fun resolvePetDrawableRes(
-    state: OmamoriState,
-    monochromatic: Boolean = false
-): Int = if (monochromatic) {
-    when (state) {
-        OmamoriState.CALM -> R.drawable.pet_calm_mono
-        OmamoriState.ELEVATED_AT_REST -> R.drawable.pet_elevated_mono
-        OmamoriState.BREATHING -> R.drawable.pet_breathing_mono
-        OmamoriState.RESTING -> R.drawable.pet_resting_mono
-    }
-} else {
-    when (state) {
-        OmamoriState.CALM -> R.drawable.pet_calm
-        OmamoriState.ELEVATED_AT_REST -> R.drawable.pet_elevated
-        OmamoriState.BREATHING -> R.drawable.pet_breathing
-        OmamoriState.RESTING -> R.drawable.pet_resting
-    }
 }
 
 internal fun resolveHeartRateDisplayText(
@@ -85,11 +77,15 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
         val repository = (application as OmamoriWearApplication).repository
         repository.awaitInitialized()
-        val state = repository.uiState.value.evaluation.state
+        val evaluation = repository.uiState.value.evaluation
+        val state = evaluation.state
+        val petHeartRateColor = evaluation.petHeartRateColor
 
         val shortLabel = when (state) {
             OmamoriState.CALM -> getString(R.string.state_calm_short)
-            OmamoriState.ELEVATED_AT_REST -> getString(R.string.state_elevated_short)
+            OmamoriState.ELEVATED_AT_REST -> getString(
+                if (petHeartRateColor == null) R.string.state_elevated_short else R.string.state_heart_rate_high_short
+            )
             OmamoriState.BREATHING -> getString(R.string.state_breathing_short)
             OmamoriState.RESTING -> getString(R.string.state_resting_short)
         }
@@ -100,16 +96,16 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
         val contentDescription = PlainComplicationText.Builder(shortLabel).build()
         val colorIcon = Icon.createWithResource(
             this,
-            resolvePetDrawableRes(state = state, monochromatic = false)
+            resolvePetDrawableRes(state = state, petHeartRateColor = petHeartRateColor)
         )
         val monoIcon = Icon.createWithResource(
             this,
-            resolvePetDrawableRes(state = state, monochromatic = true)
+            resolvePetDrawableRes(state = state, monochromatic = true, petHeartRateColor = petHeartRateColor)
         )
 
         return when (request.complicationType) {
             ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
-                value = resolvePetComplicationCode(state),
+                value = resolvePetComplicationCode(state, petHeartRateColor),
                 min = 0f,
                 max = 3f,
                 contentDescription = contentDescription

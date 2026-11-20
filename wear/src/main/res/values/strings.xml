@@ -12,6 +12,8 @@
 
     <string name="state_calm_short">Calm</string>
     <string name="state_elevated_short">Breathe</string>
+    <string name="state_heart_rate_high">Heart rate above baseline</string>
+    <string name="state_heart_rate_high_short">High HR</string>
     <string name="state_breathing_short">Breath</string>
     <string name="state_resting_short">Wait</string>
 

@@ -42,6 +42,7 @@
 - バリエーション：サイズ（Mobile Hero `92dp` / 呼吸 `160dp`、Wear ホーム `48dp` / 呼吸 `70dp` / 完了 `54dp`）。
 - 実装の場所：`mobile/.../ui/components/OmamoriPetMobileCanvas.kt`、`wear/.../ui/OmamoriPetWearCanvas.kt`
 - 体験デモでは、共通のベクター素材（`shared/src/main/android-res/drawable`）で、おだやか・淡い黄色・淡い赤・淡い紫の4つの表情を順に表示する。
+- スマホとWear OSのホームは、静止中の心拍上昇判定を満たしたときに心拍差に応じて同じ色付き表情を描く。Watchで選んだ色をスマホへ同期し、タイルと文字盤でも反映する。
 - 登録日と経緯：2026-11-17 既存資産の棚卸しにより登録。`:shared` は純 JVM のため双子正本として仕様・配色・目モーションを同期管理。
 
 ### HeroStatusCard

@@ -2,9 +2,10 @@ package com.omamoripet.wear.data
 
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.wear.R
 import com.omamoripet.wear.complication.resolvePetComplicationCode
-import com.omamoripet.wear.complication.resolvePetDrawableRes
+import com.omamoripet.wear.ui.resolvePetDrawableRes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -12,6 +13,33 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ComplicationUpdateTrackerTest {
+
+    @Test
+    fun `color changes refresh complications even when state and metrics are the same`() {
+        val tracker = ComplicationUpdateTracker()
+        val state = OmamoriState.ELEVATED_AT_REST
+        val motion = MotionState.STILL_CONFIRMED
+        assertTrue(tracker.shouldPushAndMark(state, motion, 105, 25, 1_000L, PetHeartRateColor.RED))
+        assertTrue(tracker.shouldPushAndMark(state, motion, 105, 25, 2_000L, PetHeartRateColor.PURPLE))
+        assertFalse(tracker.shouldPushAndMark(state, motion, 105, 25, 3_000L, PetHeartRateColor.PURPLE))
+        assertTrue(tracker.shouldPushAndMark(state, motion, 105, 25, 4_000L, null))
+    }
+
+    @Test
+    fun `elevated colors have distinct images and compatible watch face codes`() {
+        val state = OmamoriState.ELEVATED_AT_REST
+        val colors = PetHeartRateColor.entries
+        assertEquals(
+            listOf(R.drawable.pet_strain_yellow, R.drawable.pet_strain_red, R.drawable.pet_strain_purple),
+            colors.map { resolvePetDrawableRes(state, petHeartRateColor = it) }
+        )
+        assertEquals(
+            listOf(R.drawable.pet_strain_yellow_mono, R.drawable.pet_strain_red_mono, R.drawable.pet_strain_purple_mono),
+            colors.map { resolvePetDrawableRes(state, monochromatic = true, petHeartRateColor = it) }
+        )
+        assertEquals(listOf(1.125f, 1.25f, 1.375f), colors.map { resolvePetComplicationCode(state, it) })
+        assertEquals(R.drawable.pet_calm, resolvePetDrawableRes(OmamoriState.CALM, petHeartRateColor = PetHeartRateColor.PURPLE))
+    }
 
     @Test
     fun `initial push succeeds and duplicate tick within 30s is throttled`() {

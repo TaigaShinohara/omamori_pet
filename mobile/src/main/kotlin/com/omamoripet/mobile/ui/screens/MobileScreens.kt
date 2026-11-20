@@ -114,6 +114,7 @@ import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.shared.model.OnboardingDeviceStyle
 import java.text.DateFormat
 import java.time.LocalDate
@@ -295,6 +296,16 @@ private fun HeroStatusCard(
     val contentColor by animateColorAsState(targetContentColor, animationSpec = colorSpec, label = "heroFg")
 
     val delta = uiState.currentHeartRateBpm?.minus(uiState.restingBaselineBpm)
+    val petHeartRateDrawable = if (uiState.omamoriState == OmamoriState.ELEVATED_AT_REST) {
+        when (uiState.petHeartRateColor) {
+            PetHeartRateColor.YELLOW -> R.drawable.pet_strain_yellow
+            PetHeartRateColor.RED -> R.drawable.pet_strain_red
+            PetHeartRateColor.PURPLE -> R.drawable.pet_strain_purple
+            null -> null
+        }
+    } else {
+        null
+    }
     val stateTitle = when {
         isPhoneOnlyIdle -> stringResource(R.string.state_phone_ready_title)
         uiState.omamoriState == OmamoriState.CALM -> stringResource(R.string.state_calm_title)
@@ -387,11 +398,19 @@ private fun HeroStatusCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OmamoriPetMobileAvatar(
-                    state = if (isPhoneOnlyIdle) OmamoriState.CALM else uiState.omamoriState,
-                    description = stringResource(R.string.app_name),
-                    size = 92.dp
-                )
+                if (petHeartRateDrawable != null) {
+                    Image(
+                        painter = painterResource(petHeartRateDrawable),
+                        contentDescription = null,
+                        modifier = Modifier.size(92.dp)
+                    )
+                } else {
+                    OmamoriPetMobileAvatar(
+                        state = if (isPhoneOnlyIdle) OmamoriState.CALM else uiState.omamoriState,
+                        description = stringResource(R.string.app_name),
+                        size = 92.dp
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     // 状態変更時だけ穏やかに切り替え（心拍数値の頻繁な更新で揺れないようにキーを state に限定）
                     AnimatedContent(

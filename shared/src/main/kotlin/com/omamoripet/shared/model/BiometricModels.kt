@@ -18,6 +18,13 @@ enum class OmamoriState {
 }
 
 @Serializable
+enum class PetHeartRateColor {
+    YELLOW,
+    RED,
+    PURPLE
+}
+
+@Serializable
 enum class BaselineSource {
     /** 初期目安値（まだ学習・同期データが不足） */
     DEFAULT_FALLBACK,
@@ -69,7 +76,8 @@ data class CalmEvaluation(
     val calmScore: Int,
     val deltaFromRestingBpm: Int?,
     val shouldTriggerAlert: Boolean,
-    val suppressionReason: AlertSuppressionReason
+    val suppressionReason: AlertSuppressionReason,
+    val petHeartRateColor: PetHeartRateColor? = null
 )
 
 @Serializable

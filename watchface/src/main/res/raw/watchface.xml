@@ -58,11 +58,20 @@
                         <Expression name="state_calm">
                             <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 0.5]]>
                         </Expression>
+                        <Expression name="state_yellow">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 1.125]]>
+                        </Expression>
+                        <Expression name="state_red">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 1.25]]>
+                        </Expression>
+                        <Expression name="state_purple">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 1.375]]>
+                        </Expression>
                         <Expression name="state_elevated">
-                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 1.5]]>
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] >= 0.5 && [COMPLICATION.RANGED_VALUE_VALUE] < 1.5 && [COMPLICATION.RANGED_VALUE_VALUE] != 1.125 && [COMPLICATION.RANGED_VALUE_VALUE] != 1.25 && [COMPLICATION.RANGED_VALUE_VALUE] != 1.375]]>
                         </Expression>
                         <Expression name="state_resting">
-                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] < 2.5]]>
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] >= 1.5 && [COMPLICATION.RANGED_VALUE_VALUE] < 2.5]]>
                         </Expression>
                     </Expressions>
 
@@ -89,7 +98,7 @@
 
                     <!-- 0: CALM（おだやか）＝お守り深緑・穏やかな視線 -->
                     <Compare expression="state_calm">
-                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                        <Group name="petCalm" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
                                     <Fill color="#288FD3B6" />
@@ -113,9 +122,84 @@
                         </Group>
                     </Compare>
 
+                    <!-- Elevation colors use fractional codes inside the existing 0–3 range. -->
+                    <Compare expression="state_yellow">
+                        <Group name="petYellow" height="96" width="140" x="0" y="0">
+                            <PartDraw height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#28DCCB8D" />
+                                </Ellipse>
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Fill color="#FFDCCB8D" />
+                                </Ellipse>
+                            </PartDraw>
+                            <PartDraw angle="-12" height="96" pivotX="0.395833" pivotY="0.479167" width="96" x="22" y="0">
+                                <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="9" width="17" x="29.5" y="41.5">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <PartDraw angle="12" height="96" pivotX="0.604167" pivotY="0.479167" width="96" x="22" y="0">
+                                <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="9" width="17" x="49.5" y="41.5">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <Compare expression="state_red">
+                        <Group name="petRed" height="96" width="140" x="0" y="0">
+                            <PartDraw height="96" width="96" x="22" y="0">
+                                <Ellipse height="88" width="88" x="4" y="4">
+                                    <Fill color="#28DDA0A0" />
+                                </Ellipse>
+                                <Ellipse height="78" width="78" x="9" y="9">
+                                    <Stroke color="#8CDDA0A0" thickness="3.2" />
+                                </Ellipse>
+                                <Ellipse height="62" width="62" x="17" y="17">
+                                    <Fill color="#FFDDA0A0" />
+                                </Ellipse>
+                            </PartDraw>
+                            <PartDraw angle="-28" height="96" pivotX="0.395833" pivotY="0.500000" width="96" x="22" y="0">
+                                <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="5" width="18.4" x="28.8" y="45.5">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <PartDraw angle="28" height="96" pivotX="0.604167" pivotY="0.500000" width="96" x="22" y="0">
+                                <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="5" width="18.4" x="48.8" y="45.5">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <Compare expression="state_purple">
+                        <Group name="petPurple" height="96" width="140" x="0" y="0">
+                            <PartDraw height="96" width="96" x="22" y="0">
+                                <Ellipse height="86" width="86" x="5" y="5">
+                                    <Fill color="#28BBA4DC" />
+                                </Ellipse>
+                                <Ellipse height="76" width="76" x="10" y="10">
+                                    <Stroke color="#8CBBA4DC" thickness="2.5" />
+                                </Ellipse>
+                                <Ellipse height="64" width="64" x="16" y="16">
+                                    <Fill color="#FFBBA4DC" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="4.4" width="16.4" x="29.8" y="53">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="4.4" width="16.4" x="49.8" y="53">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
                     <!-- 1: ELEVATED_AT_REST（ひと息タイム）＝おだやかと同じ緑・寄り添う正面目 -->
                     <Compare expression="state_elevated">
-                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                        <Group name="petElevated" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
                                     <Fill color="#288FD3B6" />
@@ -142,7 +226,7 @@
 
                     <!-- 2: RESTING（待機中）＝静かなグレー・低い水平目 -->
                     <Compare expression="state_resting">
-                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                        <Group name="petResting" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="80" width="80" x="8" y="8">
                                     <Fill color="#1A9AA6B2" />
@@ -166,7 +250,7 @@
 
                     <!-- 3 / Default: BREATHING（深呼吸中）＝青磁色（ART_DIRECTION v1.1 準拠） -->
                     <Default>
-                        <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                        <Group name="petBreathing" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
                                     <Fill color="#2E93C7B5" />
