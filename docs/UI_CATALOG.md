@@ -41,7 +41,7 @@
 - アート方針との対応：「世界の言葉」「形の言語（ミニマル球体＋丸四角目）」「動きの性格」に準拠。
 - バリエーション：サイズ（Mobile Hero `92dp` / 呼吸 `160dp`、Wear ホーム `48dp` / 呼吸 `70dp` / 完了 `54dp`）。
 - 実装の場所：`mobile/.../ui/components/OmamoriPetMobileCanvas.kt`、`wear/.../ui/OmamoriPetWearCanvas.kt`
-- 体験デモでは、共通のベクター素材（`shared/src/main/android-res/drawable`）から黄色・赤・紫の表情を表示する。
+- 体験デモでは、共通のベクター素材（`shared/src/main/android-res/drawable`）で、おだやか・淡い黄色・淡い赤・淡い紫の4つの表情を順に表示する。
 - 登録日と経緯：2026-11-17 既存資産の棚卸しにより登録。`:shared` は純 JVM のため双子正本として仕様・配色・目モーションを同期管理。
 
 ### HeroStatusCard
