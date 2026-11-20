@@ -6,6 +6,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import kotlinx.coroutines.CancellationException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -40,14 +41,14 @@ class HealthConnectManager(private val context: Context) {
             val client = HealthConnectClient.getOrCreate(context)
             val granted = client.permissionController.getGrantedPermissions()
             granted.containsAll(requiredPermissions)
-        }.getOrDefault(false)
+        }.onFailure { if (it is CancellationException) throw it }.getOrDefault(false)
     }
 
     /**
      * 過去14日分の RestingHeartRateRecord から最新の個人安静時心拍を取得する（憶測なしの実測のみ）。
      */
-    suspend fun readLatestRestingHeartRate(): RestingHeartRateBaseline? {
-        if (!hasAllPermissions()) return null
+    suspend fun readLatestRestingHeartRate(): Result<RestingHeartRateBaseline?> {
+        if (!hasAllPermissions()) return Result.success(null)
         return runCatching {
             val client = HealthConnectClient.getOrCreate(context)
             val now = Instant.now()
@@ -55,14 +56,16 @@ class HealthConnectManager(private val context: Context) {
             val response = client.readRecords(
                 ReadRecordsRequest(
                     recordType = RestingHeartRateRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(start, now)
+                    timeRangeFilter = TimeRangeFilter.between(start, now),
+                    ascendingOrder = false,
+                    pageSize = 1
                 )
             )
-            val latest = response.records.maxByOrNull { it.time } ?: return null
+            val latest = response.records.maxByOrNull { it.time } ?: return@runCatching null
             RestingHeartRateBaseline(
                 bpm = latest.beatsPerMinute.toInt(),
                 measuredAtEpochMs = latest.time.toEpochMilli()
             )
-        }.getOrNull()
+        }.onFailure { if (it is CancellationException) throw it }
     }
 }

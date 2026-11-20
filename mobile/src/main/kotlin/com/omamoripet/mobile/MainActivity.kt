@@ -58,6 +58,7 @@ import androidx.core.net.toUri
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,6 +76,8 @@ import com.omamoripet.mobile.ui.screens.SettingsMobileScreen
 import com.omamoripet.mobile.ui.theme.LocalAnimationsEnabled
 import com.omamoripet.mobile.ui.theme.OmamoriM3Theme
 import com.omamoripet.shared.model.CURRENT_ONBOARDING_VERSION
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private enum class TopDestination(
@@ -135,12 +138,20 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
     var pendingOpenBreathing by remember { mutableStateOf(false) }
     var pendingTryLaterMessage by remember { mutableStateOf(false) }
 
+    LaunchedEffect(lifecycleOwner, repository) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (isActive) {
+                repository.refreshWatchConnection()
+                delay(15_000L)
+            }
+        }
+    }
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 scope.launch {
                     repository.refreshHealthConnect()
-                    repository.refreshWatchConnection()
                 }
             }
         }
@@ -409,8 +420,8 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             hapticsEnabled = uiState.preferences.breathingHapticsEnabled,
                             isFirstBreathing = !uiState.hasCompletedFirstBreathing,
                             onBack = { navController.popBackStack() },
-                            onCompleted = { duration ->
-                                repository.addLocalBreathingCompletion(duration)
+                            onCompleted = { id, startedAt, duration ->
+                                repository.addLocalBreathingCompletion(id, startedAt, duration)
                             }
                         )
                     }

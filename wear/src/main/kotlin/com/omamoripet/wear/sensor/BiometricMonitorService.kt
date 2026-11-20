@@ -9,6 +9,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.health.services.client.HealthServices
@@ -21,6 +22,7 @@ import androidx.health.services.client.data.DeltaDataType
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.omamoripet.shared.domain.MotionStillnessTracker
+import com.omamoripet.shared.domain.FreshHeartRateTracker
 import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
@@ -97,8 +99,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private var accelHead = 0
     private var accelCount = 0
 
-    @Volatile
-    private var latestLiveBpm: Int? = null
+    private val heartRates = FreshHeartRateTracker()
     @Volatile
     private var isWatchOnBody: Boolean = true
     private var latestMotionState: MotionState = MotionState.RECENT_MOVEMENT
@@ -120,13 +121,16 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             if (dataType == DataType.HEART_RATE_BPM && availability is DataTypeAvailability) {
                 isWatchOnBody = availability != DataTypeAvailability.UNAVAILABLE &&
                     availability != DataTypeAvailability.UNAVAILABLE_DEVICE_OFF_BODY
+                if (!isWatchOnBody) heartRates.clear()
             }
         }
 
         override fun onDataReceived(data: DataPointContainer) {
-            val bpm = data.getData(DataType.HEART_RATE_BPM).lastOrNull()?.value?.toInt() ?: return
+            val point = data.getData(DataType.HEART_RATE_BPM)
+                .maxByOrNull { it.timeDurationFromBoot } ?: return
+            val bpm = point.value.toInt()
             if (bpm in 35..220) {
-                latestLiveBpm = bpm
+                heartRates.record(bpm, point.timeDurationFromBoot.toMillis())
                 isWatchOnBody = true
             }
         }
@@ -193,6 +197,10 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     }
 
     private fun unregisterSensors() {
+        heartRates.clear()
+        stillnessTracker.reset()
+        elevatedStartEpochMs = null
+        synchronized(accelLock) { accelCount = 0; accelHead = 0 }
         if (accelRegistered) {
             sensorManager.unregisterListener(this)
             accelRegistered = false
@@ -293,10 +301,12 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             epochMs = now,
             accelMagnitudeVariance = computeAccelVariance()
         )
-        val bpm = latestLiveBpm
-        if (bpm != null && isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED) {
+        val nowElapsed = SystemClock.elapsedRealtime()
+        val reading = heartRates.current(nowElapsed)
+        val bpm = reading?.bpm
+        if (!currentState.isCalibrating && bpm != null && isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED) {
             if (bpm < baseline.bpm + currentState.preferences.elevationThresholdBpm) {
-                repository.recordStillHeartRateSample(bpm)
+                heartRates.takeForLearning(nowElapsed)?.let { repository.recordStillHeartRateSample(it.bpm) }
             }
         }
         val sustainedSec = computeSustainedElevationSeconds(
@@ -314,7 +324,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             motionState = if (isWatchOnBody) latestMotionState else MotionState.OFF_BODY,
             isWatchOnBody = isWatchOnBody,
             sustainedElevationSeconds = sustainedSec,
-            sampledAtEpochMs = now,
+            sampledAtEpochMs = reading?.let { now - (nowElapsed - it.measuredAtElapsedMs) } ?: now,
             isSimulated = false
         )
 
@@ -365,7 +375,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         val heartbeatDue = elapsed >= SYNC_HEARTBEAT_INTERVAL_MS
 
         if (forceUrgent || stateChanged || significantBpmChange || heartbeatDue) {
-            val urgent = forceUrgent || stateChanged
+            val urgent = forceUrgent || stateChanged || heartbeatDue
             lastSyncPushMs = now
             lastSyncedState = state
             lastSyncedMotion = snapshot.motionState
@@ -381,7 +391,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                     calmScore = calmScore,
                     isWatchOnBody = snapshot.isWatchOnBody,
                     isSimulated = snapshot.isSimulated,
-                    updatedAtEpochMs = now
+                    updatedAtEpochMs = snapshot.sampledAtEpochMs
                 ),
                 urgent = urgent
             )
@@ -413,10 +423,11 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             try {
                 for (remaining in 60 downTo 1) {
                     repository.setCalibrationProgress(active = true, remainingSeconds = remaining)
-                    val bpm = latestLiveBpm
-                    if (bpm != null && isWatchOnBody) {
-                        repository.recordStillHeartRateSample(bpm)
-                        recordedSamples++
+                    if (isWatchOnBody) {
+                        heartRates.takeForLearning(SystemClock.elapsedRealtime())?.let {
+                            repository.recordStillHeartRateSample(it.bpm)
+                            recordedSamples++
+                        }
                     }
                     delay(1_000L)
                 }

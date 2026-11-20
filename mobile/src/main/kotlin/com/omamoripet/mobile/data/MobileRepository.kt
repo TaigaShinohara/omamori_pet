@@ -14,7 +14,9 @@ import com.omamoripet.mobile.ai.CalmAdvisorEngine
 import com.omamoripet.mobile.ai.GeminiNanoAdvisorEngine
 import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.health.HealthConnectManager
+import com.omamoripet.mobile.health.RestingHeartRateBaseline
 import com.omamoripet.mobile.sync.PhoneWearSyncClient
+import com.omamoripet.shared.domain.MeasurementFreshness
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BreathingSessionRecord
@@ -40,9 +42,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.UUID
 
 private val Context.mobileDataStore: DataStore<Preferences> by preferencesDataStore(name = "omamori_mobile_prefs")
 
@@ -94,8 +97,6 @@ class MobileRepository(
 ) {
     private object Keys {
         val ALERT_PREFS = stringPreferencesKey("mobile_alert_prefs")
-        val CALM_EVENTS = stringPreferencesKey("calm_events_json")
-        val BREATH_SESSIONS = stringPreferencesKey("breath_sessions_json")
         val HC_RESTING_BPM = stringPreferencesKey("hc_resting_bpm")
         val HC_MEASURED_AT = stringPreferencesKey("hc_measured_at")
         val HC_ATTEMPTED = booleanPreferencesKey("hc_permission_attempted")
@@ -103,7 +104,6 @@ class MobileRepository(
         val WATCH_GUIDE_DISMISSED = booleanPreferencesKey("watch_guide_dismissed")
         val ONBOARDING_VERSION = intPreferencesKey("completed_onboarding_version")
         val ONBOARDING_ANSWERS = stringPreferencesKey("onboarding_answers_json")
-        val FIRST_BREATH_DONE = booleanPreferencesKey("first_breathing_completed")
     }
 
     private data class BaselinePushSignature(
@@ -123,10 +123,17 @@ class MobileRepository(
     private var lastPushedSignature: BaselinePushSignature? = null
     private var lastRealWatchPayload: WatchLivePayload? = null
     private var hasConnectedWearNode: Boolean = false
+    private val historyStore = MobileHistoryStore(context.mobileDataStore)
+    private val historyMutex = Mutex()
+    private val healthConnectMutex = Mutex()
+    private val baselineSyncMutex = Mutex()
+    private val initialLoadJob = scope.launch { restoreFromDisk() }
+
+    suspend fun awaitInitialized() = initialLoadJob.join()
 
     init {
         scope.launch {
-            restoreFromDisk()
+            awaitInitialized()
             refreshWatchConnection()
             refreshHealthConnect()
             refreshAiAdvice()
@@ -136,23 +143,24 @@ class MobileRepository(
     private suspend fun restoreFromDisk() {
         val prefs = context.mobileDataStore.data.first()
         val alertPrefs = OmamoriJson.decodeOrNull<AlertPreferences>(prefs[Keys.ALERT_PREFS]) ?: AlertPreferences()
-        val events = OmamoriJson.decodeOrNull<List<CalmEventRecord>>(prefs[Keys.CALM_EVENTS]) ?: emptyList()
-        val sessions = OmamoriJson.decodeOrNull<List<BreathingSessionRecord>>(prefs[Keys.BREATH_SESSIONS]) ?: emptyList()
-        val hcBpm = prefs[Keys.HC_RESTING_BPM]?.toIntOrNull()
-        val hcTime = prefs[Keys.HC_MEASURED_AT]?.toLongOrNull()
+        val history = MobileHistoryStore.read(prefs)
+        val savedHcTime = prefs[Keys.HC_MEASURED_AT]?.toLongOrNull()
+        val hcBpm = prefs[Keys.HC_RESTING_BPM]?.toIntOrNull()?.takeIf {
+            MeasurementFreshness.isFresh(savedHcTime, System.currentTimeMillis(), MeasurementFreshness.HEALTH_CONNECT_MAX_AGE_MS)
+        }
+        val hcTime = savedHcTime.takeIf { hcBpm != null }
         val hcAttempted = prefs[Keys.HC_ATTEMPTED] ?: false
         val hcDismissed = prefs[Keys.HC_DISMISSED_HOME] ?: false
         val watchGuideDismissed = prefs[Keys.WATCH_GUIDE_DISMISSED] ?: false
         val onboardingVersion = prefs[Keys.ONBOARDING_VERSION] ?: 0
         val onboardingAnswers = OmamoriJson.decodeOrNull<OnboardingAnswers>(prefs[Keys.ONBOARDING_ANSWERS])
             ?: OnboardingAnswers()
-        val firstBreathDone = (prefs[Keys.FIRST_BREATH_DONE] ?: false) || sessions.any { !it.isSimulated }
 
         _uiState.update { state ->
             state.copy(
                 preferences = alertPrefs,
-                calmEvents = events,
-                breathingSessions = sessions,
+                calmEvents = history.events,
+                breathingSessions = history.sessions,
                 healthConnectRestingBpm = hcBpm,
                 healthConnectMeasuredAtMs = hcTime,
                 restingBaselineBpm = hcBpm ?: state.restingBaselineBpm,
@@ -163,40 +171,71 @@ class MobileRepository(
                 isOnboardingLoaded = true,
                 completedOnboardingVersion = onboardingVersion,
                 onboardingAnswers = onboardingAnswers,
-                hasCompletedFirstBreathing = firstBreathDone
+                hasCompletedFirstBreathing = history.firstBreathingDone
             )
         }
     }
 
     suspend fun refreshWatchConnection() {
+        awaitInitialized()
         hasConnectedWearNode = wearSyncClient.hasConnectedWatch()
-        _uiState.update { state ->
-            state.copy(
-                isWatchConnected = hasConnectedWearNode
-            )
+        val now = System.currentTimeMillis()
+        if (!hasConnectedWearNode || (!_uiState.value.isSimulated && !isFreshWatchPayload(lastRealWatchPayload, now))) {
+            invalidateWatchData()
+        }
+        _uiState.update { it.copy(isWatchConnected = hasConnectedWearNode) }
+        wearSyncClient.drainHistory(::recordBreathingSession, ::recordCalmEvent)
+    }
+
+    private fun isFreshWatchPayload(payload: WatchLivePayload?, nowMs: Long = System.currentTimeMillis()): Boolean =
+        payload != null && MeasurementFreshness.isFresh(
+            payload.updatedAtEpochMs, nowMs, MeasurementFreshness.WATCH_STATE_MAX_AGE_MS
+        )
+
+    private fun invalidateWatchData() {
+        lastRealWatchPayload = null
+        val wasLive = _uiState.value.demoMode == MobileDemoMode.LIVE_WATCH
+        val hadData = _uiState.value.lastWatchSyncMs != null
+        if (wasLive) {
+            _uiState.update { it.withoutWatchMeasurements() }
+            if (hadData) scheduleAiAdviceRefresh(debounceMs = 0L)
         }
     }
 
     suspend fun refreshHealthConnect() {
-        val availability = healthConnectManager.checkAvailability()
-        val hasPerm = healthConnectManager.hasAllPermissions()
-        val baseline = if (hasPerm) healthConnectManager.readLatestRestingHeartRate() else null
-
-        _uiState.update { state ->
-            state.copy(
-                healthConnectAvailability = availability,
-                hasHealthConnectPermission = hasPerm,
-                healthConnectRestingBpm = baseline?.bpm ?: state.healthConnectRestingBpm,
-                healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs ?: state.healthConnectMeasuredAtMs,
-                restingBaselineBpm = baseline?.bpm ?: state.restingBaselineBpm,
-                baselineSource = if (baseline != null) BaselineSource.HEALTH_CONNECT else state.baselineSource
-            )
-        }
-
-        if (baseline != null) {
+        awaitInitialized()
+        healthConnectMutex.withLock {
+            val availability = healthConnectManager.checkAvailability()
+            var hasPerm = healthConnectManager.hasAllPermissions()
+            val result = if (hasPerm) healthConnectManager.readLatestRestingHeartRate() else Result.success(null)
+            if (result.exceptionOrNull() is SecurityException) hasPerm = false
+            val cached = _uiState.value
+            val baseline = if (result.isSuccess) result.getOrNull() else {
+                if (hasPerm && MeasurementFreshness.isFresh(
+                        cached.healthConnectMeasuredAtMs, System.currentTimeMillis(), MeasurementFreshness.HEALTH_CONNECT_MAX_AGE_MS
+                    )) cached.healthConnectRestingBpm?.let {
+                    RestingHeartRateBaseline(it, cached.healthConnectMeasuredAtMs!!)
+                } else null
+            }
+            val watch = lastRealWatchPayload?.takeIf { isFreshWatchPayload(it) && it.baselineSource != BaselineSource.HEALTH_CONNECT }
+            _uiState.update { state ->
+                state.copy(
+                    healthConnectAvailability = availability,
+                    hasHealthConnectPermission = hasPerm,
+                    healthConnectRestingBpm = baseline?.bpm,
+                    healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs,
+                    restingBaselineBpm = baseline?.bpm ?: watch?.restingBaselineBpm ?: 65,
+                    baselineSource = if (baseline != null) BaselineSource.HEALTH_CONNECT else watch?.baselineSource ?: BaselineSource.DEFAULT_FALLBACK
+                )
+            }
             context.mobileDataStore.edit { prefs ->
-                prefs[Keys.HC_RESTING_BPM] = baseline.bpm.toString()
-                prefs[Keys.HC_MEASURED_AT] = baseline.measuredAtEpochMs.toString()
+                if (baseline != null) {
+                    prefs[Keys.HC_RESTING_BPM] = baseline.bpm.toString()
+                    prefs[Keys.HC_MEASURED_AT] = baseline.measuredAtEpochMs.toString()
+                } else {
+                    prefs.remove(Keys.HC_RESTING_BPM)
+                    prefs.remove(Keys.HC_MEASURED_AT)
+                }
             }
             pushBaselineToWatch()
         }
@@ -224,6 +263,8 @@ class MobileRepository(
     }
 
     fun applyWatchLivePayload(payload: WatchLivePayload) {
+        if (!isFreshWatchPayload(payload)) return
+        hasConnectedWearNode = true
         if (!payload.isSimulated) {
             lastRealWatchPayload = payload
         }
@@ -261,7 +302,7 @@ class MobileRepository(
         _uiState.update { state ->
             when (mode) {
                 MobileDemoMode.LIVE_WATCH -> {
-                    val real = lastRealWatchPayload
+                    val real = lastRealWatchPayload?.takeIf { hasConnectedWearNode && isFreshWatchPayload(it) }
                     if (real != null) {
                         state.copy(
                             demoMode = mode,
@@ -437,66 +478,53 @@ class MobileRepository(
         }
     }
 
-    fun recordBreathingSession(record: BreathingSessionRecord) {
-        val updated = (listOf(record) + _uiState.value.breathingSessions).take(50)
-        val nowFirstDone = _uiState.value.hasCompletedFirstBreathing || !record.isSimulated
+    suspend fun recordBreathingSession(record: BreathingSessionRecord) {
+        awaitInitialized()
+        historyMutex.withLock { applyHistory(historyStore.recordSession(record)) }
+        scheduleAiAdviceRefresh(debounceMs = 0L)
+    }
+
+    suspend fun recordCalmEvent(record: CalmEventRecord) {
+        awaitInitialized()
+        historyMutex.withLock { applyHistory(historyStore.recordEvent(record)) }
+        scheduleAiAdviceRefresh(debounceMs = 0L)
+    }
+
+    private fun applyHistory(history: MobileHistory) {
         _uiState.update {
             it.copy(
-                breathingSessions = updated,
-                hasCompletedFirstBreathing = nowFirstDone
+                calmEvents = history.events,
+                breathingSessions = history.sessions,
+                hasCompletedFirstBreathing = history.firstBreathingDone
             )
         }
-        scope.launch {
-            context.mobileDataStore.edit { prefs ->
-                prefs[Keys.BREATH_SESSIONS] = OmamoriJson.encode(updated)
-                if (!record.isSimulated) {
-                    prefs[Keys.FIRST_BREATH_DONE] = true
-                }
-            }
-            scheduleAiAdviceRefresh(debounceMs = 0L)
-        }
     }
 
-    fun recordCalmEvent(record: CalmEventRecord) {
-        val updated = (listOf(record) + _uiState.value.calmEvents).take(50)
-        _uiState.update { it.copy(calmEvents = updated) }
-        scope.launch {
-            context.mobileDataStore.edit { it[Keys.CALM_EVENTS] = OmamoriJson.encode(updated) }
-        }
-    }
-
-    fun addLocalBreathingCompletion(durationSec: Int) {
+    fun addLocalBreathingCompletion(id: String, startedAtEpochMs: Long, durationSec: Int) {
         val state = _uiState.value
-        // 憶測なし原則を厳守し、スマホ単体完了時は実測値がない限り postBpm を捏造しない
-        val measuredPreBpm = if (!state.isSimulated && state.lastWatchSyncMs != null) state.currentHeartRateBpm else null
-        recordBreathingSession(
-            BreathingSessionRecord(
-                id = UUID.randomUUID().toString(),
-                startedAtEpochMs = System.currentTimeMillis() - durationSec * 1000L,
-                durationSeconds = durationSec,
-                preBpm = measuredPreBpm,
-                postBpm = null,
-                triggeredByAlert = false,
-                isSimulated = state.isSimulated
-            )
+        val measuredPreBpm = if (!state.isSimulated && isFreshWatchPayload(lastRealWatchPayload)) state.currentHeartRateBpm else null
+        val record = BreathingSessionRecord(
+            id = id,
+            startedAtEpochMs = startedAtEpochMs,
+            durationSeconds = durationSec,
+            preBpm = measuredPreBpm,
+            postBpm = null,
+            triggeredByAlert = false,
+            isSimulated = state.isSimulated
         )
+        scope.launch { recordBreathingSession(record) }
     }
 
     fun clearSimulatedHistory() {
-        val realEvents = _uiState.value.calmEvents.filterNot { it.isSimulated }
-        val realSessions = _uiState.value.breathingSessions.filterNot { it.isSimulated }
-        _uiState.update { it.copy(calmEvents = realEvents, breathingSessions = realSessions) }
         scope.launch {
-            context.mobileDataStore.edit {
-                it[Keys.CALM_EVENTS] = OmamoriJson.encode(realEvents)
-                it[Keys.BREATH_SESSIONS] = OmamoriJson.encode(realSessions)
-            }
+            awaitInitialized()
+            historyMutex.withLock { applyHistory(historyStore.clearSimulated()) }
         }
     }
 
     suspend fun triggerWatchBreathing(): Boolean = wearSyncClient.sendStartBreathingToWatch()
 
-    private suspend fun pushBaselineToWatch() {
+    private suspend fun pushBaselineToWatch() = baselineSyncMutex.withLock {
         val s = _uiState.value
         val adviceText = s.aiAdviceText.ifBlank { null }
         val sourceLabel = if (s.usedGeminiNano) "Gemini Nano" else "Local"
@@ -506,9 +534,8 @@ class MobileRepository(
             latestAiAdviceText = adviceText,
             aiSourceLabel = sourceLabel
         )
-        if (signature == lastPushedSignature) return
-        lastPushedSignature = signature
-        wearSyncClient.pushBaselineAndAdvice(
+        if (signature == lastPushedSignature) return@withLock
+        if (wearSyncClient.pushBaselineAndAdvice(
             PhoneBaselinePayload(
                 healthConnectRestingBpm = s.healthConnectRestingBpm,
                 restingMeasuredAtEpochMs = s.healthConnectMeasuredAtMs,
@@ -516,6 +543,6 @@ class MobileRepository(
                 aiSourceLabel = sourceLabel,
                 updatedAtEpochMs = System.currentTimeMillis()
             )
-        )
+        )) lastPushedSignature = signature
     }
 }

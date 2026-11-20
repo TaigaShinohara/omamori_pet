@@ -12,6 +12,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.wear.tiles.TileService
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
+import com.omamoripet.shared.domain.MeasurementFreshness
 import com.omamoripet.shared.domain.CalmStateEvaluator
 import com.omamoripet.shared.domain.ResolvedBaseline
 import com.omamoripet.shared.domain.RestingBaselineLearner
@@ -89,6 +90,7 @@ class WatchStateRepository(private val context: Context) {
     private object Keys {
         val LEARNED_SAMPLES = stringPreferencesKey("learned_hr_samples")
         val HC_BASELINE_BPM = stringPreferencesKey("hc_baseline_bpm")
+        val HC_MEASURED_AT = longPreferencesKey("hc_measured_at")
         val ALERT_PREFS = stringPreferencesKey("alert_prefs_json")
         val LAST_ALERT_MS = longPreferencesKey("last_alert_epoch_ms")
         val LATEST_AI_ADVICE = stringPreferencesKey("latest_ai_advice")
@@ -103,7 +105,7 @@ class WatchStateRepository(private val context: Context) {
     private companion object {
         const val MIN_SAMPLE_PERSIST_INTERVAL_MS = 30_000L
         const val MIN_SNAPSHOT_PERSIST_INTERVAL_MS = 30_000L
-        const val SNAPSHOT_RESTORE_TTL_MS = 15 * 60_000L
+        const val SNAPSHOT_RESTORE_TTL_MS = MeasurementFreshness.HEART_RATE_MAX_AGE_MS
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -140,7 +142,7 @@ class WatchStateRepository(private val context: Context) {
         val samples = OmamoriJson.decodeOrNull<List<Int>>(prefs[Keys.LEARNED_SAMPLES]) ?: emptyList()
         val hcBaseline = prefs[Keys.HC_BASELINE_BPM]?.toIntOrNull()
         val resolved = synchronized(baselineLock) {
-            baselineLearner.loadInitial(samples, hcBaseline)
+            baselineLearner.loadInitial(samples, hcBaseline, prefs[Keys.HC_MEASURED_AT])
             baselineLearner.resolveBaseline()
         }
 
@@ -154,7 +156,7 @@ class WatchStateRepository(private val context: Context) {
         } ?: SimulationScenario.LIVE_SENSORS
         val savedSampleMs = prefs[Keys.LAST_SAMPLE_EPOCH_MS] ?: 0L
         val nowMs = System.currentTimeMillis()
-        val isFreshSnapshot = savedSampleMs > 0L && (nowMs - savedSampleMs) <= SNAPSHOT_RESTORE_TTL_MS
+        val isFreshSnapshot = savedSampleMs > 0L && MeasurementFreshness.isFresh(savedSampleMs, nowMs, SNAPSHOT_RESTORE_TTL_MS)
 
         val effectiveScenario = if (isFreshSnapshot) savedScenario else SimulationScenario.LIVE_SENSORS
         val restoredBpm = if (isFreshSnapshot) prefs[Keys.LAST_LIVE_BPM] else null
@@ -405,9 +407,10 @@ class WatchStateRepository(private val context: Context) {
         _uiState.update { it.copy(calibrationResult = CalibrationResult.NONE) }
     }
 
-    fun applyPhoneBaselineAndAdvice(payload: PhoneBaselinePayload) {
+    suspend fun applyPhoneBaselineAndAdvice(payload: PhoneBaselinePayload) {
+        awaitInitialized()
         val resolved = synchronized(baselineLock) {
-            baselineLearner.updateHealthConnectBaseline(payload.healthConnectRestingBpm)
+            baselineLearner.updateHealthConnectBaseline(payload.healthConnectRestingBpm, payload.restingMeasuredAtEpochMs)
             baselineLearner.resolveBaseline()
         }
         val hour = LocalTime.now().hour
@@ -434,21 +437,18 @@ class WatchStateRepository(private val context: Context) {
                 aiAdviceSource = payload.aiSourceLabel ?: state.aiAdviceSource
             )
         }
-        scope.launch {
-            context.watchDataStore.edit { prefs ->
-                val hcBpm = payload.healthConnectRestingBpm
-                if (hcBpm != null) {
-                    prefs[Keys.HC_BASELINE_BPM] = hcBpm.toString()
-                }
-                val adviceText = payload.latestAiAdviceText
-                if (!adviceText.isNullOrBlank()) {
-                    prefs[Keys.LATEST_AI_ADVICE] = adviceText
-                }
-                val sourceLabel = payload.aiSourceLabel
-                if (!sourceLabel.isNullOrBlank()) {
-                    prefs[Keys.AI_SOURCE_LABEL] = sourceLabel
-                }
+        context.watchDataStore.edit { prefs ->
+            if (resolved.source == BaselineSource.HEALTH_CONNECT) {
+                prefs[Keys.HC_BASELINE_BPM] = resolved.bpm.toString()
+                prefs[Keys.HC_MEASURED_AT] = payload.restingMeasuredAtEpochMs!!
+            } else {
+                prefs.remove(Keys.HC_BASELINE_BPM)
+                prefs.remove(Keys.HC_MEASURED_AT)
             }
+            val adviceText = payload.latestAiAdviceText
+            if (!adviceText.isNullOrBlank()) prefs[Keys.LATEST_AI_ADVICE] = adviceText
+            val sourceLabel = payload.aiSourceLabel
+            if (!sourceLabel.isNullOrBlank()) prefs[Keys.AI_SOURCE_LABEL] = sourceLabel
         }
         val snap = updatedSnap
         val eval = updatedEval

@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
             isHapticsEnabled = { repository.uiState.value.preferences.breathingHapticsEnabled },
             onActiveChanged = { active -> repository.setBreathingActive(active) },
             onSessionCompleted = { record ->
-                lifecycleScope.launch { syncClient.sendBreathingSession(record) }
+                (application as OmamoriWearApplication).recordBreathingSession(record)
             }
         )
 
