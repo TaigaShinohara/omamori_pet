@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -281,14 +282,12 @@ private fun HeroStatusCard(
     val hasWatchData = uiState.lastWatchSyncMs != null
     val isPhoneOnlyIdle = !hasWatchData && !uiState.isSimulated
     val targetContainerColor = when (uiState.omamoriState) {
-        OmamoriState.CALM -> cs.primaryContainer
-        OmamoriState.ELEVATED_AT_REST -> cs.tertiaryContainer
+        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> cs.primaryContainer
         OmamoriState.BREATHING -> cs.secondaryContainer
         OmamoriState.RESTING -> cs.surfaceContainerHigh
     }
     val targetContentColor = when (uiState.omamoriState) {
-        OmamoriState.CALM -> cs.onPrimaryContainer
-        OmamoriState.ELEVATED_AT_REST -> cs.onTertiaryContainer
+        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> cs.onPrimaryContainer
         OmamoriState.BREATHING -> cs.onSecondaryContainer
         OmamoriState.RESTING -> cs.onSurface
     }
@@ -482,8 +481,8 @@ private fun HeroStatusCard(
                 Button(
                     onClick = onOpenBreathing,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (uiState.omamoriState == OmamoriState.ELEVATED_AT_REST) cs.tertiary else cs.primary,
-                        contentColor = if (uiState.omamoriState == OmamoriState.ELEVATED_AT_REST) cs.onTertiary else cs.onPrimary
+                        containerColor = cs.primary,
+                        contentColor = cs.onPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -795,6 +794,44 @@ private fun DemoModeSelector(
                     null
                 }
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PetExpressionPreview() {
+    val expressions = listOf(
+        R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
+        R.drawable.pet_strain_red to R.string.pet_expression_worse,
+        R.drawable.pet_strain_purple to R.string.pet_expression_worst
+    )
+
+    Text(
+        text = stringResource(R.string.pet_expression_preview),
+        style = MaterialTheme.typography.titleSmall,
+        modifier = Modifier.semantics { heading() }
+    )
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        expressions.forEach { (drawable, label) ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.widthIn(min = 96.dp)
+            ) {
+                Image(
+                    painter = painterResource(drawable),
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp)
+                )
+                Text(
+                    text = stringResource(label),
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -1709,6 +1746,7 @@ fun SettingsMobileScreen(
                         current = uiState.demoMode,
                         onSelect = onSelectDemoMode
                     )
+                    PetExpressionPreview()
                     if (hasDemoRecords) {
                         OutlinedButton(
                             onClick = onClearDemoHistory,

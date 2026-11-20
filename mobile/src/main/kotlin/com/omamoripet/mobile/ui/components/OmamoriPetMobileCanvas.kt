@@ -50,7 +50,7 @@ private data class EyePose(
 
 /**
  * 角丸スクエア／カプセル型の目が立体球面上で穏やかに動くお守りボットアイコン。
- * 不安を煽らない4状態（CALM: 深緑 / ELEVATED_AT_REST: 温かな琥珀 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
+ * 不安を煽らない4状態（CALM・ELEVATED_AT_REST: 緑 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
  */
 @Composable
 fun OmamoriPetMobileAvatar(
@@ -186,8 +186,7 @@ fun OmamoriPetMobileAvatar(
 
     val cs = MaterialTheme.colorScheme
     val targetBodyColor = when (state) {
-        OmamoriState.CALM -> cs.primary
-        OmamoriState.ELEVATED_AT_REST -> cs.tertiary
+        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> cs.primary
         OmamoriState.BREATHING -> cs.secondary
         OmamoriState.RESTING -> cs.outline
     }

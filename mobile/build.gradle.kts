@@ -34,6 +34,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    sourceSets.named("main") {
+        res.directories.add(rootProject.file("shared/src/main/android-res").absolutePath)
+    }
+
     buildFeatures {
         compose = true
     }

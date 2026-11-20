@@ -48,7 +48,7 @@ private data class WearEyePose(
 
 /**
  * Wear OS 円形ディスプレイに最適化したお守りボットアイコン。
- * 不安を煽らない4状態（CALM: 深緑 / ELEVATED_AT_REST: 温かな琥珀 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
+ * 4状態（CALM・ELEVATED_AT_REST: 緑 / BREATHING: 青磁 / RESTING: 静かなグレー）で表現する。
  */
 @Composable
 fun OmamoriPetWearAvatar(
@@ -173,8 +173,7 @@ fun OmamoriPetWearAvatar(
 
     val colorScheme = MaterialTheme.colorScheme
     val targetBodyColor = when (state) {
-        OmamoriState.CALM -> colorScheme.primary
-        OmamoriState.ELEVATED_AT_REST -> colorScheme.tertiary
+        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> colorScheme.primary
         OmamoriState.BREATHING -> colorScheme.secondary
         OmamoriState.RESTING -> colorScheme.outline
     }

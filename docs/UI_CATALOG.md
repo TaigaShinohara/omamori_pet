@@ -41,16 +41,17 @@
 - アート方針との対応：「世界の言葉」「形の言語（ミニマル球体＋丸四角目）」「動きの性格」に準拠。
 - バリエーション：サイズ（Mobile Hero `92dp` / 呼吸 `160dp`、Wear ホーム `48dp` / 呼吸 `70dp` / 完了 `54dp`）。
 - 実装の場所：`mobile/.../ui/components/OmamoriPetMobileCanvas.kt`、`wear/.../ui/OmamoriPetWearCanvas.kt`
+- 体験デモでは、共通のベクター素材（`shared/src/main/android-res/drawable`）から黄色・赤・紫の表情を表示する。
 - 登録日と経緯：2026-11-17 既存資産の棚卸しにより登録。`:shared` は純 JVM のため双子正本として仕様・配色・目モーションを同期管理。
 
 ### HeroStatusCard
 - 役割：Mobile「いま」画面の唯一の主役として、現在状態・心拍・呼吸開始 CTA を 1 箇所にまとめる。
 - 使う場面：`HomeMobileScreen` の最上位（Expanded 画面では左ペイン）。
 - 使わない場面：履歴画面・設定画面など他画面への使い回し。
-- 状態：4状態ごとのコンテナ色遷移（`primaryContainer` / `tertiaryContainer` / `secondaryContainer` / `surfaceContainerHigh`）、Watch 未同期・同期済み・デモ表示。
+- 状態：4状態ごとのコンテナ色遷移（おだやか・ひと息タイムは `primaryContainer`、深呼吸中は `secondaryContainer`、待機中は `surfaceContainerHigh`）、Watch 未同期・同期済み・デモ表示。
 - 狙い：開いて 3 秒で今の状態と「1分間の深呼吸ガイド」への導線が迷わず目に入るようにする。
 - アート方針との対応：ElevatedCard を主役 1 枚に限定し、状態ごとに穏やかな色遷移を適用。主ボタン（`Button`）＋副導線（`TextButton`）の強弱を徹底。
-- バリエーション：状態ごとの CTA カラー切替（平常時は `primary`、静止上昇時は `tertiary`）。
+- バリエーション：CTA は `primary`。
 - 実装の場所：`mobile/.../ui/screens/MobileScreens.kt` (`HeroStatusCard`)
 - 登録日と経緯：2026-11-17 棚卸し・3問テストにより「動作状態ピル枠の廃止」「副ボタンの TextButton 化」を実施して登録。
 
@@ -58,7 +59,7 @@
 - 役割：Wear OS ホーム画面で現在の心拍・動作判定・平常時目安を誤タップなしで読ませる。
 - 使う場面：`HomeWatchScreen` の `TransformingLazyColumn` 内。
 - 使わない場面：タップ操作が必要な設定やボタン。
-- 状態：平常（`primary`）／静止上昇（`tertiary`）／未計測（`-- bpm`）。
+- 状態：平常・静止上昇（`primary`）／未計測（`-- bpm`）。
 - 狙い：誤って押して呼吸画面に飛ばさず、実測根拠だけを静かに伝える。
 - アート方針との対応：Wear M3 `SurfaceTransformation` + `transformedHeight` 準拠、`Icons.Rounded.Favorite` と `tnum` 統一。
 - バリエーション：なし（1パターン固定）。

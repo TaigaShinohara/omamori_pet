@@ -226,4 +226,8 @@
     <string name="ob_praise_complete_1">All set. Take everything at your own pace.</string>
     <string name="ob_praise_complete_2">Well done. You can return to this breath anytime.</string>
     <string name="ob_praise_complete_3">You are ready. Let\'s begin today\'s calm minute.</string>
+    <string name="pet_expression_preview">Pet expression preview</string>
+    <string name="pet_expression_unwell">Feeling unwell</string>
+    <string name="pet_expression_worse">Feeling worse</string>
+    <string name="pet_expression_worst">Feeling very unwell</string>
 </resources>

@@ -113,21 +113,21 @@
                         </Group>
                     </Compare>
 
-                    <!-- 1: ELEVATED_AT_REST（ひと息タイム）＝温かな琥珀・寄り添う正面目（威圧・赤・震えなし） -->
+                    <!-- 1: ELEVATED_AT_REST（ひと息タイム）＝おだやかと同じ緑・寄り添う正面目 -->
                     <Compare expression="state_elevated">
                         <Group alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
-                                    <Fill color="#2CE8B878" />
+                                    <Fill color="#288FD3B6" />
                                 </Ellipse>
                                 <Ellipse height="74" width="74" x="11" y="11">
-                                    <Stroke color="#99E8B878" thickness="2.2" />
+                                    <Stroke color="#998FD3B6" thickness="2.2" />
                                 </Ellipse>
                                 <Variant mode="AMBIENT" target="alpha" value="0" />
                             </PartDraw>
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="66" width="66" x="15" y="15">
-                                    <Fill color="#FFE8B878" />
+                                    <Fill color="#FF8FD3B6" />
                                 </Ellipse>
                                 <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="15" width="11" x="34" y="39">
                                     <Fill color="#FFFFFFFF" />

@@ -3,15 +3,14 @@ package com.omamoripet.wear.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -259,10 +258,8 @@ fun HomeWatchScreen(
                 BiometricSummaryPanel(
                     bpm = bpm,
                     delta = delta,
-                    isElevated = isElevated,
                     motionState = motionState,
                     baselineBpm = baselineBpm,
-                    animationsEnabled = animationsEnabled,
                     transformation = transformation,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -274,7 +271,6 @@ fun HomeWatchScreen(
             item(key = "breathe_cta") {
                 val transformation = remember(this, transformationSpec) { SurfaceTransformation(transformationSpec) }
                 WatchBreathingCtaButton(
-                    isElevated = isElevated,
                     onClick = onStartBreathing,
                     transformation = transformation,
                     modifier = Modifier
@@ -385,10 +381,8 @@ private fun WatchPetHeader(
 private fun BiometricSummaryPanel(
     bpm: Int?,
     delta: Int?,
-    isElevated: Boolean,
     motionState: MotionState,
     baselineBpm: Int,
-    animationsEnabled: Boolean,
     transformation: SurfaceTransformation,
     modifier: Modifier = Modifier
 ) {
@@ -401,16 +395,7 @@ private fun BiometricSummaryPanel(
     } else {
         null
     }
-    val targetAccent = if (isElevated) {
-        MaterialTheme.colorScheme.tertiary
-    } else {
-        MaterialTheme.colorScheme.primary
-    }
-    val accentColor by animateColorAsState(
-        targetValue = targetAccent,
-        animationSpec = if (animationsEnabled) MaterialTheme.motionScheme.defaultEffectsSpec() else snap(),
-        label = "watchAccentColor"
-    )
+    val accentColor = MaterialTheme.colorScheme.primary
     val motionText = when (motionState) {
         MotionState.STILL_CONFIRMED -> stringResource(R.string.still_confirmed)
         MotionState.RECENT_MOVEMENT -> stringResource(R.string.recent_movement)
@@ -477,21 +462,12 @@ private fun BiometricSummaryPanel(
 
 @Composable
 private fun WatchBreathingCtaButton(
-    isElevated: Boolean,
     onClick: () -> Unit,
     transformation: SurfaceTransformation,
     modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
-        colors = if (isElevated) {
-            ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.tertiary,
-                contentColor = MaterialTheme.colorScheme.onTertiary
-            )
-        } else {
-            ButtonDefaults.buttonColors()
-        },
         icon = {
             Icon(
                 painter = painterResource(R.drawable.ic_spa_rounded),
@@ -862,6 +838,44 @@ fun DemoSettingsWatchScreen(
                             .fillMaxWidth()
                             .transformedHeight(this, spec)
                     )
+                }
+            }
+            item(key = "pet_expression_preview") {
+                val transformation = remember(this, spec) { SurfaceTransformation(spec) }
+                ListSubHeader(
+                    transformation = transformation,
+                    modifier = Modifier.transformedHeight(this, spec)
+                ) {
+                    Text(stringResource(R.string.pet_expression_preview))
+                }
+            }
+            val expressions = listOf(
+                R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
+                R.drawable.pet_strain_red to R.string.pet_expression_worse,
+                R.drawable.pet_strain_purple to R.string.pet_expression_worst
+            )
+            expressions.forEach { (drawable, label) ->
+                item(key = "pet_expression_$label") {
+                    val transformation = remember(this, spec) { SurfaceTransformation(spec) }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .transformedHeight(this, spec)
+                            .graphicsLayer { with(transformation) { applyContentTransformation() } }
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(drawable),
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = stringResource(label),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
             item(key = "disclaimer") {

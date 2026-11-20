@@ -84,4 +84,8 @@
     <string name="demo_moving">Demo: Post-walk</string>
     <string name="calibration_requires_sensors">Switch to Live Sensors and allow permissions to calibrate.</string>
     <string name="avatar_tap_action">React gently</string>
+    <string name="pet_expression_preview">Pet expression preview</string>
+    <string name="pet_expression_unwell">Feeling unwell</string>
+    <string name="pet_expression_worse">Feeling worse</string>
+    <string name="pet_expression_worst">Feeling very unwell</string>
 </resources>
