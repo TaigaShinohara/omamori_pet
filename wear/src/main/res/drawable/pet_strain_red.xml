@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <!-- Red severe strain aura + bold warning ring -->
+    <path
+        android:fillColor="#36EF5350"
+        android:pathData="M48,4A44,44 0 1,1 47.99,4Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M48,9A39,39 0 1,1 47.99,9Z"
+        android:strokeColor="#EF5350"
+        android:strokeWidth="3.2" />
+    <path
+        android:fillColor="#EF5350"
+        android:pathData="M48,17A31,31 0 1,1 47.99,17Z" />
+    <!-- Tightly squinted distressed eyes -->
+    <group
+        android:pivotX="38"
+        android:pivotY="48"
+        android:rotation="-28">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M31,45.5 h14 a2.2,2.2 0 0,1 2.2,2.2 v0.6 a2.2,2.2 0 0,1 -2.2,2.2 h-14 a2.2,2.2 0 0,1 -2.2,-2.2 v-0.6 a2.2,2.2 0 0,1 2.2,-2.2 z" />
+    </group>
+    <group
+        android:pivotX="58"
+        android:pivotY="48"
+        android:rotation="28">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M51,45.5 h14 a2.2,2.2 0 0,1 2.2,2.2 v0.6 a2.2,2.2 0 0,1 -2.2,2.2 h-14 a2.2,2.2 0 0,1 -2.2,-2.2 v-0.6 a2.2,2.2 0 0,1 2.2,-2.2 z" />
+    </group>
+</vector>
