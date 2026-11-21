@@ -412,10 +412,27 @@ private fun HeroStatusCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val face = feeling?.faceRes ?: petHeartRateDrawable
-                if (face != null) {
+                if (feeling != null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.width(92.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(feeling.faceRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(92.dp)
+                        )
+                        Text(
+                            text = stringResource(feeling.labelRes),
+                            style = MaterialTheme.typography.titleSmall,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                        )
+                    }
+                } else if (petHeartRateDrawable != null) {
                     Image(
-                        painter = painterResource(face),
+                        painter = painterResource(petHeartRateDrawable),
                         contentDescription = null,
                         modifier = Modifier.size(92.dp)
                     )
@@ -469,14 +486,6 @@ private fun HeroStatusCard(
                         }
                     }
                 }
-            }
-
-            if (feeling != null) {
-                Text(
-                    text = stringResource(R.string.feeling_recorded, stringResource(feeling.labelRes)),
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-                )
             }
 
             if (stateDesc.isNotEmpty()) {
