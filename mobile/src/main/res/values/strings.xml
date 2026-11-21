@@ -234,6 +234,5 @@
     <string name="feeling_anxious">Anxious</string>
     <string name="feeling_low">Feeling down</string>
     <string name="feeling_irritated">Irritated</string>
-    <string name="feeling_recorded">Saved your feeling: %1$s</string>
     <string name="feeling_save_failed">Could not save your feeling. Try again.</string>
 </resources>

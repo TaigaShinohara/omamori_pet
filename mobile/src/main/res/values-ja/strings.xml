@@ -234,6 +234,5 @@
     <string name="feeling_anxious">不安</string>
     <string name="feeling_low">落ち込み</string>
     <string name="feeling_irritated">イライラ</string>
-    <string name="feeling_recorded">「%1$s」を記録しました</string>
     <string name="feeling_save_failed">保存できませんでした。もう一度お試しください。</string>
 </resources>
