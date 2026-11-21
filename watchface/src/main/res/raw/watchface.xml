@@ -197,7 +197,7 @@
                         </Group>
                     </Compare>
 
-                    <!-- 1: ELEVATED_AT_REST（ひと息タイム）＝おだやかと同じ緑・寄り添う正面目 -->
+                    <!-- 1: ELEVATED_AT_REST（心拍が少し高め）＝おだやかと同じ緑・寄り添う正面目 -->
                     <Compare expression="state_elevated">
                         <Group name="petElevated" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">

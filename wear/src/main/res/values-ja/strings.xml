@@ -6,12 +6,12 @@
     <string name="tile_label">お守りペット</string>
 
     <string name="state_calm">おだやか</string>
-    <string name="state_elevated">ひと息タイム</string>
+    <string name="state_elevated">心拍が少し高め</string>
     <string name="state_breathing">深呼吸中</string>
     <string name="state_resting">待機中</string>
 
     <string name="state_calm_short">穏やか</string>
-    <string name="state_elevated_short">ひと息</string>
+    <string name="state_elevated_short">心拍少し高め</string>
     <string name="state_heart_rate_high">心拍が高め</string>
     <string name="state_heart_rate_high_short">心拍高め</string>
     <string name="state_breathing_short">呼吸中</string>

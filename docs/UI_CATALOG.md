@@ -50,7 +50,7 @@
 - 役割：Mobile「いま」画面の唯一の主役として、現在状態・心拍・呼吸開始 CTA を 1 箇所にまとめる。
 - 使う場面：`HomeMobileScreen` の最上位（Expanded 画面では左ペイン）。
 - 使わない場面：履歴画面・設定画面など他画面への使い回し。
-- 状態：4状態ごとのコンテナ色遷移（おだやか・ひと息タイムは `primaryContainer`、深呼吸中は `secondaryContainer`、待機中は `surfaceContainerHigh`）、Watch 未同期・同期済み・デモ表示。
+- 状態：4状態ごとのコンテナ色遷移（おだやか・心拍が少し高めは `primaryContainer`、深呼吸中は `secondaryContainer`、待機中は `surfaceContainerHigh`）、Watch 未同期・同期済み・デモ表示。
 - 狙い：開いて 3 秒で今の状態と「1分間の深呼吸ガイド」への導線が迷わず目に入るようにする。
 - アート方針との対応：ElevatedCard を主役 1 枚に限定し、状態ごとに穏やかな色遷移を適用。主ボタン（`Button`）＋副導線（`TextButton`）の強弱を徹底。
 - バリエーション：CTA は `primary`。
