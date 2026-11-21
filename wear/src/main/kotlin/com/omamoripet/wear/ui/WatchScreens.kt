@@ -47,6 +47,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
 import androidx.wear.compose.material3.Button
@@ -66,13 +68,16 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import androidx.wear.compose.material3.lazy.rememberTransformationSpec
 import androidx.wear.compose.material3.lazy.transformedHeight
+import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.visibleForRemainingTime
 import com.omamoripet.wear.R
 import com.omamoripet.wear.breathing.BreathPhase
 import com.omamoripet.wear.breathing.BreathingUiState
 import com.omamoripet.wear.data.CalibrationResult
+import com.omamoripet.wear.data.PHONE_FEELING_CLOCK_TOLERANCE_MS
 import com.omamoripet.wear.data.SimulationScenario
 import com.omamoripet.wear.data.WatchUiState
 import kotlinx.coroutines.delay
@@ -93,6 +98,13 @@ fun HomeWatchScreen(
     val listState = rememberTransformingLazyColumnState()
     val transformationSpec = rememberTransformationSpec()
     val animationsEnabled = LocalWearAnimationsEnabled.current
+    val feelingFaceFlow = remember(uiState.phoneFeelingFace) {
+        uiState.phoneFeelingFace.visibleForRemainingTime(PHONE_FEELING_CLOCK_TOLERANCE_MS)
+    }
+    val feelingFace by feelingFaceFlow.collectAsStateWithLifecycle(
+        initialValue = null,
+        minActiveState = Lifecycle.State.RESUMED
+    )
 
     val state = uiState.evaluation.state
     val isElevated = state == OmamoriState.ELEVATED_AT_REST
@@ -140,6 +152,7 @@ fun HomeWatchScreen(
             item(key = "pet_header") {
                 WatchPetHeader(
                     state = state,
+                    feeling = feelingFace?.feeling,
                     petHeartRateColor = uiState.evaluation.petHeartRateColor,
                     isSimulated = isSimulated,
                     animationsEnabled = animationsEnabled,
@@ -338,19 +351,38 @@ fun HomeWatchScreen(
 @Composable
 private fun WatchPetHeader(
     state: OmamoriState,
+    feeling: Feeling?,
     petHeartRateColor: PetHeartRateColor?,
     isSimulated: Boolean,
     animationsEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val stateTitle = stringResource(resolvePetStateLabelRes(state, petHeartRateColor))
+    val title = stringResource(
+        when (feeling) {
+            Feeling.ANXIOUS -> R.string.feeling_anxious
+            Feeling.LOW -> R.string.feeling_low
+            Feeling.IRRITATED -> R.string.feeling_irritated
+            null -> resolvePetStateLabelRes(state, petHeartRateColor)
+        }
+    )
+    val visibleTitle = if (isSimulated && feeling == null) "$title (${stringResource(R.string.demo_badge)})" else title
+    val face = when (feeling) {
+        Feeling.ANXIOUS -> R.drawable.pet_feeling_anxious
+        Feeling.LOW -> R.drawable.pet_feeling_low
+        Feeling.IRRITATED -> R.drawable.pet_feeling_irritated
+        null -> if (state == OmamoriState.ELEVATED_AT_REST && petHeartRateColor != null) {
+            resolvePetDrawableRes(state, petHeartRateColor = petHeartRateColor)
+        } else {
+            null
+        }
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(top = 2.dp, bottom = 2.dp)
     ) {
-        if (state == OmamoriState.ELEVATED_AT_REST && petHeartRateColor != null) {
+        if (face != null) {
             Image(
-                painter = painterResource(resolvePetDrawableRes(state, petHeartRateColor = petHeartRateColor)),
+                painter = painterResource(face),
                 contentDescription = null,
                 modifier = Modifier.size(48.dp)
             )
@@ -362,23 +394,33 @@ private fun WatchPetHeader(
             )
         }
         Spacer(Modifier.height(2.dp))
-        AnimatedContent(
-            targetState = stateTitle,
-            transitionSpec = {
-                if (animationsEnabled) {
-                    fadeIn(tween(200)) togetherWith fadeOut(tween(150))
-                } else {
-                    EnterTransition.None togetherWith ExitTransition.None
-                }
-            },
-            label = "watchStateTitle"
-        ) { title ->
+        if (feeling != null) {
             Text(
-                text = if (isSimulated) "$title (${stringResource(R.string.demo_badge)})" else title,
+                text = visibleTitle,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
             )
+        } else {
+            AnimatedContent(
+                targetState = visibleTitle,
+                transitionSpec = {
+                    if (animationsEnabled) {
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(150))
+                    } else {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    }
+                },
+                label = "watchStateTitle"
+            ) { resolvedTitle ->
+                Text(
+                    text = resolvedTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

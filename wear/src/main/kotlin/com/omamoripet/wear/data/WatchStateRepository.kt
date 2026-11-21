@@ -23,6 +23,7 @@ import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.FeelingFace
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 
 private val Context.watchDataStore: DataStore<Preferences> by preferencesDataStore(name = "omamori_watch_prefs")
+internal const val PHONE_FEELING_CLOCK_TOLERANCE_MS = 5_000L
 
 enum class SimulationScenario {
     LIVE_SENSORS,
@@ -83,8 +85,17 @@ data class WatchUiState(
     val lastAlertEpochMs: Long = 0L,
     val isCalibrating: Boolean = false,
     val calibrationRemainingSeconds: Int = 0,
-    val calibrationResult: CalibrationResult = CalibrationResult.NONE
+    val calibrationResult: CalibrationResult = CalibrationResult.NONE,
+    val phoneFeelingFace: FeelingFace? = null
 )
+
+internal fun WatchUiState.withPhoneFeelingFace(face: FeelingFace, nowEpochMs: Long): WatchUiState {
+    val current = phoneFeelingFace
+    if (face.remainingMs(nowEpochMs, PHONE_FEELING_CLOCK_TOLERANCE_MS) == 0L) return this
+    if (current != null && current.remainingMs(nowEpochMs, PHONE_FEELING_CLOCK_TOLERANCE_MS) > 0L &&
+        current.recordedAtEpochMs > face.recordedAtEpochMs) return this
+    return copy(phoneFeelingFace = face)
+}
 
 class WatchStateRepository(private val context: Context) {
 
@@ -136,6 +147,15 @@ class WatchStateRepository(private val context: Context) {
 
     suspend fun awaitInitialized() {
         initialLoadJob.join()
+    }
+
+    suspend fun refreshPhoneFeelingFace() {
+        syncClient.readPhoneFeelingFace()?.let(::applyPhoneFeelingFace)
+    }
+
+    fun applyPhoneFeelingFace(face: FeelingFace) {
+        val now = System.currentTimeMillis()
+        _uiState.update { it.withPhoneFeelingFace(face, now) }
     }
 
     private suspend fun restorePersistedState() {

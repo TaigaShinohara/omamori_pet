@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feeling_anxious">不安</string>
+    <string name="feeling_low">落ち込み</string>
+    <string name="feeling_irritated">イライラ</string>
+</resources>

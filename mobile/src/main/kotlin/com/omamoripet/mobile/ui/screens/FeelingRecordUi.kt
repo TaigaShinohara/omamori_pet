@@ -15,7 +15,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,13 +26,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.omamoripet.mobile.R
-import com.omamoripet.mobile.data.Feeling
 import com.omamoripet.mobile.data.FeelingRecord
+import com.omamoripet.shared.model.Feeling
+import com.omamoripet.shared.model.visibleForRemainingTime
 import java.io.IOException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @get:StringRes
@@ -52,21 +50,9 @@ internal val Feeling.faceRes: Int get() = when (this) {
 
 @Composable
 internal fun activeFeelingFace(latest: FeelingRecord?): Feeling? {
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var active by remember(latest) {
-        mutableStateOf(latest?.takeIf { it.faceRemainingMs(System.currentTimeMillis()) > 0 }?.feeling)
-    }
-    LaunchedEffect(latest, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            val remaining = latest?.faceRemainingMs(System.currentTimeMillis()) ?: 0L
-            active = latest?.feeling.takeIf { remaining > 0 }
-            if (remaining > 0) {
-                delay(remaining)
-                active = null
-            }
-        }
-    }
-    return active
+    val visibleFace = remember(latest) { latest?.face.visibleForRemainingTime() }
+    val active by visibleFace.collectAsStateWithLifecycle(initialValue = null, minActiveState = Lifecycle.State.RESUMED)
+    return active?.feeling
 }
 
 @Composable

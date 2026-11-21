@@ -224,8 +224,5 @@
     <string name="ob_praise_complete_3">You are ready. Let\'s begin today\'s calm minute.</string>
     <string name="pet_expression_preview">Pet expression preview</string>
     <string name="feeling_record_action">Record how you feel</string>
-    <string name="feeling_anxious">Anxious</string>
-    <string name="feeling_low">Feeling down</string>
-    <string name="feeling_irritated">Irritated</string>
     <string name="feeling_save_failed">Could not save your feeling. Try again.</string>
 </resources>

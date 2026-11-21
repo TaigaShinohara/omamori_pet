@@ -14,6 +14,7 @@ import kotlinx.serialization.json.Json
 object DataLayerPaths {
     const val WATCH_LIVE_STATE = "/omamori/watch_live_state"
     const val PHONE_BASELINE_AND_ADVICE = "/omamori/phone_baseline_and_advice"
+    const val PHONE_FEELING_FACE = "/omamori/phone_feeling_face"
     const val BREATHING_SESSION = "/omamori/breathing_session"
     const val CALM_EVENT = "/omamori/calm_event"
     const val ALERT_PREFERENCES = "/omamori/alert_preferences"

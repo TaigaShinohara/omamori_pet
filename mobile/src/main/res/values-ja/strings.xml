@@ -224,8 +224,5 @@
     <string name="ob_praise_complete_3">ここまでで準備は完了です。今日の落ち着きを始めましょう。</string>
     <string name="pet_expression_preview">ペットの表情プレビュー</string>
     <string name="feeling_record_action">いまの気持ちを記録</string>
-    <string name="feeling_anxious">不安</string>
-    <string name="feeling_low">落ち込み</string>
-    <string name="feeling_irritated">イライラ</string>
     <string name="feeling_save_failed">保存できませんでした。もう一度お試しください。</string>
 </resources>
