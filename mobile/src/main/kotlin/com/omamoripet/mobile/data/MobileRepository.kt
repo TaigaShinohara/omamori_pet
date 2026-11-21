@@ -21,6 +21,7 @@ import com.omamoripet.shared.domain.MeasurementFreshness
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BreathingSessionRecord
+import com.omamoripet.shared.model.FeelingContext
 import com.omamoripet.shared.model.CURRENT_ONBOARDING_VERSION
 import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.Feeling
@@ -512,6 +513,14 @@ class MobileRepository(
         feelingLoadJob.join()
         feelingHistoryMutex.withLock {
             val records = feelingHistory.record(FeelingRecord(UUID.randomUUID().toString(), feeling, System.currentTimeMillis()))
+            _uiState.update { it.copy(feelingRecords = records) }
+        }
+    }
+
+    suspend fun updateFeelingContext(id: String, context: FeelingContext?) {
+        feelingLoadJob.join()
+        feelingHistoryMutex.withLock {
+            val records = feelingHistory.updateContext(id, context)
             _uiState.update { it.copy(feelingRecords = records) }
         }
     }

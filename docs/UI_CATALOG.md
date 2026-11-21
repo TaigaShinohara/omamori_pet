@@ -131,9 +131,15 @@
 - 状態：通常／デモ記録（`DemoTagBadge` 付き）／アニメーション挿入・削除。
 - 狙い：カードで囲みすぎず、アイコンの種類（`Spa` / `FavoriteBorder` / `NotificationsPaused`）と時系列で振り返りやすくする。
 - アート方針との対応：M3 `ListItem` + `HorizontalDivider`（末尾を除く）、デモタグは控えめな `labelSmall` バッジ。
-- バリエーション：Breath / Event（Snoozed vs Elevated）。
+- バリエーション：Breath / Event（Snoozed vs Elevated）/ 気持ち（「前後のようす」を開く）。
 - 実装の場所：`mobile/.../ui/screens/MobileScreens.kt` (`HistoryTimelineRow`, `DemoTagBadge`)
 - 登録日と経緯：2026-11-17 タイムライン描画の重複整理として登録。
+
+### 気持ちの記録の「前後のようす」
+
+- 気持ちと記録時刻を先に置き、心拍の1分中央値・静止の状況・深呼吸を、記録の前30分から後15分までの時間軸で見る。実測のない時間は空白にし、「1分ごとの値を見る」でも確認できる。
+- 事前にWatchの「設定」で「振り返り用の計測」を有効にする。気持ちを記録して約15分後から24時間以内に、Watchで同じ時刻を選び、スマホの記録詳細のカメラでQRコードを読む。Watch内の一時データは設定をオフにすると削除され、取り込んだデータはスマホの各記録から削除できる。
+- 実装の場所：`mobile/.../ui/screens/FeelingDetailScreen.kt` と `wear/.../ui/FeelingContextWatchScreen.kt`。
 
 ### SettingsSwitchRow
 - 役割：即時反映される ON/OFF 設定を提供する。

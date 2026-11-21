@@ -756,7 +756,8 @@ fun DemoSettingsWatchScreen(
     onSelectScenario: (SimulationScenario) -> Unit,
     onToggleAlerts: () -> Unit,
     onSnooze1h: () -> Unit,
-    onStartCalibration: () -> Unit
+    onStartCalibration: () -> Unit,
+    onOpenFeelingContext: () -> Unit
 ) {
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
@@ -791,6 +792,15 @@ fun DemoSettingsWatchScreen(
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize()
         ) {
+            item(key = "feeling_context") {
+                val transformation = remember(this, spec) { SurfaceTransformation(spec) }
+                OutlinedButton(
+                    onClick = onOpenFeelingContext,
+                    label = { Text(stringResource(R.string.feeling_context_title)) },
+                    transformation = transformation,
+                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec)
+                )
+            }
             item(key = "section_alerts") {
                 val transformation = remember(this, spec) { SurfaceTransformation(spec) }
                 ListSubHeader(

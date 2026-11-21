@@ -1228,6 +1228,7 @@ private data class PreparedHistory(
 fun HistoryMobileScreen(
     uiState: MobileUiState,
     onTryBreathing: () -> Unit,
+    onOpenFeeling: (FeelingRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
@@ -1354,6 +1355,7 @@ fun HistoryMobileScreen(
                             item = entry.item,
                             timeLabel = entry.formattedTime,
                             showDivider = index < prepared.todayItems.lastIndex,
+                            onOpenFeeling = onOpenFeeling,
                             modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
                         )
                     }
@@ -1368,6 +1370,7 @@ fun HistoryMobileScreen(
                             item = entry.item,
                             timeLabel = entry.formattedTime,
                             showDivider = index < prepared.earlierItems.lastIndex,
+                            onOpenFeeling = onOpenFeeling,
                             modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
                         )
                     }
@@ -1382,6 +1385,7 @@ private fun HistoryTimelineRow(
     item: HistoryTimelineItem,
     timeLabel: String,
     showDivider: Boolean,
+    onOpenFeeling: (FeelingRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -1455,7 +1459,11 @@ private fun HistoryTimelineRow(
                         Image(painterResource(feeling.faceRes), contentDescription = null, modifier = Modifier.size(36.dp))
                     },
                     headlineContent = { Text(stringResource(feeling.labelRes)) },
-                    supportingContent = { Text(timeLabel) }
+                    supportingContent = { Text(timeLabel) },
+                    trailingContent = {
+                        Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
+                    },
+                    modifier = Modifier.clickable { onOpenFeeling(item.record) }
                 )
             }
         }

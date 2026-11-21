@@ -75,4 +75,11 @@
     <string name="calibration_requires_sensors">実センサーかつ権限許可時に計測できます。</string>
     <string name="avatar_tap_action">ペットとふれあう</string>
     <string name="pet_expression_preview">ペットの表情プレビュー</string>
+    <string name="feeling_context_title">振り返り用の計測</string>
+    <string name="feeling_context_setting">心拍と動きをWatch内に一時保存します。</string>
+    <string name="feeling_context_instructions">スマホで気持ちを記録したら、15分後にここで記録時刻を選びます。24時間以内にスマホの同じ記録からQRコードを読み取れます。</string>
+    <string name="feeling_context_empty">Watchのデータがある記録はまだありません。</string>
+    <string name="feeling_context_qr">この記録のQRコード</string>
+    <string name="feeling_context_collecting">記録後15分まで計測中</string>
+    <string name="feeling_context_save_failed">設定を保存できませんでした。</string>
 </resources>

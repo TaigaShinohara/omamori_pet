@@ -2,6 +2,9 @@ package com.omamoripet.mobile.data
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.omamoripet.shared.model.Feeling
+import com.omamoripet.shared.model.FEELING_MINUTE_COUNT
+import com.omamoripet.shared.model.FeelingContext
+import com.omamoripet.shared.model.FeelingMinute
 import com.omamoripet.shared.sync.OmamoriJson
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -46,5 +49,29 @@ class FeelingHistoryStoreTest {
         val entry = FeelingRecord("one", Feeling.ANXIOUS, 1_000L)
         assertEquals(entry, OmamoriJson.decodeOrNull<FeelingRecord>(old))
         assertEquals(old, OmamoriJson.encode(entry))
+    }
+
+    @Test
+    fun `watch data attaches only to its matching record and can be removed separately`() = runBlocking {
+        val store = FeelingHistoryStore(dataStore)
+        val first = FeelingRecord("one", Feeling.ANXIOUS, 1_000L)
+        val second = FeelingRecord("two", Feeling.LOW, 2_000L)
+        val context = FeelingContext(
+            first.recordedAtEpochMs, null, null,
+            List(FEELING_MINUTE_COUNT) { index ->
+                if (index == 0) FeelingMinute(medianBpm = 78, sampleCount = 2) else FeelingMinute()
+            }
+        )
+        store.record(first)
+        store.record(second)
+        store.updateContext(second.id, context)
+        assertEquals(listOf(second, first), store.records.first())
+
+        store.updateContext(first.id, context)
+        store.updateContext(first.id, context)
+        assertEquals(listOf(second, first.copy(context = context)), FeelingHistoryStore(dataStore).records.first())
+
+        store.updateContext(first.id, null)
+        assertEquals(listOf(second, first), store.records.first())
     }
 }

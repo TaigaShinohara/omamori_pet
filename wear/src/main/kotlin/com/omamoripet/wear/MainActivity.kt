@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -35,6 +36,7 @@ import com.omamoripet.wear.sensor.BiometricMonitorService
 import com.omamoripet.wear.sync.WatchSyncClient
 import com.omamoripet.wear.ui.BreathingWatchScreen
 import com.omamoripet.wear.ui.DemoSettingsWatchScreen
+import com.omamoripet.wear.ui.FeelingContextWatchScreen
 import com.omamoripet.wear.ui.HomeWatchScreen
 import com.omamoripet.wear.ui.OmamoriWearTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -265,9 +267,21 @@ class MainActivity : ComponentActivity() {
                                     repository.updatePreferences(cur.copy(alertsEnabled = !cur.alertsEnabled))
                                 },
                                 onSnooze1h = { repository.snoozeAlertsForMinutes(60) },
+                                onOpenFeelingContext = { navController.navigate("feeling_context") },
                                 onStartCalibration = {
                                     BiometricMonitorService.start(this@MainActivity, startCalibration = true)
                                     navController.popBackStack()
+                                }
+                            )
+                        }
+                        composable("feeling_context") {
+                            val contextSettings by repository.feelingContext.state.collectAsStateWithLifecycle()
+                            FeelingContextWatchScreen(
+                                settings = contextSettings,
+                                onSetEnabled = repository.feelingContext::setEnabled,
+                                onShowCode = { showing ->
+                                    if (showing) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                                    else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                                 }
                             )
                         }

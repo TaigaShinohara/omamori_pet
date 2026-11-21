@@ -23,6 +23,8 @@ wearWatchfaceClient = "1.2.1"
 healthServices = "1.1.0"
 healthConnect = "1.1.0"
 playServicesWearable = "18.2.0"
+zxing = "3.5.4"
+zxingEmbedded = "4.3.0"
 
 # On-device AI
 mlkitGenaiPrompt = "1.0.0-beta4"
@@ -69,6 +71,8 @@ androidx-wear-complications-data-source = { group = "androidx.wear.watchface", n
 androidx-health-services-client = { group = "androidx.health", name = "health-services-client", version.ref = "healthServices" }
 androidx-health-connect-client = { group = "androidx.health.connect", name = "connect-client", version.ref = "healthConnect" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+zxing-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 
 # Coroutines & Serialization
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }

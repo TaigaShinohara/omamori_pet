@@ -102,10 +102,13 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private val accelBuffer = DoubleArray(ACCEL_BUFFER_SIZE)
     private var accelHead = 0
     private var accelCount = 0
+    private var lastAccelElapsedMs = 0L
 
     private val heartRates = FreshHeartRateTracker()
+    private val startedBootOffset = System.currentTimeMillis() - SystemClock.elapsedRealtime()
     @Volatile
     private var isWatchOnBody: Boolean = true
+    private var isExplicitlyOffBody: Boolean = false
     private var latestMotionState: MotionState = MotionState.RECENT_MOVEMENT
     private val alertElevationTracker = SustainedElevationTracker()
     private val petElevationTracker = SustainedElevationTracker()
@@ -126,6 +129,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private val hrCallback = object : MeasureCallback {
         override fun onAvailabilityChanged(dataType: DeltaDataType<*, *>, availability: Availability) {
             if (dataType == DataType.HEART_RATE_BPM && availability is DataTypeAvailability) {
+                isExplicitlyOffBody = availability == DataTypeAvailability.UNAVAILABLE_DEVICE_OFF_BODY
                 isWatchOnBody = availability != DataTypeAvailability.UNAVAILABLE &&
                     availability != DataTypeAvailability.UNAVAILABLE_DEVICE_OFF_BODY
                 if (!isWatchOnBody) heartRates.clear()
@@ -133,12 +137,26 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         }
 
         override fun onDataReceived(data: DataPointContainer) {
-            val point = data.getData(DataType.HEART_RATE_BPM)
-                .maxByOrNull { it.timeDurationFromBoot } ?: return
+            val points = data.getData(DataType.HEART_RATE_BPM)
+            val point = points.maxByOrNull { it.timeDurationFromBoot } ?: return
+            if (repository.uiState.value.simulationScenario == SimulationScenario.LIVE_SENSORS &&
+                repository.feelingContext.state.value.enabledSince != null
+            ) {
+                val wallNow = System.currentTimeMillis()
+                for (sample in points) {
+                    val observedBpm = sample.value.toInt()
+                    if (observedBpm in 35..220) {
+                        repository.feelingContext.heartRate(
+                            startedBootOffset + sample.timeDurationFromBoot.toMillis(), observedBpm, wallNow
+                        )
+                    }
+                }
+            }
             val bpm = point.value.toInt()
             if (bpm in 35..220) {
                 heartRates.record(bpm, point.timeDurationFromBoot.toMillis())
                 isWatchOnBody = true
+                isExplicitlyOffBody = false
             }
         }
     }
@@ -208,7 +226,12 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
         stillnessTracker.reset()
         alertElevationTracker.reset()
         petElevationTracker.reset()
-        synchronized(accelLock) { accelCount = 0; accelHead = 0 }
+        synchronized(accelLock) {
+            accelCount = 0
+            accelHead = 0
+            lastAccelElapsedMs = 0
+        }
+        isExplicitlyOffBody = false
         if (accelRegistered) {
             sensorManager.unregisterListener(this)
             accelRegistered = false
@@ -229,6 +252,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             accelBuffer[accelHead] = mag
             accelHead = (accelHead + 1) % ACCEL_BUFFER_SIZE
             if (accelCount < ACCEL_BUFFER_SIZE) accelCount++
+            lastAccelElapsedMs = event.timestamp / 1_000_000L
         }
     }
 
@@ -309,6 +333,14 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             accelMagnitudeVariance = computeAccelVariance()
         )
         val nowElapsed = SystemClock.elapsedRealtime()
+        val hasRecentMotionMeasurement = synchronized(accelLock) {
+            accelCount >= 4 && nowElapsed - lastAccelElapsedMs in 0..10_000L
+        }
+        when {
+            isExplicitlyOffBody -> repository.feelingContext.movement(now, MotionState.OFF_BODY)
+            hasRecentMotionMeasurement && isWatchOnBody ->
+                repository.feelingContext.movement(now, latestMotionState)
+        }
         val reading = heartRates.current(nowElapsed)
         val bpm = reading?.bpm
         if (!currentState.isCalibrating && bpm != null && isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED) {

@@ -121,6 +121,7 @@ class WatchStateRepository(private val context: Context) {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal val feelingContext = WatchFeelingContext(context, scope)
     private val syncClient by lazy { WatchSyncClient(context) }
     private val baselineLock = Any()
     private val baselineLearner = RestingBaselineLearner()
@@ -156,6 +157,10 @@ class WatchStateRepository(private val context: Context) {
     fun applyPhoneFeelingFace(face: FeelingFace) {
         val now = System.currentTimeMillis()
         _uiState.update { it.withPhoneFeelingFace(face, now) }
+        if (_uiState.value.simulationScenario == SimulationScenario.LIVE_SENSORS) {
+            val baseline = resolveCurrentBaseline()
+            feelingContext.capture(face.recordedAtEpochMs, baseline.bpm, baseline.source)
+        }
     }
 
     private suspend fun restorePersistedState() {

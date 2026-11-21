@@ -74,6 +74,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.zxing.core)
+    implementation(libs.zxing.embedded)
 
     // On-device AI (Gemini Nano via ML Kit GenAI Prompt API)
     implementation(libs.mlkit.genai.prompt)

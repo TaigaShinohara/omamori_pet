@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.omamoripet.shared.model.FeelingContext
 import com.omamoripet.shared.sync.OmamoriJson
 import java.io.IOException
 import kotlinx.coroutines.flow.map
@@ -15,6 +16,18 @@ internal class FeelingHistoryStore(private val dataStore: DataStore<Preferences>
         val updated = dataStore.edit { prefs ->
             val records = (listOf(entry) + read(prefs)).distinctBy { it.id }.sortedByDescending { it.recordedAtEpochMs }
             prefs[RECORDS] = OmamoriJson.encode(records)
+        }
+        return read(updated)
+    }
+
+    suspend fun updateContext(id: String, context: FeelingContext?): List<FeelingRecord> {
+        val updated = dataStore.edit { prefs ->
+            val records = read(prefs)
+            val target = records.firstOrNull { it.id == id } ?: return@edit
+            if (context != null && context.recordedAtEpochMs != target.recordedAtEpochMs) return@edit
+            prefs[RECORDS] = OmamoriJson.encode(records.map {
+                if (it.id == id) it.copy(context = context) else it
+            })
         }
         return read(updated)
     }
