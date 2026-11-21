@@ -6,10 +6,6 @@
     <string name="nav_history">きろく</string>
     <string name="nav_settings">設定</string>
 
-    <string name="state_calm_title">おだやか</string>
-    <string name="state_elevated_title">静止中に心拍が高め</string>
-    <string name="state_breathing_title">深呼吸中</string>
-    <string name="state_resting_title">Watch 装着待ち</string>
     <string name="state_phone_ready_title">いつでも深呼吸</string>
 
     <string name="state_elevated_desc">いつもの +%1$d bpm。1分だけ息を整えましょう。</string>
@@ -227,9 +223,6 @@
     <string name="ob_praise_complete_2">おつかれさま。いつでもこのひと息に戻れます。</string>
     <string name="ob_praise_complete_3">ここまでで準備は完了です。今日の落ち着きを始めましょう。</string>
     <string name="pet_expression_preview">ペットの表情プレビュー</string>
-    <string name="pet_expression_unwell">調子が悪い時</string>
-    <string name="pet_expression_worse">さらに悪い時</string>
-    <string name="pet_expression_worst">最悪な時</string>
     <string name="feeling_record_action">いまの気持ちを記録</string>
     <string name="feeling_anxious">不安</string>
     <string name="feeling_low">落ち込み</string>

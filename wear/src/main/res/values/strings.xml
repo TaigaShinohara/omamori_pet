@@ -5,18 +5,6 @@
     <string name="complication_heart_label">Calm Heart Rate</string>
     <string name="tile_label">Omamori Calm</string>
 
-    <string name="state_calm">Calm</string>
-    <string name="state_elevated">A little quick</string>
-    <string name="state_breathing">Breathing</string>
-    <string name="state_resting">Waiting</string>
-
-    <string name="state_calm_short">Calm</string>
-    <string name="state_elevated_short">Breathe</string>
-    <string name="state_heart_rate_high">Heart rate above baseline</string>
-    <string name="state_heart_rate_high_short">High HR</string>
-    <string name="state_breathing_short">Breath</string>
-    <string name="state_resting_short">Wait</string>
-
     <string name="comp_moving_bpm">Moving %1$d</string>
     <string name="comp_still_elevated_bpm">Still %1$d (+%2$d)</string>
     <string name="comp_calm_bpm">Calm %1$d (%2$s)</string>
@@ -87,7 +75,4 @@
     <string name="calibration_requires_sensors">Switch to Live Sensors and allow permissions to calibrate.</string>
     <string name="avatar_tap_action">React gently</string>
     <string name="pet_expression_preview">Pet expression preview</string>
-    <string name="pet_expression_unwell">Feeling unwell</string>
-    <string name="pet_expression_worse">Feeling worse</string>
-    <string name="pet_expression_worst">Feeling very unwell</string>
 </resources>

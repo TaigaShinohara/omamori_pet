@@ -320,12 +320,10 @@ private fun HeroStatusCard(
     } else {
         null
     }
-    val stateTitle = when {
-        isPhoneOnlyIdle -> stringResource(R.string.state_phone_ready_title)
-        uiState.omamoriState == OmamoriState.CALM -> stringResource(R.string.state_calm_title)
-        uiState.omamoriState == OmamoriState.ELEVATED_AT_REST -> stringResource(R.string.state_elevated_title)
-        uiState.omamoriState == OmamoriState.BREATHING -> stringResource(R.string.state_breathing_title)
-        else -> stringResource(R.string.state_resting_title)
+    val stateTitle = if (isPhoneOnlyIdle) {
+        stringResource(R.string.state_phone_ready_title)
+    } else {
+        stringResource(resolvePetStateLabelRes(uiState.omamoriState, uiState.petHeartRateColor))
     }
     val stateDesc = when {
         isPhoneOnlyIdle && uiState.isWatchConnected -> stringResource(R.string.state_watch_paired_waiting_desc)
@@ -860,10 +858,10 @@ private fun DemoModeSelector(
 @Composable
 private fun PetExpressionPreview() {
     val expressions = listOf(
-        R.drawable.pet_calm to R.string.state_calm_title,
-        R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
-        R.drawable.pet_strain_red to R.string.pet_expression_worse,
-        R.drawable.pet_strain_purple to R.string.pet_expression_worst
+        R.drawable.pet_calm to R.string.pet_state_calm,
+        R.drawable.pet_strain_yellow to R.string.pet_state_high,
+        R.drawable.pet_strain_red to R.string.pet_state_very_high,
+        R.drawable.pet_strain_purple to R.string.pet_state_extremely_high
     )
 
     Text(

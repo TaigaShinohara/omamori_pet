@@ -343,14 +343,7 @@ private fun WatchPetHeader(
     animationsEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val stateTitle = when (state) {
-        OmamoriState.CALM -> stringResource(R.string.state_calm)
-        OmamoriState.ELEVATED_AT_REST -> stringResource(
-            if (petHeartRateColor == null) R.string.state_elevated else R.string.state_heart_rate_high
-        )
-        OmamoriState.BREATHING -> stringResource(R.string.state_breathing)
-        OmamoriState.RESTING -> stringResource(R.string.state_resting)
-    }
+    val stateTitle = stringResource(resolvePetStateLabelRes(state, petHeartRateColor))
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(top = 2.dp, bottom = 2.dp)
@@ -863,10 +856,10 @@ fun DemoSettingsWatchScreen(
                 }
             }
             val expressions = listOf(
-                R.drawable.pet_calm to R.string.state_calm,
-                R.drawable.pet_strain_yellow to R.string.pet_expression_unwell,
-                R.drawable.pet_strain_red to R.string.pet_expression_worse,
-                R.drawable.pet_strain_purple to R.string.pet_expression_worst
+                R.drawable.pet_calm to R.string.pet_state_calm,
+                R.drawable.pet_strain_yellow to R.string.pet_state_high,
+                R.drawable.pet_strain_red to R.string.pet_state_very_high,
+                R.drawable.pet_strain_purple to R.string.pet_state_extremely_high
             )
             expressions.forEach { (drawable, label) ->
                 item(key = "pet_expression_$label") {
