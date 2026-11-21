@@ -43,6 +43,7 @@
 - 実装の場所：`mobile/.../ui/components/OmamoriPetMobileCanvas.kt`、`wear/.../ui/OmamoriPetWearCanvas.kt`
 - 体験デモでは、共通のベクター素材（`shared/src/main/android-res/drawable`）で、おだやか・淡い黄色・淡い赤・淡い紫の4つの表情を順に表示する。
 - スマホとWear OSのホームは、静止中の心拍上昇判定を満たしたときに心拍差に応じて同じ色付き表情を描く。Watchで選んだ色をスマホへ同期し、タイルと文字盤でも反映する。
+- スマホの「いま」は、本人が選んだ気持ちを端末内に保存して「きろく」に並べる。記録から3分間は「いま」のペットに専用の青い表情を表示する。
 - 登録日と経緯：2026-11-17 既存資産の棚卸しにより登録。`:shared` は純 JVM のため双子正本として仕様・配色・目モーションを同期管理。
 
 ### HeroStatusCard

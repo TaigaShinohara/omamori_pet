@@ -103,6 +103,8 @@ import com.omamoripet.mobile.R
 import com.omamoripet.mobile.ai.AiBackendStatus
 import com.omamoripet.mobile.data.MobileDemoMode
 import com.omamoripet.mobile.data.MobileUiState
+import com.omamoripet.mobile.data.Feeling
+import com.omamoripet.mobile.data.FeelingRecord
 import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.ui.components.OmamoriPetMobileAvatar
 import com.omamoripet.mobile.ui.theme.LocalAnimationsEnabled
@@ -137,9 +139,15 @@ fun HomeMobileScreen(
     onDismissHealthConnect: () -> Unit,
     onDismissWatchGuide: () -> Unit,
     onExitDemo: () -> Unit,
+    onRecordFeeling: suspend (Feeling) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val animationsEnabled = LocalAnimationsEnabled.current
+    val feeling = activeFeelingFace(uiState.feelingRecords.firstOrNull())
+    var showFeelingDialog by rememberSaveable { mutableStateOf(false) }
+    if (showFeelingDialog) {
+        FeelingRecordDialog(onDismiss = { showFeelingDialog = false }, onRecord = onRecordFeeling)
+    }
     var showSecondary by remember { mutableStateOf(!animationsEnabled) }
     LaunchedEffect(animationsEnabled) {
         if (animationsEnabled && !showSecondary) {
@@ -179,6 +187,8 @@ fun HomeMobileScreen(
                 Column(modifier = Modifier.weight(1.1f)) {
                     HeroStatusCard(
                         uiState = uiState,
+                        feeling = feeling,
+                        onOpenFeeling = { showFeelingDialog = true },
                         onOpenBreathing = onOpenBreathing,
                         onTriggerWatchBreathing = onTriggerWatchBreathing,
                         onExitDemo = onExitDemo
@@ -226,6 +236,8 @@ fun HomeMobileScreen(
             ) {
                 HeroStatusCard(
                     uiState = uiState,
+                    feeling = feeling,
+                    onOpenFeeling = { showFeelingDialog = true },
                     onOpenBreathing = onOpenBreathing,
                     onTriggerWatchBreathing = onTriggerWatchBreathing,
                     onExitDemo = onExitDemo
@@ -268,6 +280,8 @@ fun HomeMobileScreen(
 @Composable
 private fun HeroStatusCard(
     uiState: MobileUiState,
+    feeling: Feeling?,
+    onOpenFeeling: () -> Unit,
     onOpenBreathing: () -> Unit,
     onTriggerWatchBreathing: () -> Unit,
     onExitDemo: () -> Unit
@@ -398,9 +412,10 @@ private fun HeroStatusCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                if (petHeartRateDrawable != null) {
+                val face = feeling?.faceRes ?: petHeartRateDrawable
+                if (face != null) {
                     Image(
-                        painter = painterResource(petHeartRateDrawable),
+                        painter = painterResource(face),
                         contentDescription = null,
                         modifier = Modifier.size(92.dp)
                     )
@@ -454,6 +469,14 @@ private fun HeroStatusCard(
                         }
                     }
                 }
+            }
+
+            if (feeling != null) {
+                Text(
+                    text = stringResource(R.string.feeling_recorded, stringResource(feeling.labelRes)),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                )
             }
 
             if (stateDesc.isNotEmpty()) {
@@ -510,6 +533,13 @@ private fun HeroStatusCard(
                     Icon(painter = painterResource(R.drawable.ic_spa_rounded), contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.cta_breathe_phone), maxLines = 1)
+                }
+                TextButton(
+                    onClick = onOpenFeeling,
+                    colors = ButtonDefaults.textButtonColors(contentColor = contentColor),
+                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(stringResource(R.string.feeling_record_action))
                 }
                 if (uiState.isWatchConnected && !uiState.isSimulated && (!hasWatchData || uiState.motionState != MotionState.OFF_BODY)) {
                     TextButton(
@@ -1166,6 +1196,12 @@ private sealed interface HistoryTimelineItem {
         override val timestampEpochMs: Long = record.timestampEpochMs
         override val isSimulated: Boolean = record.isSimulated
     }
+
+    data class FeelingEntry(val record: FeelingRecord) : HistoryTimelineItem {
+        override val key: String = "f_${record.id}"
+        override val timestampEpochMs: Long = record.recordedAtEpochMs
+        override val isSimulated: Boolean = false
+    }
 }
 
 private data class PreparedHistoryItem(
@@ -1188,13 +1224,14 @@ fun HistoryMobileScreen(
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
-    val prepared = remember(uiState.breathingSessions, uiState.calmEvents, formatter) {
+    val prepared = remember(uiState.breathingSessions, uiState.calmEvents, uiState.feelingRecords, formatter) {
         val todayCutoff = LocalDate.now()
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
             .toEpochMilli()
         val timeline = (uiState.breathingSessions.map { HistoryTimelineItem.Breath(it) } +
-            uiState.calmEvents.map { HistoryTimelineItem.Event(it) })
+            uiState.calmEvents.map { HistoryTimelineItem.Event(it) } +
+            uiState.feelingRecords.map { HistoryTimelineItem.FeelingEntry(it) })
             .sortedByDescending { it.timestampEpochMs }
         val today = ArrayList<PreparedHistoryItem>(timeline.size)
         val earlier = ArrayList<PreparedHistoryItem>(timeline.size)
@@ -1402,6 +1439,16 @@ private fun HistoryTimelineRow(
                     } else {
                         null
                     }
+                )
+            }
+            is HistoryTimelineItem.FeelingEntry -> {
+                val feeling = item.record.feeling
+                ListItem(
+                    leadingContent = {
+                        Image(painterResource(feeling.faceRes), contentDescription = null, modifier = Modifier.size(36.dp))
+                    },
+                    headlineContent = { Text(stringResource(feeling.labelRes)) },
+                    supportingContent = { Text(timeLabel) }
                 )
             }
         }

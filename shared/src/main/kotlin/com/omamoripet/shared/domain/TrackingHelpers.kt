@@ -3,6 +3,23 @@ package com.omamoripet.shared.domain
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.MotionState
 
+class SustainedElevationTracker {
+    private var startedAtMs: Long? = null
+
+    fun record(aboveThreshold: Boolean, nowMs: Long): Int {
+        if (!aboveThreshold) {
+            reset()
+            return 0
+        }
+        val start = startedAtMs ?: nowMs.also { startedAtMs = it }
+        return ((nowMs - start) / 1_000L).toInt()
+    }
+
+    fun reset() {
+        startedAtMs = null
+    }
+}
+
 /**
  * 手首の加速度分散と歩数増分から「直近 N 秒間（デフォルト180秒）連続して動いていない平常時」かを追跡する。
  * 階段を登った直後に立ち止まっても、数分間は心拍が高いまま残るため誤検知を防ぐ。

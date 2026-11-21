@@ -230,4 +230,10 @@
     <string name="pet_expression_unwell">Feeling unwell</string>
     <string name="pet_expression_worse">Feeling worse</string>
     <string name="pet_expression_worst">Feeling very unwell</string>
+    <string name="feeling_record_action">Record how you feel</string>
+    <string name="feeling_anxious">Anxious</string>
+    <string name="feeling_low">Feeling down</string>
+    <string name="feeling_irritated">Irritated</string>
+    <string name="feeling_recorded">Saved your feeling: %1$s</string>
+    <string name="feeling_save_failed">Could not save your feeling. Try again.</string>
 </resources>

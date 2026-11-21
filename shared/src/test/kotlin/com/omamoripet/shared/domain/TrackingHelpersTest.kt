@@ -10,6 +10,21 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class TrackingHelpersTest {
+    @Test
+    fun `elevation timers reset independently after a drop or signal loss`() {
+        val pet = SustainedElevationTracker()
+        val alert = SustainedElevationTracker()
+        assertEquals(0, pet.record(true, 1000L))
+        assertEquals(0, alert.record(false, 1000L))
+        assertEquals(30, pet.record(true, 31_000L))
+        assertEquals(0, alert.record(true, 31_000L))
+        assertEquals(0, pet.record(false, 40_000L))
+        assertEquals(0, pet.record(true, 41_000L))
+        assertEquals(10, alert.record(true, 41_000L))
+        alert.reset()
+        assertEquals(0, alert.record(true, 60_000L))
+    }
+
 
     @Test
     fun `stillness tracker requires full quiet window after movement`() {

@@ -14,6 +14,9 @@ import kotlin.math.roundToInt
  * お守りペットの状態と「平常時なのに心拍が高い」通知可否を決定論的に評価する。
  */
 object CalmStateEvaluator {
+    const val PET_ELEVATION_THRESHOLD_BPM = 7
+    private const val PET_YELLOW_THRESHOLD_BPM = 10
+    private const val PET_ELEVATION_REQUIRED_SECONDS = 30
 
     fun evaluate(
         snapshot: BiometricSnapshot,
@@ -56,43 +59,32 @@ object CalmStateEvaluator {
             )
         }
 
-        if (delta < preferences.elevationThresholdBpm) {
-            return CalmEvaluation(
-                state = OmamoriState.CALM,
-                calmScore = calmScore,
-                deltaFromRestingBpm = delta,
-                shouldTriggerAlert = false,
-                suppressionReason = AlertSuppressionReason.BELOW_THRESHOLD
+        val alertElevationReached = delta >= preferences.elevationThresholdBpm &&
+            snapshot.sustainedElevationSeconds >= preferences.requiredSustainedSeconds
+        val petElevationReached = delta >= PET_ELEVATION_THRESHOLD_BPM &&
+            snapshot.sustainedPetElevationSeconds >= PET_ELEVATION_REQUIRED_SECONDS
+        val suppression = when {
+            delta < preferences.elevationThresholdBpm -> AlertSuppressionReason.BELOW_THRESHOLD
+            !alertElevationReached -> AlertSuppressionReason.DURATION_TOO_SHORT
+            else -> resolveAlertSuppression(
+                nowEpochMs = snapshot.sampledAtEpochMs,
+                lastAlertEpochMs = lastAlertEpochMs,
+                currentHourOfDay = currentHourOfDay,
+                preferences = preferences
             )
         }
 
-        if (snapshot.sustainedElevationSeconds < preferences.requiredSustainedSeconds) {
-            return CalmEvaluation(
-                state = OmamoriState.CALM,
-                calmScore = calmScore,
-                deltaFromRestingBpm = delta,
-                shouldTriggerAlert = false,
-                suppressionReason = AlertSuppressionReason.DURATION_TOO_SHORT
-            )
-        }
-
-        val suppression = resolveAlertSuppression(
-            nowEpochMs = snapshot.sampledAtEpochMs,
-            lastAlertEpochMs = lastAlertEpochMs,
-            currentHourOfDay = currentHourOfDay,
-            preferences = preferences
-        )
-
-        // 静止と持続時間を確認したあと、通知のしきい値を超えた幅でペットの色を選ぶ。
+        // 小さな心拍差はペットに早めに表示し、赤・紫と通知には従来の判定を使う。
         val bpmAboveThreshold = delta - preferences.elevationThresholdBpm
         val petHeartRateColor = when {
-            bpmAboveThreshold >= 25 -> PetHeartRateColor.PURPLE
-            bpmAboveThreshold >= 15 -> PetHeartRateColor.RED
-            bpmAboveThreshold >= 5 -> PetHeartRateColor.YELLOW
+            alertElevationReached && bpmAboveThreshold >= 25 -> PetHeartRateColor.PURPLE
+            alertElevationReached && bpmAboveThreshold >= 15 -> PetHeartRateColor.RED
+            petElevationReached && delta >= PET_YELLOW_THRESHOLD_BPM -> PetHeartRateColor.YELLOW
+            alertElevationReached && bpmAboveThreshold >= 5 -> PetHeartRateColor.YELLOW
             else -> null
         }
         return CalmEvaluation(
-            state = OmamoriState.ELEVATED_AT_REST,
+            state = if (petElevationReached || alertElevationReached) OmamoriState.ELEVATED_AT_REST else OmamoriState.CALM,
             calmScore = calmScore,
             deltaFromRestingBpm = delta,
             shouldTriggerAlert = suppression == AlertSuppressionReason.NONE,
