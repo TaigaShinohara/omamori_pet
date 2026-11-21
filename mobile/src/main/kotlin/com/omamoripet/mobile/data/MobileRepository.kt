@@ -2,6 +2,7 @@ package com.omamoripet.mobile.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -45,8 +46,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.File
+import java.io.IOException
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.UUID
 
 private val Context.mobileDataStore: DataStore<Preferences> by preferencesDataStore(name = "omamori_mobile_prefs")
 
@@ -88,7 +92,8 @@ data class MobileUiState(
     val onboardingAnswers: OnboardingAnswers = OnboardingAnswers(),
     val hasCompletedFirstBreathing: Boolean = false,
     val watchGuideDismissedOnHome: Boolean = false,
-    val petHeartRateColor: PetHeartRateColor? = null
+    val petHeartRateColor: PetHeartRateColor? = null,
+    val feelingRecords: List<FeelingRecord> = emptyList()
 )
 
 class MobileRepository(
@@ -126,10 +131,24 @@ class MobileRepository(
     private var lastRealWatchPayload: WatchLivePayload? = null
     private var hasConnectedWearNode: Boolean = false
     private val historyStore = MobileHistoryStore(context.mobileDataStore)
+    private val feelingHistory = FeelingHistoryStore(
+        PreferenceDataStoreFactory.create(scope = scope) {
+            File(context.noBackupFilesDir, "feelings.preferences_pb")
+        }
+    )
     private val historyMutex = Mutex()
+    private val feelingHistoryMutex = Mutex()
     private val healthConnectMutex = Mutex()
     private val baselineSyncMutex = Mutex()
     private val initialLoadJob = scope.launch { restoreFromDisk() }
+    private val feelingLoadJob = scope.launch {
+        val records = try {
+            feelingHistory.records.first()
+        } catch (_: IOException) {
+            emptyList()
+        }
+        _uiState.update { it.copy(feelingRecords = records) }
+    }
 
     suspend fun awaitInitialized() = initialLoadJob.join()
 
@@ -467,6 +486,14 @@ class MobileRepository(
         awaitInitialized()
         historyMutex.withLock { applyHistory(historyStore.recordSession(record)) }
         scheduleAiAdviceRefresh(debounceMs = 0L)
+    }
+
+    suspend fun recordFeeling(feeling: Feeling) {
+        feelingLoadJob.join()
+        feelingHistoryMutex.withLock {
+            val records = feelingHistory.record(FeelingRecord(UUID.randomUUID().toString(), feeling, System.currentTimeMillis()))
+            _uiState.update { it.copy(feelingRecords = records) }
+        }
     }
 
     suspend fun recordCalmEvent(record: CalmEventRecord) {

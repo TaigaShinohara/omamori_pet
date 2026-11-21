@@ -35,6 +35,33 @@ class CalmStateEvaluatorTest {
     )
 
     @Test
+    fun `a small sustained rise changes the face without triggering an alert`() {
+        fun evaluate(bpm: Int, seconds: Int, motion: MotionState = MotionState.STILL_CONFIRMED) =
+            CalmStateEvaluator.evaluate(
+                baseSnapshot(bpm = bpm, motion = motion).copy(sustainedPetElevationSeconds = seconds),
+                false, 0L, 14, defaultPrefs
+            )
+
+        assertEquals(OmamoriState.CALM, evaluate(70, 30).state) // +6 bpm
+        assertEquals(OmamoriState.CALM, evaluate(74, 29).state)
+        assertEquals(OmamoriState.CALM, evaluate(74, 30, MotionState.RECENT_MOVEMENT).state)
+
+        val gentle = evaluate(71, 30) // +7 bpm
+        assertEquals(OmamoriState.ELEVATED_AT_REST, gentle.state)
+        assertNull(gentle.petHeartRateColor)
+        assertFalse(gentle.shouldTriggerAlert)
+
+        val yellow = evaluate(74, 30) // +10 bpm
+        assertEquals(OmamoriState.ELEVATED_AT_REST, yellow.state)
+        assertEquals(PetHeartRateColor.YELLOW, yellow.petHeartRateColor)
+        assertFalse(yellow.shouldTriggerAlert)
+
+        val briefHigh = evaluate(104, 30)
+        assertEquals(PetHeartRateColor.YELLOW, briefHigh.petHeartRateColor)
+        assertFalse(briefHigh.shouldTriggerAlert)
+    }
+
+    @Test
     fun `pet colors follow the heart rate difference above the configured threshold`() {
         val expectations = listOf(
             0 to null,

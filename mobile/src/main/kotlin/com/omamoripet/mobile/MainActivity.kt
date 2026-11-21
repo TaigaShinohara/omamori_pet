@@ -381,7 +381,8 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             onUpdateHealthConnect = { openHealthConnectUpdate(context) },
                             onDismissHealthConnect = { repository.dismissHealthConnectOnHome() },
                             onDismissWatchGuide = { repository.dismissWatchGuideOnHome() },
-                            onExitDemo = { repository.setDemoMode(MobileDemoMode.LIVE_WATCH) }
+                            onExitDemo = { repository.setDemoMode(MobileDemoMode.LIVE_WATCH) },
+                            onRecordFeeling = repository::recordFeeling
                         )
                     }
                     composable(TopDestination.HISTORY.route) {

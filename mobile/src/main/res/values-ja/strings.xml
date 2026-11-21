@@ -230,4 +230,10 @@
     <string name="pet_expression_unwell">調子が悪い時</string>
     <string name="pet_expression_worse">さらに悪い時</string>
     <string name="pet_expression_worst">最悪な時</string>
+    <string name="feeling_record_action">いまの気持ちを記録</string>
+    <string name="feeling_anxious">不安</string>
+    <string name="feeling_low">落ち込み</string>
+    <string name="feeling_irritated">イライラ</string>
+    <string name="feeling_recorded">「%1$s」を記録しました</string>
+    <string name="feeling_save_failed">保存できませんでした。もう一度お試しください。</string>
 </resources>

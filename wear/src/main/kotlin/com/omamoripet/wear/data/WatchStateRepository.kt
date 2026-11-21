@@ -355,6 +355,7 @@ class WatchStateRepository(private val context: Context) {
                 baselineSource = baseline.source,
                 motionState = MotionState.RECENT_MOVEMENT,
                 sustainedElevationSeconds = 0,
+                sustainedPetElevationSeconds = 0,
                 sampledAtEpochMs = now,
                 isSimulated = false
             )

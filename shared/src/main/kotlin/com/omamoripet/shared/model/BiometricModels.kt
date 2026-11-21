@@ -67,7 +67,8 @@ data class BiometricSnapshot(
     val isWatchOnBody: Boolean,
     val sustainedElevationSeconds: Int,
     val sampledAtEpochMs: Long,
-    val isSimulated: Boolean = false
+    val isSimulated: Boolean = false,
+    val sustainedPetElevationSeconds: Int = 0
 )
 
 @Serializable

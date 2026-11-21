@@ -21,8 +21,10 @@ import androidx.health.services.client.data.DataTypeAvailability
 import androidx.health.services.client.data.DeltaDataType
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.omamoripet.shared.domain.CalmStateEvaluator
 import com.omamoripet.shared.domain.MotionStillnessTracker
 import com.omamoripet.shared.domain.FreshHeartRateTracker
+import com.omamoripet.shared.domain.SustainedElevationTracker
 import com.omamoripet.shared.model.BiometricSnapshot
 import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
@@ -105,7 +107,8 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     @Volatile
     private var isWatchOnBody: Boolean = true
     private var latestMotionState: MotionState = MotionState.RECENT_MOVEMENT
-    private var elevatedStartEpochMs: Long? = null
+    private val alertElevationTracker = SustainedElevationTracker()
+    private val petElevationTracker = SustainedElevationTracker()
     private var accelRegistered = false
     private var measureRegistered = false
     private var calibrationJob: Job? = null
@@ -203,7 +206,8 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     private fun unregisterSensors() {
         heartRates.clear()
         stillnessTracker.reset()
-        elevatedStartEpochMs = null
+        alertElevationTracker.reset()
+        petElevationTracker.reset()
         synchronized(accelLock) { accelCount = 0; accelHead = 0 }
         if (accelRegistered) {
             sensorManager.unregisterListener(this)
@@ -312,13 +316,16 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                 heartRates.takeForLearning(nowElapsed)?.let { repository.recordStillHeartRateSample(it.bpm) }
             }
         }
-        val sustainedSec = computeSustainedElevationSeconds(
-            bpm = bpm,
-            baselineBpm = baseline.bpm,
-            threshold = currentState.preferences.elevationThresholdBpm,
-            motion = latestMotionState,
-            onBody = isWatchOnBody,
-            nowMs = now
+        val restingDelta = bpm?.minus(baseline.bpm)?.takeIf {
+            isWatchOnBody && latestMotionState == MotionState.STILL_CONFIRMED
+        }
+        val sustainedSec = alertElevationTracker.record(
+            aboveThreshold = restingDelta != null && restingDelta >= currentState.preferences.elevationThresholdBpm,
+            nowMs = nowElapsed
+        )
+        val sustainedPetSec = petElevationTracker.record(
+            aboveThreshold = restingDelta != null && restingDelta >= CalmStateEvaluator.PET_ELEVATION_THRESHOLD_BPM,
+            nowMs = nowElapsed
         )
         val snapshot = BiometricSnapshot(
             currentHeartRateBpm = bpm,
@@ -327,6 +334,7 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
             motionState = if (isWatchOnBody) latestMotionState else MotionState.OFF_BODY,
             isWatchOnBody = isWatchOnBody,
             sustainedElevationSeconds = sustainedSec,
+            sustainedPetElevationSeconds = sustainedPetSec,
             sampledAtEpochMs = reading?.let { now - (nowElapsed - it.measuredAtElapsedMs) } ?: now,
             isSimulated = false
         )
@@ -397,24 +405,6 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
                 lastSyncedOnBody = snapshot.isWatchOnBody
                 lastSyncedBpm = snapshot.currentHeartRateBpm
             }
-        }
-    }
-
-    private fun computeSustainedElevationSeconds(
-        bpm: Int?,
-        baselineBpm: Int,
-        threshold: Int,
-        motion: MotionState,
-        onBody: Boolean,
-        nowMs: Long
-    ): Int {
-        val elevatedAtRest = onBody && motion == MotionState.STILL_CONFIRMED && bpm != null && (bpm - baselineBpm) >= threshold
-        return if (elevatedAtRest) {
-            val start = elevatedStartEpochMs ?: nowMs.also { elevatedStartEpochMs = it }
-            ((nowMs - start) / 1000L).toInt()
-        } else {
-            elevatedStartEpochMs = null
-            0
         }
     }
 
