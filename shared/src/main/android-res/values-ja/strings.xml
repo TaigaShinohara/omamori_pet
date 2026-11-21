@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_state_calm">おだやか</string>
+    <string name="pet_state_slightly_high">心拍が少し高め</string>
+    <string name="pet_state_high">心拍が高め</string>
+    <string name="pet_state_very_high">心拍がかなり高め</string>
+    <string name="pet_state_extremely_high">心拍がとても高め</string>
+    <string name="pet_state_breathing">深呼吸中</string>
+    <string name="pet_state_resting">待機中</string>
+</resources>

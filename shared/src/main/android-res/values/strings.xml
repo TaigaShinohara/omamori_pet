@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_state_calm">Calm</string>
+    <string name="pet_state_slightly_high">Heart rate slightly elevated</string>
+    <string name="pet_state_high">Heart rate elevated</string>
+    <string name="pet_state_very_high">Heart rate quite elevated</string>
+    <string name="pet_state_extremely_high">Heart rate very elevated</string>
+    <string name="pet_state_breathing">Breathing</string>
+    <string name="pet_state_resting">Waiting</string>
+</resources>

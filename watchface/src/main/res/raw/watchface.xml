@@ -302,15 +302,15 @@
             <Complication type="SHORT_TEXT">
                 <PartText
                     alpha="240"
-                    height="44"
+                    height="56"
                     width="140"
                     x="0"
-                    y="26">
-                    <Text align="CENTER" ellipsis="TRUE" maxLines="1">
+                    y="20">
+                    <Text align="CENTER" ellipsis="TRUE" maxLines="2">
                         <Font
                             color="#FFECE8DF"
                             family="SYNC_TO_DEVICE"
-                            size="22"
+                            size="18"
                             weight="MEDIUM">
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>

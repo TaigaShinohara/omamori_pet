@@ -23,6 +23,7 @@ import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
 import com.omamoripet.wear.ui.resolvePetDrawableRes
+import com.omamoripet.wear.ui.resolvePetStateLabelRes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,14 +60,7 @@ class OmamoriTileService : TileService() {
             val bpm = uiState.snapshot.currentHeartRateBpm
             val delta = uiState.evaluation.deltaFromRestingBpm
 
-            val stateTitle = when (state) {
-                OmamoriState.CALM -> getString(R.string.state_calm)
-                OmamoriState.ELEVATED_AT_REST -> getString(
-                    if (petHeartRateColor == null) R.string.state_elevated else R.string.state_heart_rate_high
-                )
-                OmamoriState.BREATHING -> getString(R.string.state_breathing)
-                OmamoriState.RESTING -> getString(R.string.state_resting)
-            }
+            val stateTitle = getString(resolvePetStateLabelRes(state, petHeartRateColor))
             val bpmText = if (bpm != null && delta != null) {
                 val sign = if (delta >= 0) "+" else ""
                 "$bpm bpm ($sign$delta)"

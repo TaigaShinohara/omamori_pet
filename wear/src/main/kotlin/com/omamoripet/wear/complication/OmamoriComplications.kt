@@ -23,6 +23,7 @@ import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
 import com.omamoripet.wear.ui.resolvePetDrawableRes
+import com.omamoripet.wear.ui.resolvePetStateLabelRes
 
 private fun launchWatchAppPendingIntent(context: Context, openBreathing: Boolean): PendingIntent {
     val intent = Intent(context, MainActivity::class.java).apply {
@@ -81,19 +82,12 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
         val state = evaluation.state
         val petHeartRateColor = evaluation.petHeartRateColor
 
-        val shortLabel = when (state) {
-            OmamoriState.CALM -> getString(R.string.state_calm_short)
-            OmamoriState.ELEVATED_AT_REST -> getString(
-                if (petHeartRateColor == null) R.string.state_elevated_short else R.string.state_heart_rate_high_short
-            )
-            OmamoriState.BREATHING -> getString(R.string.state_breathing_short)
-            OmamoriState.RESTING -> getString(R.string.state_resting_short)
-        }
+        val stateLabel = getString(resolvePetStateLabelRes(state, petHeartRateColor))
         val tapAction = launchWatchAppPendingIntent(
             context = this,
             openBreathing = false
         )
-        val contentDescription = PlainComplicationText.Builder(shortLabel).build()
+        val contentDescription = PlainComplicationText.Builder(stateLabel).build()
         val colorIcon = Icon.createWithResource(
             this,
             resolvePetDrawableRes(state = state, petHeartRateColor = petHeartRateColor)
@@ -112,7 +106,7 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
             )
                 .setSmallImage(SmallImage.Builder(colorIcon, SmallImageType.ICON).build())
                 .setMonochromaticImage(MonochromaticImage.Builder(monoIcon).build())
-                .setText(PlainComplicationText.Builder(shortLabel).build())
+                .setText(PlainComplicationText.Builder(stateLabel).build())
                 .setTapAction(tapAction)
                 .build()
 
@@ -131,7 +125,7 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
                 .build()
 
             else -> ShortTextComplicationData.Builder(
-                text = PlainComplicationText.Builder(shortLabel).build(),
+                text = PlainComplicationText.Builder(stateLabel).build(),
                 contentDescription = contentDescription
             )
                 .setTapAction(tapAction)
@@ -140,7 +134,7 @@ class PetStateComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData {
-        val label = getString(R.string.state_calm_short)
+        val label = getString(resolvePetStateLabelRes(OmamoriState.CALM))
         val desc = PlainComplicationText.Builder(label).build()
         val colorIcon = Icon.createWithResource(this, R.drawable.pet_calm)
         val monoIcon = Icon.createWithResource(this, R.drawable.pet_calm_mono)
