@@ -103,7 +103,6 @@ import com.omamoripet.mobile.R
 import com.omamoripet.mobile.ai.AiBackendStatus
 import com.omamoripet.mobile.data.MobileDemoMode
 import com.omamoripet.mobile.data.MobileUiState
-import com.omamoripet.mobile.data.Feeling
 import com.omamoripet.mobile.data.FeelingRecord
 import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.ui.components.OmamoriPetMobileAvatar
@@ -114,6 +113,7 @@ import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventAction
 import com.omamoripet.shared.model.CalmEventRecord
+import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor

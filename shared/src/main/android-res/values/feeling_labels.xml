@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feeling_anxious">Anxious</string>
+    <string name="feeling_low">Feeling down</string>
+    <string name="feeling_irritated">Irritated</string>
+</resources>

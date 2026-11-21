@@ -1,6 +1,7 @@
 package com.omamoripet.mobile.sync
 
 import android.content.Context
+import android.net.Uri
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
@@ -12,6 +13,7 @@ import com.google.android.gms.wearable.WearableListenerService
 import com.omamoripet.mobile.OmamoriMobileApplication
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventRecord
+import com.omamoripet.shared.model.FeelingFace
 import com.omamoripet.shared.sync.DataLayerPaths
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
@@ -25,6 +27,26 @@ class PhoneWearSyncClient(private val context: Context) {
     private val dataClient by lazy { Wearable.getDataClient(context) }
     private val messageClient by lazy { Wearable.getMessageClient(context) }
     private val nodeClient by lazy { Wearable.getNodeClient(context) }
+
+    suspend fun setPhoneFeelingFace(face: FeelingFace?) {
+        try {
+            if (face == null) {
+                val localNode = nodeClient.localNode.await()
+                val uri = Uri.Builder().scheme("wear").authority(localNode.id)
+                    .path(DataLayerPaths.PHONE_FEELING_FACE).build()
+                dataClient.deleteDataItems(uri).await()
+            } else {
+                val request = PutDataMapRequest.create(DataLayerPaths.PHONE_FEELING_FACE).apply {
+                    dataMap.putString(DataLayerPaths.KEY_PAYLOAD, OmamoriJson.encode(face))
+                }.asPutDataRequest().setUrgent()
+                dataClient.putDataItem(request).await()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Recording and viewing the local entry works even without the Wear OS service.
+        }
+    }
 
     suspend fun pushBaselineAndAdvice(payload: PhoneBaselinePayload): Boolean =
         runCatching {

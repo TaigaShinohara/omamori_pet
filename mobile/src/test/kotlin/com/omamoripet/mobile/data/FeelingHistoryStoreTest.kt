@@ -1,6 +1,8 @@
 package com.omamoripet.mobile.data
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import com.omamoripet.shared.model.Feeling
+import com.omamoripet.shared.sync.OmamoriJson
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,11 +41,10 @@ class FeelingHistoryStoreTest {
     }
 
     @Test
-    fun `a saved face expires at three minutes even when reopened`() {
-        val entry = FeelingRecord("one", Feeling.ANXIOUS, 1000L)
-        assertEquals(0L, entry.faceRemainingMs(999L))
-        assertEquals(180_000L, entry.faceRemainingMs(1000L))
-        assertEquals(1L, entry.faceRemainingMs(180_999L))
-        assertEquals(0L, entry.faceRemainingMs(181_000L))
+    fun `existing records still decode when the feeling type is shared with Wear OS`() {
+        val old = """{"id":"one","feeling":"ANXIOUS","recordedAtEpochMs":1000}"""
+        val entry = FeelingRecord("one", Feeling.ANXIOUS, 1_000L)
+        assertEquals(entry, OmamoriJson.decodeOrNull<FeelingRecord>(old))
+        assertEquals(old, OmamoriJson.encode(entry))
     }
 }

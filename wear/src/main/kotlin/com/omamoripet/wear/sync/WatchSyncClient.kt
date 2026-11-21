@@ -2,6 +2,8 @@ package com.omamoripet.wear.sync
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
@@ -11,6 +13,7 @@ import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CalmEventRecord
+import com.omamoripet.shared.model.FeelingFace
 import com.omamoripet.shared.sync.DataLayerPaths
 import com.omamoripet.shared.sync.HistoryOutbox
 import com.omamoripet.shared.sync.OmamoriJson
@@ -20,6 +23,8 @@ import com.omamoripet.shared.sync.PreferencesSyncPayload
 import com.omamoripet.shared.sync.WatchLivePayload
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
+import com.omamoripet.wear.data.PHONE_FEELING_CLOCK_TOLERANCE_MS
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -71,6 +76,28 @@ class WatchSyncClient(private val context: Context) {
     }
 
     suspend fun flushPendingHistory() = historyOutbox.flush()
+
+    suspend fun readPhoneFeelingFace(): FeelingFace? {
+        val uri = Uri.parse("wear://*${DataLayerPaths.PHONE_FEELING_FACE}")
+        return try {
+            val items = dataClient.getDataItems(uri, DataClient.FILTER_LITERAL).await()
+            try {
+                val now = System.currentTimeMillis()
+                items.mapNotNull { item ->
+                    val json = DataMapItem.fromDataItem(item).dataMap.getString(DataLayerPaths.KEY_PAYLOAD)
+                    OmamoriJson.decodeOrNull<FeelingFace>(json)?.takeIf {
+                        it.remainingMs(now, PHONE_FEELING_CLOCK_TOLERANCE_MS) > 0L
+                    }
+                }.maxByOrNull { it.recordedAtEpochMs }
+            } finally {
+                items.release()
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
 
 class WatchDataSyncListenerService : WearableListenerService() {
@@ -83,6 +110,9 @@ class WatchDataSyncListenerService : WearableListenerService() {
                 val path = event.dataItem.uri.path ?: return@forEach
                 val json = DataMapItem.fromDataItem(event.dataItem).dataMap.getString(DataLayerPaths.KEY_PAYLOAD)
                 when (path) {
+                    DataLayerPaths.PHONE_FEELING_FACE -> OmamoriJson.decodeOrNull<FeelingFace>(json)?.let {
+                        repo.applyPhoneFeelingFace(it)
+                    }
                     DataLayerPaths.PHONE_BASELINE_AND_ADVICE -> {
                         OmamoriJson.decodeOrNull<PhoneBaselinePayload>(json)?.let {
                             repo.applyPhoneBaselineAndAdvice(it)

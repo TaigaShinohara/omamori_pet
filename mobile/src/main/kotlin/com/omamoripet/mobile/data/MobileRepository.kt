@@ -23,25 +23,32 @@ import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.CURRENT_ONBOARDING_VERSION
 import com.omamoripet.shared.model.CalmEventRecord
+import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor
 import com.omamoripet.shared.model.OnboardingAnalyticsTracker
 import com.omamoripet.shared.model.OnboardingAnswers
 import com.omamoripet.shared.model.OnboardingHapticChoice
+import com.omamoripet.shared.model.visibleForRemainingTime
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
 import com.omamoripet.shared.sync.WatchLivePayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -153,12 +160,25 @@ class MobileRepository(
     suspend fun awaitInitialized() = initialLoadJob.join()
 
     init {
+        scope.launch { syncCurrentFeelingFace() }
         scope.launch {
             awaitInitialized()
             refreshWatchConnection()
             refreshHealthConnect()
             refreshAiAdvice()
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun syncCurrentFeelingFace() {
+        feelingLoadJob.join()
+        uiState.map { it.feelingRecords.firstOrNull()?.face }
+            .distinctUntilChanged()
+            .flatMapLatest { it.visibleForRemainingTime() }
+            .conflate()
+            .collect { face ->
+                wearSyncClient.setPhoneFeelingFace(face?.takeIf { it.remainingMs(System.currentTimeMillis()) > 0 })
+            }
     }
 
     private suspend fun restoreFromDisk() {
