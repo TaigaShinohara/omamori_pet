@@ -70,6 +70,7 @@ import androidx.navigation.compose.rememberNavController
 import com.omamoripet.mobile.data.MobileDemoMode
 import com.omamoripet.mobile.ui.screens.BreathingMobileScreen
 import com.omamoripet.mobile.ui.screens.HistoryMobileScreen
+import com.omamoripet.mobile.ui.screens.FeelingDetailScreen
 import com.omamoripet.mobile.ui.screens.HomeMobileScreen
 import com.omamoripet.mobile.ui.screens.OnboardingScreen
 import com.omamoripet.mobile.ui.screens.SettingsMobileScreen
@@ -216,7 +217,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val showTopLevelNav = currentDestination?.route != "breathing"
+    val showTopLevelNav = currentDestination?.route !in setOf("breathing", "feeling/{id}")
 
     LaunchedEffect(pendingOpenBreathing) {
         if (pendingOpenBreathing) {
@@ -388,7 +389,17 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                     composable(TopDestination.HISTORY.route) {
                         HistoryMobileScreen(
                             uiState = uiState,
-                            onTryBreathing = { navController.navigate("breathing") }
+                            onTryBreathing = { navController.navigate("breathing") },
+                            onOpenFeeling = { navController.navigate("feeling/${it.id}") }
+                        )
+                    }
+                    composable("feeling/{id}") { entry ->
+                        val record = uiState.feelingRecords.firstOrNull { it.id == entry.arguments?.getString("id") }
+                        FeelingDetailScreen(
+                            record = record,
+                            breathingSessions = uiState.breathingSessions,
+                            onBack = { navController.popBackStack() },
+                            onSaveContext = repository::updateFeelingContext
                         )
                     }
                     composable(TopDestination.SETTINGS.route) {

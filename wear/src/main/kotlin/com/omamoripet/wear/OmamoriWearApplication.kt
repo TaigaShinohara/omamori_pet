@@ -25,6 +25,7 @@ class OmamoriWearApplication : Application() {
             while (isActive) {
                 try {
                     syncClient.flushPendingHistory()
+                    repository.feelingContext.pruneExpired(System.currentTimeMillis())
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
