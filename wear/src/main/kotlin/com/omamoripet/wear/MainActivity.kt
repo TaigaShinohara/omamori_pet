@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
                 val observer = LifecycleEventObserver { _, event ->
                     if (event == Lifecycle.Event.ON_RESUME) {
                         lifecycleScope.launch { repository.refreshPhoneFeelingFace() }
+                        lifecycleScope.launch { repository.feelingContext.updateWindows() }
                         val sensorNow = checkRequiredPermissions()
                         val notifNow = checkNotificationPermission()
                         hasSensorPermission = sensorNow
@@ -279,6 +280,7 @@ class MainActivity : ComponentActivity() {
                             FeelingContextWatchScreen(
                                 settings = contextSettings,
                                 onSetEnabled = repository.feelingContext::setEnabled,
+                                onUpdateWindows = { repository.feelingContext.updateWindows() },
                                 onShowCode = { showing ->
                                     if (showing) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

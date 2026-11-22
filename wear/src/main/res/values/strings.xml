@@ -81,5 +81,7 @@
     <string name="feeling_context_empty">No records with watch data yet.</string>
     <string name="feeling_context_qr">QR code for this record</string>
     <string name="feeling_context_collecting">Collecting up to 15 minutes after the record</string>
+    <string name="feeling_context_saving">Saving this record’s measurements…</string>
+    <string name="feeling_context_no_data">No measurements in this period</string>
     <string name="feeling_context_save_failed">Couldn’t save the setting.</string>
 </resources>
