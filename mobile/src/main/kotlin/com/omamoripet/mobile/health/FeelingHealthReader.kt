@@ -14,6 +14,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import com.omamoripet.mobile.data.FeelingComparison
 import com.omamoripet.mobile.data.FeelingHealth
 import com.omamoripet.mobile.data.FeelingSleep
+import com.omamoripet.mobile.data.PendingFeelingActivity
 import java.io.IOException
 import java.time.Duration
 import java.time.Instant
@@ -27,7 +28,8 @@ private const val COMPARISON_DAYS = 14
 
 internal suspend fun HealthConnectClient.collectFeelingHealth(
     recordedAt: ZonedDateTime,
-    granted: Set<String>
+    granted: Set<String>,
+    pendingActivity: PendingFeelingActivity?
 ): FeelingHealth? {
     val anchor = recordedAt.toInstant()
     val comparisonTimes = (1L..COMPARISON_DAYS.toLong()).map(recordedAt::minusDays)
@@ -37,6 +39,12 @@ internal suspend fun HealthConnectClient.collectFeelingHealth(
     val canReadPeriod = HealthPermission.getReadPermission(MenstruationPeriodRecord::class) in granted
 
     val current = readActivityWindow(anchor, canReadSteps, canReadHeart)
+    if (pendingActivity != null) {
+        val stepsArrived = pendingActivity.steps && current.steps5 != null
+        val heartArrived = pendingActivity.heart && current.heart5 != null
+        if (!stepsArrived && !heartArrived) return null
+    }
+
     val previous = if (current == ActivityWindow()) emptyList() else comparisonTimes.map {
         readActivityWindow(it.toInstant(), canReadSteps, canReadHeart)
     }

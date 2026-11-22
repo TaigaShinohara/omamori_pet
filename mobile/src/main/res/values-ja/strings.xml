@@ -261,6 +261,7 @@
     <string name="feeling_period_settings_summary">Health Connectにある最終月経開始日からの日数を表示します。</string>
     <string name="feeling_health_detail_title">そのときのデータ</string>
     <string name="feeling_health_detail_empty">この記録の睡眠・歩数・心拍は未取得です。</string>
+    <string name="feeling_health_sync_pending">Health Connectの同期待ち</string>
     <string name="feeling_health_comparison_scope">Health Connect · 過去14日間の同じ時刻と比較</string>
     <string name="feeling_health_sleep">前夜の睡眠</string>
     <string name="feeling_health_wake">起床 %1$s</string>

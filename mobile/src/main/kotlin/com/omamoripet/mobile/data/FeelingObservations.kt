@@ -1,6 +1,7 @@
 package com.omamoripet.mobile.data
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -48,6 +49,26 @@ private fun FeelingComparison?.withUpdates(update: FeelingComparison?): FeelingC
 
 @Serializable
 data class FeelingPressure(val hPa: Double, val observedAtEpochMs: Long)
+
+internal data class PendingFeelingActivity(val steps: Boolean = false, val heart: Boolean = false) {
+    val any: Boolean get() = steps || heart
+}
+
+internal fun Instant.canRefreshFeelingHealth(now: Instant): Boolean =
+    this in now.minus(14, ChronoUnit.DAYS)..now
+
+internal fun MobileUiState.pendingFeelingActivity(
+    record: FeelingRecord,
+    now: Instant = Instant.now()
+): PendingFeelingActivity {
+    if (!Instant.ofEpochMilli(record.recordedAtEpochMs).canRefreshFeelingHealth(now)) {
+        return PendingFeelingActivity()
+    }
+    return PendingFeelingActivity(
+        steps = hasFeelingStepsPermission && record.health?.steps5 == null,
+        heart = hasFeelingHeartPermission && record.health?.heart5 == null
+    )
+}
 
 // USNO's mean lunation and the new moon on 2000-01-06. An approximate, offline value.
 internal fun approximateMoonAge(recordedAtEpochMs: Long): Double {

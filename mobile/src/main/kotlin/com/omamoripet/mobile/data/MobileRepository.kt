@@ -58,7 +58,6 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.IOException
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -84,6 +83,8 @@ data class MobileUiState(
     val healthConnectAvailability: HealthConnectAvailability = HealthConnectAvailability.UNAVAILABLE,
     val hasHealthConnectPermission: Boolean = false,
     val feelingHealthPermissionsGranted: Int = 0,
+    val hasFeelingStepsPermission: Boolean = false,
+    val hasFeelingHeartPermission: Boolean = false,
     val hasPeriodPermission: Boolean = false,
     val hcPermissionAttempted: Boolean = false,
     val hcDismissedOnHome: Boolean = false,
@@ -274,6 +275,8 @@ class MobileRepository(
                     healthConnectAvailability = availability,
                     hasHealthConnectPermission = hasPerm,
                     feelingHealthPermissionsGranted = healthConnectManager.feelingPermissions.count { it in granted },
+                    hasFeelingStepsPermission = healthConnectManager.feelingStepsPermission in granted,
+                    hasFeelingHeartPermission = healthConnectManager.feelingHeartPermission in granted,
                     hasPeriodPermission = granted.containsAll(healthConnectManager.periodPermissions),
                     healthConnectRestingBpm = baseline?.bpm,
                     healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs,
@@ -531,7 +534,7 @@ class MobileRepository(
             val records = feelingHistory.record(entry)
             _uiState.update { it.copy(feelingRecords = records) }
         }
-        refreshFeelingHealth(entry.id)
+        scope.launch { refreshFeelingHealth(entry.id) }
         scope.launch {
             try {
                 val pressure = context.readFeelingPressure() ?: return@launch
@@ -552,30 +555,52 @@ class MobileRepository(
         }
     }
 
-    fun refreshFeelingHealth(id: String, force: Boolean = false) {
-        scope.launch {
-            feelingLoadJob.join()
-            feelingHealthMutex.withLock {
-                val entry = uiState.value.feelingRecords.firstOrNull { it.id == id } ?: return@withLock
-                val now = Instant.now()
-                val recorded = Instant.ofEpochMilli(entry.recordedAtEpochMs)
-                if (recorded < now.minus(14, ChronoUnit.DAYS) || recorded > now) return@withLock
-                val lastAttempt = feelingHealthAttempts[id]
+    internal suspend fun watchFeelingHealth(id: String) {
+        refreshFeelingHealth(id)
+        while (true) {
+            val state = uiState.value
+            val entry = state.feelingRecords.firstOrNull { it.id == id } ?: return
+            if (!state.pendingFeelingActivity(entry).any) return
+            delay(30_000L)
+            refreshFeelingHealth(id, checkPendingActivity = true)
+        }
+    }
+
+    private suspend fun refreshFeelingHealth(
+        id: String,
+        force: Boolean = false,
+        checkPendingActivity: Boolean = false
+    ) {
+        feelingLoadJob.join()
+        feelingHealthMutex.withLock {
+            val state = uiState.value
+            val entry = state.feelingRecords.firstOrNull { it.id == id } ?: return@withLock
+            val now = Instant.now()
+            val recorded = Instant.ofEpochMilli(entry.recordedAtEpochMs)
+            if (!recorded.canRefreshFeelingHealth(now)) return@withLock
+            val lastAttempt = feelingHealthAttempts[id]
+            val pending = if (checkPendingActivity) {
+                state.pendingFeelingActivity(entry, now).takeIf { it.any } ?: return@withLock
+            } else {
                 if (!force && lastAttempt != null && now.toEpochMilli() - lastAttempt < 120_000L) return@withLock
-                feelingHealthAttempts.remove(id)
-                feelingHealthAttempts[id] = now.toEpochMilli()
-                if (feelingHealthAttempts.size > 32) feelingHealthAttempts.remove(feelingHealthAttempts.keys.first())
-                val zone = entry.recordedZoneId?.let { runCatching { ZoneId.of(it) }.getOrNull() }
-                    ?: ZoneId.systemDefault()
-                try {
-                    val health = healthConnectManager.readFeelingHealth(recorded, zone) ?: return@withLock
-                    feelingHistoryMutex.withLock {
-                        val records = feelingHistory.updateHealth(id, health)
-                        _uiState.update { it.copy(feelingRecords = records) }
-                    }
-                } catch (_: IOException) {
-                    // Later openings can retry while the Health Connect data is recent.
+                null
+            }
+            val zone = entry.recordedZoneId?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+                ?: ZoneId.systemDefault()
+            try {
+                val health = healthConnectManager.readFeelingHealth(recorded, zone, pending)
+                if (pending == null || health != null) {
+                    feelingHealthAttempts.remove(id)
+                    feelingHealthAttempts[id] = now.toEpochMilli()
+                    if (feelingHealthAttempts.size > 32) feelingHealthAttempts.remove(feelingHealthAttempts.keys.first())
                 }
+                if (health == null) return@withLock
+                feelingHistoryMutex.withLock {
+                    val records = feelingHistory.updateHealth(id, health)
+                    _uiState.update { it.copy(feelingRecords = records) }
+                }
+            } catch (_: IOException) {
+                // Later attempts can retry while the Health Connect data is recent.
             }
         }
     }

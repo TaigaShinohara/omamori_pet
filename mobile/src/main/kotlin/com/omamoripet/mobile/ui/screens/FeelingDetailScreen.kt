@@ -46,6 +46,7 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import com.omamoripet.mobile.R
 import com.omamoripet.mobile.data.FeelingRecord
+import com.omamoripet.mobile.data.PendingFeelingActivity
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.FEELING_MINUTE_COUNT
@@ -63,6 +64,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun FeelingDetailScreen(
     record: FeelingRecord?,
+    pendingActivity: PendingFeelingActivity,
     breathingSessions: List<BreathingSessionRecord>,
     onBack: () -> Unit,
     onSaveContext: suspend (String, FeelingContext?) -> Unit
@@ -84,7 +86,7 @@ internal fun FeelingDetailScreen(
     ) { padding ->
         if (record != null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-                FeelingDetail(record, breathingSessions, onSaveContext)
+                FeelingDetail(record, pendingActivity, breathingSessions, onSaveContext)
             }
         }
     }
@@ -93,6 +95,7 @@ internal fun FeelingDetailScreen(
 @Composable
 private fun FeelingDetail(
     record: FeelingRecord,
+    pendingActivity: PendingFeelingActivity,
     breathingSessions: List<BreathingSessionRecord>,
     onSaveContext: suspend (String, FeelingContext?) -> Unit
 ) {
@@ -158,7 +161,7 @@ private fun FeelingDetail(
                 }
             }
         }
-        item { FeelingObservations(record) }
+        item { FeelingObservations(record, pendingActivity) }
         if (context != null || breaths.isNotEmpty()) {
             item { FeelingTimeline(context, start, breaths) }
         }

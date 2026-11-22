@@ -15,6 +15,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import com.omamoripet.mobile.data.FeelingHealth
+import com.omamoripet.mobile.data.PendingFeelingActivity
 
 enum class HealthConnectAvailability {
     AVAILABLE,
@@ -32,10 +33,12 @@ class HealthConnectManager(private val context: Context) {
     val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(RestingHeartRateRecord::class)
     )
+    internal val feelingStepsPermission = HealthPermission.getReadPermission(StepsRecord::class)
+    internal val feelingHeartPermission = HealthPermission.getReadPermission(HeartRateRecord::class)
     val feelingPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(SleepSessionRecord::class),
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class)
+        feelingStepsPermission,
+        feelingHeartPermission
     )
     val periodPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(MenstruationPeriodRecord::class)
@@ -61,11 +64,15 @@ class HealthConnectManager(private val context: Context) {
         }.onFailure { if (it is CancellationException) throw it }.getOrDefault(emptySet())
     }
 
-    internal suspend fun readFeelingHealth(recordedAt: Instant, zone: ZoneId): FeelingHealth? {
+    internal suspend fun readFeelingHealth(
+        recordedAt: Instant,
+        zone: ZoneId,
+        pendingActivity: PendingFeelingActivity?
+    ): FeelingHealth? {
         val granted = grantedPermissions()
         if (granted.none { it in feelingPermissions || it in periodPermissions }) return null
         val client = runCatching { HealthConnectClient.getOrCreate(context) }.getOrNull() ?: return null
-        return client.collectFeelingHealth(recordedAt.atZone(zone), granted)
+        return client.collectFeelingHealth(recordedAt.atZone(zone), granted, pendingActivity)
     }
 
     /**
