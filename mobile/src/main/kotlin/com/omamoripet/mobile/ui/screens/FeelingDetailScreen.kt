@@ -158,6 +158,7 @@ private fun FeelingDetail(
                 }
             }
         }
+        item { FeelingObservations(record) }
         if (context != null || breaths.isNotEmpty()) {
             item { FeelingTimeline(context, start, breaths) }
         }

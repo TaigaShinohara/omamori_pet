@@ -3,12 +3,18 @@ package com.omamoripet.mobile.health
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.MenstruationPeriodRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import kotlinx.coroutines.CancellationException
 import java.time.Instant
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import com.omamoripet.mobile.data.FeelingHealth
 
 enum class HealthConnectAvailability {
     AVAILABLE,
@@ -26,6 +32,14 @@ class HealthConnectManager(private val context: Context) {
     val requiredPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(RestingHeartRateRecord::class)
     )
+    val feelingPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(HeartRateRecord::class)
+    )
+    val periodPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(MenstruationPeriodRecord::class)
+    )
 
     fun checkAvailability(): HealthConnectAvailability {
         return when (HealthConnectClient.getSdkStatus(context)) {
@@ -36,12 +50,22 @@ class HealthConnectManager(private val context: Context) {
     }
 
     suspend fun hasAllPermissions(): Boolean {
-        if (checkAvailability() != HealthConnectAvailability.AVAILABLE) return false
+        return grantedPermissions().containsAll(requiredPermissions)
+    }
+
+    suspend fun grantedPermissions(): Set<String> {
+        if (checkAvailability() != HealthConnectAvailability.AVAILABLE) return emptySet()
         return runCatching {
             val client = HealthConnectClient.getOrCreate(context)
-            val granted = client.permissionController.getGrantedPermissions()
-            granted.containsAll(requiredPermissions)
-        }.onFailure { if (it is CancellationException) throw it }.getOrDefault(false)
+            client.permissionController.getGrantedPermissions()
+        }.onFailure { if (it is CancellationException) throw it }.getOrDefault(emptySet())
+    }
+
+    internal suspend fun readFeelingHealth(recordedAt: Instant, zone: ZoneId): FeelingHealth? {
+        val granted = grantedPermissions()
+        if (granted.none { it in feelingPermissions || it in periodPermissions }) return null
+        val client = runCatching { HealthConnectClient.getOrCreate(context) }.getOrNull() ?: return null
+        return client.collectFeelingHealth(recordedAt.atZone(zone), granted)
     }
 
     /**

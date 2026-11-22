@@ -15,6 +15,7 @@ import com.omamoripet.mobile.ai.CalmAdvisorEngine
 import com.omamoripet.mobile.ai.GeminiNanoAdvisorEngine
 import com.omamoripet.mobile.health.HealthConnectAvailability
 import com.omamoripet.mobile.health.HealthConnectManager
+import com.omamoripet.mobile.health.readFeelingPressure
 import com.omamoripet.mobile.health.RestingHeartRateBaseline
 import com.omamoripet.mobile.sync.PhoneWearSyncClient
 import com.omamoripet.shared.domain.MeasurementFreshness
@@ -56,6 +57,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.io.IOException
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.UUID
@@ -80,6 +83,8 @@ data class MobileUiState(
     val demoMode: MobileDemoMode = MobileDemoMode.LIVE_WATCH,
     val healthConnectAvailability: HealthConnectAvailability = HealthConnectAvailability.UNAVAILABLE,
     val hasHealthConnectPermission: Boolean = false,
+    val feelingHealthPermissionsGranted: Int = 0,
+    val hasPeriodPermission: Boolean = false,
     val hcPermissionAttempted: Boolean = false,
     val hcDismissedOnHome: Boolean = false,
     val healthConnectRestingBpm: Int? = null,
@@ -146,6 +151,8 @@ class MobileRepository(
     )
     private val historyMutex = Mutex()
     private val feelingHistoryMutex = Mutex()
+    private val feelingHealthMutex = Mutex()
+    private val feelingHealthAttempts = linkedMapOf<String, Long>()
     private val healthConnectMutex = Mutex()
     private val baselineSyncMutex = Mutex()
     private val initialLoadJob = scope.launch { restoreFromDisk() }
@@ -248,7 +255,8 @@ class MobileRepository(
         awaitInitialized()
         healthConnectMutex.withLock {
             val availability = healthConnectManager.checkAvailability()
-            var hasPerm = healthConnectManager.hasAllPermissions()
+            val granted = healthConnectManager.grantedPermissions()
+            var hasPerm = granted.containsAll(healthConnectManager.requiredPermissions)
             val result = if (hasPerm) healthConnectManager.readLatestRestingHeartRate() else Result.success(null)
             if (result.exceptionOrNull() is SecurityException) hasPerm = false
             val cached = _uiState.value
@@ -265,6 +273,8 @@ class MobileRepository(
                 state.copy(
                     healthConnectAvailability = availability,
                     hasHealthConnectPermission = hasPerm,
+                    feelingHealthPermissionsGranted = healthConnectManager.feelingPermissions.count { it in granted },
+                    hasPeriodPermission = granted.containsAll(healthConnectManager.periodPermissions),
                     healthConnectRestingBpm = baseline?.bpm,
                     healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs,
                     restingBaselineBpm = restingBaselineBpm,
@@ -511,9 +521,62 @@ class MobileRepository(
 
     suspend fun recordFeeling(feeling: Feeling) {
         feelingLoadJob.join()
+        val entry = FeelingRecord(
+            id = UUID.randomUUID().toString(),
+            feeling = feeling,
+            recordedAtEpochMs = System.currentTimeMillis(),
+            recordedZoneId = ZoneId.systemDefault().id
+        )
         feelingHistoryMutex.withLock {
-            val records = feelingHistory.record(FeelingRecord(UUID.randomUUID().toString(), feeling, System.currentTimeMillis()))
+            val records = feelingHistory.record(entry)
             _uiState.update { it.copy(feelingRecords = records) }
+        }
+        refreshFeelingHealth(entry.id)
+        scope.launch {
+            try {
+                val pressure = context.readFeelingPressure() ?: return@launch
+                feelingHistoryMutex.withLock {
+                    val records = feelingHistory.updatePressure(entry.id, pressure)
+                    _uiState.update { it.copy(feelingRecords = records) }
+                }
+            } catch (_: IOException) {
+                // The feeling remains saved if the supplementary observation cannot be stored.
+            }
+        }
+    }
+
+    fun refreshRecentFeelingHealth(force: Boolean = false) {
+        scope.launch {
+            feelingLoadJob.join()
+            uiState.value.feelingRecords.firstOrNull()?.let { refreshFeelingHealth(it.id, force) }
+        }
+    }
+
+    fun refreshFeelingHealth(id: String, force: Boolean = false) {
+        scope.launch {
+            feelingLoadJob.join()
+            feelingHealthMutex.withLock {
+                val entry = uiState.value.feelingRecords.firstOrNull { it.id == id } ?: return@withLock
+                val now = Instant.now()
+                val recorded = Instant.ofEpochMilli(entry.recordedAtEpochMs)
+                if (recorded < now.minus(14, ChronoUnit.DAYS) || recorded > now) return@withLock
+                val lastAttempt = feelingHealthAttempts[id]
+                if (!force && lastAttempt != null && now.toEpochMilli() - lastAttempt < 120_000L) return@withLock
+                feelingHealthAttempts.remove(id)
+                feelingHealthAttempts[id] = now.toEpochMilli()
+                if (feelingHealthAttempts.size > 32) feelingHealthAttempts.remove(feelingHealthAttempts.keys.first())
+                val zone = entry.recordedZoneId?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+                    ?: ZoneId.systemDefault()
+                try {
+                    val health = healthConnectManager.readFeelingHealth(recorded, zone) ?: return@withLock
+                    feelingHistoryMutex.withLock {
+                        val records = feelingHistory.updateHealth(id, health)
+                        _uiState.update { it.copy(feelingRecords = records) }
+                    }
+                } catch (_: IOException) {
+                    // Later openings can retry while the Health Connect data is recent.
+                }
+            }
         }
     }
 

@@ -86,7 +86,7 @@
     <string name="settings_haptics_subtitle">Feel inhale and exhale pace</string>
     <string name="settings_data_section">Data &amp; Privacy</string>
     <string name="settings_privacy_item">Data &amp; Privacy</string>
-    <string name="settings_privacy_subtitle">Resting HR only · On-device</string>
+    <string name="settings_privacy_subtitle">Health Connect access · On-device records</string>
     <string name="settings_guide_section">Guide</string>
     <string name="settings_replay_onboarding">View beginner guide</string>
     <string name="settings_reset_onboarding">Reset guide choices</string>
@@ -104,9 +104,9 @@
 
     <string name="privacy_title">Data &amp; Privacy</string>
     <string name="privacy_point_read_title">What we read</string>
-    <string name="privacy_point_read_body">Only Resting Heart Rate from Health Connect to tailor your baseline.</string>
+    <string name="privacy_point_read_body">With your permission, Health Connect provides resting heart rate for your baseline and sleep, steps, and heart rate to accompany feeling records. Menstrual records have a separate permission.</string>
     <string name="privacy_point_local_title">Processed on-device</string>
-    <string name="privacy_point_local_body">Heart rate checks and notes stay on your devices—never uploaded.</string>
+    <string name="privacy_point_local_body">Health Connect observations attached to feeling records are processed and stored on this phone.</string>
 
     <string name="avatar_tap_action">React gently</string>
     <string name="breathing_cycle_progress">Cycle %1$d of %2$d</string>
@@ -253,4 +253,31 @@
     <string name="feeling_detail_remove_watch_data">Delete watch data for this record</string>
     <string name="feeling_detail_remove_help">This removes the imported heart rate and movement from this phone.</string>
     <string name="feeling_detail_remove">Delete</string>
+    <string name="feeling_health_settings_title">Health data for feeling records</string>
+    <string name="feeling_health_settings_summary">Automatically attach sleep, steps, and heart rate from Health Connect.</string>
+    <string name="feeling_health_permissions_count">%1$d of 3 data types allowed</string>
+    <string name="feeling_health_grant">Allow access</string>
+    <string name="feeling_period_settings_title">Menstrual records</string>
+    <string name="feeling_period_settings_summary">Show the day counted from the last period start in Health Connect.</string>
+    <string name="feeling_health_detail_title">Data around this record</string>
+    <string name="feeling_health_detail_empty">Sleep, steps, and heart rate are unavailable for this record.</string>
+    <string name="feeling_health_comparison_scope">Health Connect · compared with the previous 14 days at the same time</string>
+    <string name="feeling_health_sleep">Previous night’s sleep</string>
+    <string name="feeling_health_wake">Woke at %1$s</string>
+    <string name="feeling_health_minutes">%1$d min</string>
+    <string name="feeling_health_sleep_duration">%1$d hr %2$d min</string>
+    <string name="feeling_health_steps_5">Steps · preceding 5 min</string>
+    <string name="feeling_health_steps_30">Steps · preceding 30 min</string>
+    <string name="feeling_health_heart_5">Average heart rate · preceding 5 min</string>
+    <string name="feeling_health_heart_30">Average heart rate · preceding 30 min</string>
+    <string name="feeling_health_steps">%1$d steps</string>
+    <string name="feeling_health_measurement">%1$s · %2$s</string>
+    <string name="feeling_health_typical">Typical %1$s (%2$d observed days) · %3$s</string>
+    <string name="feeling_health_comparison_missing">Typical value needs at least 3 observed days.</string>
+    <string name="feeling_health_more">%1$s higher</string>
+    <string name="feeling_health_less">%1$s lower</string>
+    <string name="feeling_health_same">Same</string>
+    <string name="feeling_health_period_day">Day %1$d from the last recorded period start</string>
+    <string name="feeling_health_pressure">Air pressure · %1$.1f hPa at %2$s</string>
+    <string name="feeling_health_moon">Moon age · about %1$.1f days</string>
 </resources>

@@ -151,6 +151,7 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                repository.refreshRecentFeelingHealth()
                 scope.launch {
                     repository.refreshHealthConnect()
                 }
@@ -164,6 +165,12 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
         contract = PermissionController.createRequestPermissionResultContract()
     ) {
         repository.markHealthConnectPermissionAttempted()
+        scope.launch { repository.refreshHealthConnect() }
+    }
+    val feelingHealthLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) {
+        repository.refreshRecentFeelingHealth(force = true)
         scope.launch { repository.refreshHealthConnect() }
     }
 
@@ -394,7 +401,9 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                         )
                     }
                     composable("feeling/{id}") { entry ->
-                        val record = uiState.feelingRecords.firstOrNull { it.id == entry.arguments?.getString("id") }
+                        val recordId = entry.arguments?.getString("id")
+                        val record = uiState.feelingRecords.firstOrNull { it.id == recordId }
+                        LaunchedEffect(recordId) { recordId?.let { repository.refreshFeelingHealth(it) } }
                         FeelingDetailScreen(
                             record = record,
                             breathingSessions = uiState.breathingSessions,
@@ -408,6 +417,12 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             onUpdatePreferences = { repository.updatePreferences(it) },
                             onRequestHealthConnect = {
                                 hcLauncher.launch(repository.healthConnectManager.requiredPermissions)
+                            },
+                            onRequestFeelingHealth = {
+                                feelingHealthLauncher.launch(repository.healthConnectManager.feelingPermissions)
+                            },
+                            onRequestFeelingPeriod = {
+                                feelingHealthLauncher.launch(repository.healthConnectManager.periodPermissions)
                             },
                             onOpenHealthConnectSettings = { openHealthConnectSettings(context) },
                             onUpdateHealthConnect = { openHealthConnectUpdate(context) },

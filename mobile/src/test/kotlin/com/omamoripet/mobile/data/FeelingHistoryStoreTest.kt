@@ -74,4 +74,23 @@ class FeelingHistoryStoreTest {
         store.updateContext(first.id, null)
         assertEquals(listOf(second, first), store.records.first())
     }
+
+    @Test
+    fun `late health and pressure observations merge into the right record independently`() = runBlocking {
+        val store = FeelingHistoryStore(dataStore)
+        val older = FeelingRecord("older", Feeling.LOW, 1_000)
+        val newer = FeelingRecord("newer", Feeling.ANXIOUS, 2_000, recordedZoneId = "Asia/Tokyo")
+        store.record(older)
+        store.record(newer)
+        val sleep = FeelingSleep(FeelingComparison(360, 420, 8), 1_500)
+        val pulse = FeelingComparison(74, 69, 4, 8)
+        val pressure = FeelingPressure(1008.1, 2_001)
+        store.updateHealth(newer.id, FeelingHealth(sleep = sleep))
+        val pressureUpdate = launch { store.updatePressure(newer.id, pressure) }
+        val pulseUpdate = launch { store.updateHealth(newer.id, FeelingHealth(heart5 = pulse)) }
+        pressureUpdate.join()
+        pulseUpdate.join()
+        val updated = newer.copy(health = FeelingHealth(sleep = sleep, heart5 = pulse), pressure = pressure)
+        assertEquals(listOf(updated, older), FeelingHistoryStore(dataStore).records.first())
+    }
 }

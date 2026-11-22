@@ -1496,6 +1496,8 @@ fun SettingsMobileScreen(
     uiState: MobileUiState,
     onUpdatePreferences: (AlertPreferences) -> Unit,
     onRequestHealthConnect: () -> Unit,
+    onRequestFeelingHealth: () -> Unit,
+    onRequestFeelingPeriod: () -> Unit,
     onOpenHealthConnectSettings: () -> Unit,
     onUpdateHealthConnect: () -> Unit,
     onPrepareGeminiNano: () -> Unit,
@@ -1711,6 +1713,36 @@ fun SettingsMobileScreen(
                         )
                     }
                 }
+            }
+
+            if (uiState.healthConnectAvailability == HealthConnectAvailability.AVAILABLE) {
+                val hasFeelingHealthPermissions = uiState.feelingHealthPermissionsGranted == 3
+                ListItem(
+                    leadingContent = { Icon(painterResource(R.drawable.ic_history_rounded), contentDescription = null) },
+                    headlineContent = { Text(stringResource(R.string.feeling_health_settings_title)) },
+                    supportingContent = {
+                        Column {
+                            Text(stringResource(R.string.feeling_health_settings_summary))
+                            if (uiState.feelingHealthPermissionsGranted > 0) {
+                                Text(stringResource(R.string.feeling_health_permissions_count, uiState.feelingHealthPermissionsGranted))
+                            }
+                            TextButton(onClick = if (hasFeelingHealthPermissions) onOpenHealthConnectSettings else onRequestFeelingHealth) {
+                                Text(stringResource(if (hasFeelingHealthPermissions) R.string.hc_open_settings_btn else R.string.feeling_health_grant))
+                            }
+                        }
+                    }
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.feeling_period_settings_title)) },
+                    supportingContent = {
+                        Column {
+                            Text(stringResource(R.string.feeling_period_settings_summary))
+                            TextButton(onClick = if (uiState.hasPeriodPermission) onOpenHealthConnectSettings else onRequestFeelingPeriod) {
+                                Text(stringResource(if (uiState.hasPeriodPermission) R.string.hc_open_settings_btn else R.string.feeling_health_grant))
+                            }
+                        }
+                    }
+                )
             }
 
             if (uiState.aiBackendStatus != AiBackendStatus.FALLBACK_ONLY || uiState.isAiPreparing) {

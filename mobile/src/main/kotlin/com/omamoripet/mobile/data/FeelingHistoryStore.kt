@@ -21,12 +21,29 @@ internal class FeelingHistoryStore(private val dataStore: DataStore<Preferences>
     }
 
     suspend fun updateContext(id: String, context: FeelingContext?): List<FeelingRecord> {
+        return updateRecord(id) { target ->
+            if (context == null || context.recordedAtEpochMs == target.recordedAtEpochMs) {
+                target.copy(context = context)
+            } else {
+                target
+            }
+        }
+    }
+
+    suspend fun updateHealth(id: String, health: FeelingHealth): List<FeelingRecord> =
+        updateRecord(id) { it.copy(health = it.health?.withUpdates(health) ?: health) }
+
+    suspend fun updatePressure(id: String, pressure: FeelingPressure): List<FeelingRecord> =
+        updateRecord(id) { it.copy(pressure = pressure) }
+
+    private suspend fun updateRecord(id: String, update: (FeelingRecord) -> FeelingRecord): List<FeelingRecord> {
         val updated = dataStore.edit { prefs ->
             val records = read(prefs)
             val target = records.firstOrNull { it.id == id } ?: return@edit
-            if (context != null && context.recordedAtEpochMs != target.recordedAtEpochMs) return@edit
+            val updatedRecord = update(target)
+            if (target == updatedRecord) return@edit
             prefs[RECORDS] = OmamoriJson.encode(records.map {
-                if (it.id == id) it.copy(context = context) else it
+                if (it.id == id) updatedRecord else it
             })
         }
         return read(updated)
