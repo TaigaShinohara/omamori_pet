@@ -8,7 +8,15 @@
     <Metadata key="STEP_COUNT_DISPLAY" value="FALSE" />
 
     <Scene backgroundColor="#FF11161D">
-        <!-- 外周の静かなリング（Ambient では抑える） -->
+        <!-- WFF v2ではSceneの色を変換せず、Ambient専用の黒い背景を重ねる。 -->
+        <PartDraw alpha="0" height="450" width="450" x="0" y="0">
+            <Rectangle height="450" width="450" x="0" y="0">
+                <Fill color="#FF000000" />
+            </Rectangle>
+            <Variant mode="AMBIENT" target="alpha" value="255" />
+        </PartDraw>
+
+        <!-- 通常時の外周リングはAmbientで隠し、点灯面積を抑える。 -->
         <PartDraw
             alpha="255"
             height="450"
@@ -24,7 +32,7 @@
                     color="#FF24303D"
                     thickness="8" />
             </Ellipse>
-            <Variant mode="AMBIENT" target="alpha" value="60" />
+            <Variant mode="AMBIENT" target="alpha" value="0" />
         </PartDraw>
 
         <!-- 要素 1（上部）：お守りペット状態スロット（4状態・非威圧） -->
@@ -458,6 +466,7 @@
         <!-- 電池アイコンと残量は下へ寄せ、心拍枠と弧の間に静かに収める。 -->
         <Group name="watchBattery" height="450" width="450" x="0" y="0">
             <PartDraw height="24" width="30" x="181" y="374">
+                <Variant mode="AMBIENT" target="y" value="340" />
                 <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
                     <Stroke color="#FFB4BCC4" thickness="1.8" />
                 </RoundRectangle>
@@ -469,6 +478,7 @@
                 </Rectangle>
             </PartDraw>
             <PartText height="28" width="62" x="216" y="370">
+                <Variant mode="AMBIENT" target="y" value="336" />
                 <ScreenReader stringId="battery_description">
                     <Parameter expression="[BATTERY_PERCENT]" />
                 </ScreenReader>
