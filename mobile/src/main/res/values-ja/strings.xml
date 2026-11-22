@@ -86,7 +86,7 @@
     <string name="settings_haptics_subtitle">手元の振動でペースを案内</string>
     <string name="settings_data_section">連携・プライバシー</string>
     <string name="settings_privacy_item">データとプライバシー</string>
-    <string name="settings_privacy_subtitle">安静時心拍のみ・端末内完結</string>
+    <string name="settings_privacy_subtitle">Health Connectの読み取り・端末内保存</string>
     <string name="settings_guide_section">使い方</string>
     <string name="settings_replay_onboarding">はじめの案内を見る</string>
     <string name="settings_reset_onboarding">案内設定をリセット</string>
@@ -104,9 +104,9 @@
 
     <string name="privacy_title">データとプライバシー</string>
     <string name="privacy_point_read_title">読み取るデータ</string>
-    <string name="privacy_point_read_body">Health Connect の安静時心拍のみを読み取り、普段の目安調整に使います。</string>
+    <string name="privacy_point_read_body">許可に応じてHealth Connectの安静時心拍を普段の目安に使い、睡眠・歩数・心拍を気持ちの記録に添えます。月経記録は個別に許可できます。</string>
     <string name="privacy_point_local_title">端末内での完結</string>
-    <string name="privacy_point_local_body">心拍評価やひとことは端末内で処理され、外部へ送信されません。</string>
+    <string name="privacy_point_local_body">気持ちの記録に添えたHealth Connectのデータは、このスマホ内で処理・保存します。</string>
 
     <string name="avatar_tap_action">ペットとふれあう</string>
     <string name="breathing_cycle_progress">%2$dセット中 %1$dセット目</string>
@@ -253,4 +253,31 @@
     <string name="feeling_detail_remove_watch_data">この記録のWatchデータを削除</string>
     <string name="feeling_detail_remove_help">取り込んだ心拍と動きを、このスマホから削除します。</string>
     <string name="feeling_detail_remove">削除</string>
+    <string name="feeling_health_settings_title">気持ちの記録に健康データを添える</string>
+    <string name="feeling_health_settings_summary">Health Connectの睡眠・歩数・心拍を自動で添えます。</string>
+    <string name="feeling_health_permissions_count">3項目中%1$d項目を許可済み</string>
+    <string name="feeling_health_grant">読み取りを許可</string>
+    <string name="feeling_period_settings_title">生理周期の記録</string>
+    <string name="feeling_period_settings_summary">Health Connectにある最終月経開始日からの日数を表示します。</string>
+    <string name="feeling_health_detail_title">そのときのデータ</string>
+    <string name="feeling_health_detail_empty">この記録の睡眠・歩数・心拍は未取得です。</string>
+    <string name="feeling_health_comparison_scope">Health Connect · 過去14日間の同じ時刻と比較</string>
+    <string name="feeling_health_sleep">前夜の睡眠</string>
+    <string name="feeling_health_wake">起床 %1$s</string>
+    <string name="feeling_health_minutes">%1$d分</string>
+    <string name="feeling_health_sleep_duration">%1$d時間%2$d分</string>
+    <string name="feeling_health_steps_5">歩数 · 直前5分</string>
+    <string name="feeling_health_steps_30">歩数 · 直前30分</string>
+    <string name="feeling_health_heart_5">平均心拍 · 直前5分</string>
+    <string name="feeling_health_heart_30">平均心拍 · 直前30分</string>
+    <string name="feeling_health_steps">%1$d歩</string>
+    <string name="feeling_health_measurement">%1$s · %2$s</string>
+    <string name="feeling_health_typical">普段 %1$s（%2$d日分） · %3$s</string>
+    <string name="feeling_health_comparison_missing">普段の値を出すには3日分の観測が必要です。</string>
+    <string name="feeling_health_more">差 +%1$s</string>
+    <string name="feeling_health_less">差 −%1$s</string>
+    <string name="feeling_health_same">同じ</string>
+    <string name="feeling_health_period_day">最終月経開始日から %1$d日目</string>
+    <string name="feeling_health_pressure">気圧 · %1$.1f hPa（%2$s）</string>
+    <string name="feeling_health_moon">月齢 · 約%1$.1f日</string>
 </resources>
