@@ -37,7 +37,7 @@
             supportedTypes="RANGED_VALUE SMALL_IMAGE MONOCHROMATIC_IMAGE SHORT_TEXT EMPTY"
             width="140"
             x="155"
-            y="42">
+            y="32">
             <BoundingOval
                 height="96"
                 width="140"
@@ -326,7 +326,7 @@
             height="100"
             width="320"
             x="65"
-            y="148">
+            y="120">
             <TimeText
                 align="CENTER"
                 format="hh:mm"
@@ -349,7 +349,7 @@
             height="28"
             width="240"
             x="105"
-            y="242">
+            y="211">
             <Text align="CENTER" ellipsis="TRUE" maxLines="1">
                 <Font
                     color="#FFB4BCC4"
@@ -362,114 +362,137 @@
             <Variant mode="AMBIENT" target="alpha" value="120" />
         </PartText>
 
-        <!-- 要素 3（下部）：静止/移動文脈付き 心拍表示カプセル -->
+        <!-- 左にハートと状況、右に心拍数。旧スロット2の保存済み割当とは分離する。 -->
+        <Group name="heartFrame" height="78" width="320" x="65" y="253">
+            <PartDraw height="78" width="320" x="0" y="0">
+                <RoundRectangle cornerRadiusX="39" cornerRadiusY="39" height="76" width="318" x="1" y="1">
+                    <Fill color="#FF1B242F" />
+                    <Stroke color="#FF2F3E4E" thickness="1.8" />
+                </RoundRectangle>
+                <Variant mode="AMBIENT" target="alpha" value="0" />
+            </PartDraw>
+            <PartDraw height="34" width="36" x="49" y="10">
+                <Arc centerX="9" centerY="10" height="16" width="16" startAngle="90" endAngle="270" direction="COUNTER_CLOCKWISE">
+                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
+                </Arc>
+                <Arc centerX="25" centerY="10" height="16" width="16" startAngle="270" endAngle="90" direction="CLOCKWISE">
+                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
+                </Arc>
+                <Line startX="1" startY="10" endX="17" endY="29">
+                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
+                </Line>
+                <Line startX="33" startY="10" endX="17" endY="29">
+                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
+                </Line>
+                <Variant mode="AMBIENT" target="alpha" value="150" />
+            </PartDraw>
+            <PartDraw height="48" width="2" x="148" y="15">
+                <Line startX="1" startY="0" endX="1" endY="48">
+                    <Stroke color="#FF526978" thickness="1.2" />
+                </Line>
+                <Variant mode="AMBIENT" target="alpha" value="100" />
+            </PartDraw>
+        </Group>
         <ComplicationSlot
             displayName="@string/slot_heart_name"
-            height="92"
+            height="78"
             isCustomizable="TRUE"
-            name="heart_calm_slot"
-            slotId="2"
-            supportedTypes="RANGED_VALUE SHORT_TEXT EMPTY"
-            width="300"
-            x="75"
-            y="294">
-            <BoundingRoundBox
-                cornerRadius="46"
-                height="92"
-                width="300"
-                x="0"
-                y="0" />
+            name="heart_context_slot"
+            slotId="3"
+            supportedTypes="SHORT_TEXT EMPTY"
+            width="320"
+            x="65"
+            y="253">
+            <BoundingRoundBox cornerRadius="39" height="78" width="320" x="0" y="0" />
             <DefaultProviderPolicy
                 defaultSystemProvider="HEART_RATE"
                 defaultSystemProviderType="SHORT_TEXT"
-                primaryProvider="com.omamoripet.app/com.omamoripet.wear.complication.HeartRateComplicationService"
-                primaryProviderType="RANGED_VALUE" />
-
-            <Complication type="RANGED_VALUE">
-                <PartDraw
-                    alpha="255"
-                    height="72"
-                    width="284"
-                    x="8"
-                    y="10">
-                    <RoundRectangle
-                        cornerRadiusX="36"
-                        cornerRadiusY="36"
-                        height="72"
-                        width="284"
-                        x="0"
-                        y="0">
-                        <Fill color="#FF1B242F" />
-                    </RoundRectangle>
-                    <RoundRectangle
-                        cornerRadiusX="36"
-                        cornerRadiusY="36"
-                        height="72"
-                        width="284"
-                        x="0"
-                        y="0">
-                        <Stroke
-                            color="#FF2F3E4E"
-                            thickness="2" />
-                    </RoundRectangle>
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                </PartDraw>
-
-                <PartText
-                    alpha="255"
-                    height="44"
-                    width="268"
-                    x="16"
-                    y="24">
+                primaryProvider="com.omamoripet.app/com.omamoripet.wear.complication.WatchFaceHeartRateComplicationService"
+                primaryProviderType="SHORT_TEXT" />
+            <Complication type="SHORT_TEXT">
+                <PartText height="25" width="116" x="9" y="44">
                     <Text align="CENTER" ellipsis="TRUE" maxLines="1">
-                        <Font
-                            color="#FFECE8DF"
-                            family="SYNC_TO_DEVICE"
-                            size="21"
-                            weight="MEDIUM">
+                        <Font color="#FFB4BCC4" family="SYNC_TO_DEVICE" size="18" weight="NORMAL">
+                            <Template>%s<Parameter expression="[COMPLICATION.TITLE]" /></Template>
+                        </Font>
+                    </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="150" />
+                </PartText>
+                <PartText height="58" width="83" x="149" y="10">
+                    <Text align="END" ellipsis="TRUE" maxLines="1">
+                        <Font color="#FFECE8DF" family="SYNC_TO_DEVICE" size="42" weight="SEMI_BOLD">
                             <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
                         </Font>
                     </Text>
-                    <Variant mode="AMBIENT" target="alpha" value="170" />
+                    <Variant mode="AMBIENT" target="alpha" value="175" />
+                </PartText>
+                <PartText height="32" width="64" x="240" y="27">
+                    <Text align="START" maxLines="1">
+                        <Font color="#FFECE8DF" family="SYNC_TO_DEVICE" size="20" weight="MEDIUM">bpm</Font>
+                    </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="175" />
                 </PartText>
             </Complication>
-
-            <Complication type="SHORT_TEXT">
-                <PartDraw
-                    alpha="255"
-                    height="72"
-                    width="284"
-                    x="8"
-                    y="10">
-                    <RoundRectangle
-                        cornerRadiusX="36"
-                        cornerRadiusY="36"
-                        height="72"
-                        width="284"
-                        x="0"
-                        y="0">
-                        <Fill color="#FF1B242F" />
-                    </RoundRectangle>
-                    <Variant mode="AMBIENT" target="alpha" value="0" />
-                </PartDraw>
-                <PartText
-                    alpha="255"
-                    height="44"
-                    width="268"
-                    x="16"
-                    y="24">
+            <Complication type="EMPTY">
+                <PartText height="25" width="116" x="9" y="44">
                     <Text align="CENTER" ellipsis="TRUE" maxLines="1">
-                        <Font
-                            color="#FFECE8DF"
-                            family="SYNC_TO_DEVICE"
-                            size="21"
-                            weight="MEDIUM">
-                            <Template>%s<Parameter expression="[COMPLICATION.TEXT]" /></Template>
-                        </Font>
+                        <Font color="#FFB4BCC4" family="SYNC_TO_DEVICE" size="18" weight="NORMAL">heart_waiting</Font>
                     </Text>
-                    <Variant mode="AMBIENT" target="alpha" value="170" />
+                    <Variant mode="AMBIENT" target="alpha" value="150" />
+                </PartText>
+                <PartText height="58" width="83" x="149" y="10">
+                    <Text align="END" ellipsis="TRUE" maxLines="1">
+                        <Font color="#FFECE8DF" family="SYNC_TO_DEVICE" size="42" weight="SEMI_BOLD">--</Font>
+                    </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="175" />
+                </PartText>
+                <PartText height="32" width="64" x="240" y="27">
+                    <Text align="START" maxLines="1">
+                        <Font color="#FFECE8DF" family="SYNC_TO_DEVICE" size="20" weight="MEDIUM">bpm</Font>
+                    </Text>
+                    <Variant mode="AMBIENT" target="alpha" value="175" />
                 </PartText>
             </Complication>
         </ComplicationSlot>
+
+        <!-- 電池アイコンと残量は下へ寄せ、心拍枠と弧の間に静かに収める。 -->
+        <Group name="watchBattery" height="450" width="450" x="0" y="0">
+            <PartDraw height="24" width="30" x="181" y="374">
+                <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
+                    <Stroke color="#FFB4BCC4" thickness="1.8" />
+                </RoundRectangle>
+                <RoundRectangle cornerRadiusX="0.8" cornerRadiusY="0.8" height="5" width="3" x="26" y="9">
+                    <Fill color="#FFB4BCC4" />
+                </RoundRectangle>
+                <Rectangle height="7" width="5" x="4" y="8">
+                    <Fill color="#FFB4BCC4" />
+                </Rectangle>
+            </PartDraw>
+            <PartText height="28" width="62" x="216" y="370">
+                <ScreenReader stringId="battery_description">
+                    <Parameter expression="[BATTERY_PERCENT]" />
+                </ScreenReader>
+                <Text align="START" maxLines="1">
+                    <Font color="#FFB4BCC4" family="SYNC_TO_DEVICE" size="21" weight="NORMAL">
+                        <Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template>
+                    </Font>
+                </Text>
+            </PartText>
+            <PartDraw height="450" width="450" x="0" y="0">
+                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                    <Stroke color="#FF293741" thickness="5" cap="ROUND" />
+                </Arc>
+                <Variant mode="AMBIENT" target="alpha" value="0" />
+            </PartDraw>
+            <PartDraw height="450" width="450" x="0" y="0">
+                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                    <Stroke color="#FF82969D" thickness="5" cap="ROUND" />
+                    <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
+                </Arc>
+                <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
+                <Variant mode="AMBIENT" target="alpha" value="0" />
+            </PartDraw>
+            <Variant mode="AMBIENT" target="alpha" value="140" />
+        </Group>
     </Scene>
 </WatchFace>
