@@ -84,4 +84,11 @@
     <string name="feeling_context_saving">Saving this record’s measurements…</string>
     <string name="feeling_context_no_data">No measurements in this period</string>
     <string name="feeling_context_save_failed">Couldn’t save the setting.</string>
+    <string name="complication_heart_detail_label">Heart Rate &amp; Context</string>
+    <string name="comp_context_waiting">Waiting</string>
+    <string name="comp_context_moving">Moving</string>
+    <string name="comp_context_breathing">Breath</string>
+    <string name="comp_context_still">Still</string>
+    <string name="comp_context_calm">Calm</string>
+    <string name="comp_heart_description">Heart rate %1$s bpm, %2$s</string>
 </resources>

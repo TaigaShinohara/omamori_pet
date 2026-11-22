@@ -230,3 +230,39 @@ class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
         }
     }
 }
+
+/** Numeric text + short motion title for the two-column Omamori watch-face slot. */
+class WatchFaceHeartRateComplicationService : SuspendingComplicationDataSourceService() {
+
+    override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
+        val repository = (application as OmamoriWearApplication).repository
+        repository.awaitInitialized()
+        val uiState = repository.uiState.value
+        return buildData(resolveWatchFaceHeartRateDisplay(
+            uiState.snapshot.currentHeartRateBpm,
+            uiState.snapshot.motionState,
+            uiState.evaluation.state
+        ), launchWatchAppPendingIntent(this, openBreathing = false))
+    }
+
+    override fun getPreviewData(type: ComplicationType): ComplicationData? =
+        if (type == ComplicationType.SHORT_TEXT) {
+            buildData(resolveWatchFaceHeartRateDisplay(68, MotionState.RECENT_MOVEMENT, OmamoriState.CALM))
+        } else null
+
+    private fun buildData(
+        display: WatchFaceHeartRateDisplay,
+        tapAction: PendingIntent? = null
+    ): ShortTextComplicationData {
+        val contextLabel = getString(display.contextLabelRes)
+        return ShortTextComplicationData.Builder(
+            text = PlainComplicationText.Builder(display.bpmText).build(),
+            contentDescription = PlainComplicationText.Builder(
+                getString(R.string.comp_heart_description, display.bpmText, contextLabel)
+            ).build()
+        )
+            .setTitle(PlainComplicationText.Builder(contextLabel).build())
+            .setTapAction(tapAction)
+            .build()
+    }
+}

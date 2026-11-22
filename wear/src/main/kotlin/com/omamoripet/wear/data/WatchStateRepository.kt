@@ -29,6 +29,7 @@ import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
 import com.omamoripet.wear.complication.HeartRateComplicationService
 import com.omamoripet.wear.complication.PetStateComplicationService
+import com.omamoripet.wear.complication.WatchFaceHeartRateComplicationService
 import com.omamoripet.wear.sync.WatchSyncClient
 import com.omamoripet.wear.tile.OmamoriTileService
 import kotlinx.coroutines.CoroutineScope
@@ -548,6 +549,9 @@ class WatchStateRepository(private val context: Context) {
                 .requestUpdateAll()
             ComplicationDataSourceUpdateRequester
                 .create(context, ComponentName(context, HeartRateComplicationService::class.java))
+                .requestUpdateAll()
+            ComplicationDataSourceUpdateRequester
+                .create(context, ComponentName(context, WatchFaceHeartRateComplicationService::class.java))
                 .requestUpdateAll()
             TileService.getUpdater(context).requestUpdate(OmamoriTileService::class.java)
         }

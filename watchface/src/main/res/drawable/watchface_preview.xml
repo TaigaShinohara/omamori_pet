@@ -36,24 +36,26 @@
     <!-- 中央：時刻と日付 -->
     <path
         android:fillColor="#ECE8DF"
-        android:pathData="M78,108 h84 a4,4 0 0,1 4,4 v14 a4,4 0 0,1 -4,4 h-84 a4,4 0 0,1 -4,-4 v-14 a4,4 0 0,1 4,-4 z" />
+        android:pathData="M78,88 h84 a4,4 0 0,1 4,4 v14 a4,4 0 0,1 -4,4 h-84 a4,4 0 0,1 -4,-4 v-14 a4,4 0 0,1 4,-4 z" />
     <path
         android:fillColor="#B4BCC4"
-        android:pathData="M94,138 h52 a2.5,2.5 0 0,1 2.5,2.5 v0 a2.5,2.5 0 0,1 -2.5,2.5 h-52 a2.5,2.5 0 0,1 -2.5,-2.5 v0 a2.5,2.5 0 0,1 2.5,-2.5 z" />
+        android:pathData="M94,115 h52 a2.5,2.5 0 0,1 2.5,2.5 v0 a2.5,2.5 0 0,1 -2.5,2.5 h-52 a2.5,2.5 0 0,1 -2.5,-2.5 v0 a2.5,2.5 0 0,1 2.5,-2.5 z" />
 
-    <!-- 下部：心拍＆落ち着きカプセル＋ゲージ -->
-    <path
-        android:fillColor="#1B242F"
-        android:pathData="M62,158 h116 a18,18 0 0,1 18,18 v0 a18,18 0 0,1 -18,18 h-116 a18,18 0 0,1 -18,-18 v0 a18,18 0 0,1 18,-18 z"
-        android:strokeColor="#2F3E4E"
-        android:strokeWidth="1.5" />
-    <path
-        android:fillColor="#ECE8DF"
-        android:pathData="M86,168 h68 a2.5,2.5 0 0,1 2.5,2.5 v0 a2.5,2.5 0 0,1 -2.5,2.5 h-68 a2.5,2.5 0 0,1 -2.5,-2.5 v0 a2.5,2.5 0 0,1 2.5,-2.5 z" />
-    <path
-        android:fillColor="#2A3644"
-        android:pathData="M80,181 h80 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-80 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
-    <path
-        android:fillColor="#8FD3B6"
-        android:pathData="M80,181 h66 a2,2 0 0,1 2,2 v0 a2,2 0 0,1 -2,2 h-66 a2,2 0 0,1 -2,-2 v0 a2,2 0 0,1 2,-2 z" />
+    <!-- 下部：左にハートと状況、右に心拍数を分けるカプセル -->
+    <path android:fillColor="#1B242F" android:strokeColor="#2F3E4E" android:strokeWidth="1"
+        android:pathData="M55,135 H185 A20,20 0,0 1,185 175 H55 A20,20 0,0 1,55 135 Z" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#8FD3B6" android:strokeWidth="1.6"
+        android:pathData="M87,149 C81,141 74,147 79,153 L87,161 L95,153 C100,147 93,141 87,149 Z" />
+    <path android:fillColor="#B4BCC4" android:pathData="M74,165 H100 V168 H74 Z" />
+    <path android:strokeColor="#526978" android:strokeWidth="0.8" android:pathData="M119,143 V168" />
+    <path android:fillColor="#ECE8DF" android:pathData="M133,148 H157 V164 H133 Z M162,156 H180 V161 H162 Z" />
+
+    <!-- 枠より下へ寄せた電池アイコン・残量と、画面内の短い弧ゲージ -->
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#B4BCC4" android:strokeWidth="1"
+        android:pathData="M99,198 H110 V204 H99 Z" />
+    <path android:fillColor="#B4BCC4" android:pathData="M111,200 H113 V202 H111 Z M101,200 H103 V202 H101 Z M118,199 H140 V203 H118 Z" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#293741" android:strokeWidth="2.8" android:strokeLineCap="round"
+        android:pathData="M54,198 A105,105 0,0 0,186 198" />
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#82969D" android:strokeWidth="2.8" android:strokeLineCap="round"
+        android:pathData="M54,198 A105,105 0,0 0,150 218" />
 </vector>

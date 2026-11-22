@@ -84,4 +84,11 @@
     <string name="feeling_context_saving">この記録の集計を保存中</string>
     <string name="feeling_context_no_data">この時間帯の計測データはありません</string>
     <string name="feeling_context_save_failed">設定を保存できませんでした。</string>
+    <string name="complication_heart_detail_label">心拍と状況</string>
+    <string name="comp_context_waiting">待機中</string>
+    <string name="comp_context_moving">移動後</string>
+    <string name="comp_context_breathing">深呼吸</string>
+    <string name="comp_context_still">静止</string>
+    <string name="comp_context_calm">安静</string>
+    <string name="comp_heart_description">心拍数 %1$s bpm、%2$s</string>
 </resources>

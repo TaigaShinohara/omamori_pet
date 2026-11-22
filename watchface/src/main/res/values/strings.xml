@@ -3,6 +3,8 @@
     <string name="watch_face_name">Omamori Pet</string>
     <string name="watch_face_description">Calm watch face showing your Omamori Pet and resting heart rate status at a glance.</string>
     <string name="slot_pet_name">Omamori Pet</string>
-    <string name="slot_heart_name">Heart Rate &amp; Calm</string>
+    <string name="slot_heart_name">Heart Rate &amp; Context</string>
     <string name="date_format">%1$s/%2$s %3$s</string>
+    <string name="battery_description">Watch battery: %1$d%%</string>
+    <string name="heart_waiting">Waiting</string>
 </resources>
