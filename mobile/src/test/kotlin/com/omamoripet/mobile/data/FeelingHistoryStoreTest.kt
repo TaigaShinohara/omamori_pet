@@ -7,6 +7,8 @@ import com.omamoripet.shared.model.FeelingContext
 import com.omamoripet.shared.model.FeelingMinute
 import com.omamoripet.shared.sync.OmamoriJson
 import java.io.File
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -92,5 +94,21 @@ class FeelingHistoryStoreTest {
         pulseUpdate.join()
         val updated = newer.copy(health = FeelingHealth(sleep = sleep, heart5 = pulse), pressure = pressure)
         assertEquals(listOf(updated, older), FeelingHistoryStore(dataStore).records.first())
+    }
+
+    @Test
+    fun `waiting applies only to missing permitted five minute observations within the refresh window`() {
+        val now = Instant.parse("2026-11-22T03:30:00Z")
+        val record = FeelingRecord("one", Feeling.ANXIOUS, now.minusSeconds(60).toEpochMilli())
+        val steps = FeelingComparison(0, 35, 6)
+        val stepsArrived = record.copy(health = FeelingHealth(steps5 = steps))
+        val permissions = MobileUiState(hasFeelingStepsPermission = true, hasFeelingHeartPermission = true)
+
+        assertEquals(PendingFeelingActivity(), MobileUiState().pendingFeelingActivity(record, now))
+        assertEquals(PendingFeelingActivity(steps = true, heart = true), permissions.pendingFeelingActivity(record, now))
+        assertEquals(PendingFeelingActivity(heart = true), permissions.pendingFeelingActivity(stepsArrived, now))
+        assertEquals(PendingFeelingActivity(), permissions.copy(hasFeelingHeartPermission = false)
+            .pendingFeelingActivity(stepsArrived, now))
+        assertEquals(PendingFeelingActivity(), permissions.pendingFeelingActivity(record, now.plus(14, ChronoUnit.DAYS)))
     }
 }

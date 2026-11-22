@@ -261,6 +261,7 @@
     <string name="feeling_period_settings_summary">Show the day counted from the last period start in Health Connect.</string>
     <string name="feeling_health_detail_title">Data around this record</string>
     <string name="feeling_health_detail_empty">Sleep, steps, and heart rate are unavailable for this record.</string>
+    <string name="feeling_health_sync_pending">Waiting for Health Connect to sync</string>
     <string name="feeling_health_comparison_scope">Health Connect · compared with the previous 14 days at the same time</string>
     <string name="feeling_health_sleep">Previous night’s sleep</string>
     <string name="feeling_health_wake">Woke at %1$s</string>

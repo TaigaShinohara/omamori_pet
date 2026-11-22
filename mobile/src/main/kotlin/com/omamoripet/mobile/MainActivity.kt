@@ -68,6 +68,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.omamoripet.mobile.data.MobileDemoMode
+import com.omamoripet.mobile.data.PendingFeelingActivity
+import com.omamoripet.mobile.data.pendingFeelingActivity
 import com.omamoripet.mobile.ui.screens.BreathingMobileScreen
 import com.omamoripet.mobile.ui.screens.HistoryMobileScreen
 import com.omamoripet.mobile.ui.screens.FeelingDetailScreen
@@ -403,9 +405,16 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                     composable("feeling/{id}") { entry ->
                         val recordId = entry.arguments?.getString("id")
                         val record = uiState.feelingRecords.firstOrNull { it.id == recordId }
-                        LaunchedEffect(recordId) { recordId?.let { repository.refreshFeelingHealth(it) } }
+                        LaunchedEffect(entry, uiState.hasFeelingStepsPermission, uiState.hasFeelingHeartPermission) {
+                            if (recordId != null) {
+                                entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                                    repository.watchFeelingHealth(recordId)
+                                }
+                            }
+                        }
                         FeelingDetailScreen(
                             record = record,
+                            pendingActivity = record?.let { uiState.pendingFeelingActivity(it) } ?: PendingFeelingActivity(),
                             breathingSessions = uiState.breathingSessions,
                             onBack = { navController.popBackStack() },
                             onSaveContext = repository::updateFeelingContext
