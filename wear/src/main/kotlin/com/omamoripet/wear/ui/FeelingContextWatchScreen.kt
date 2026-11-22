@@ -35,8 +35,6 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.omamoripet.shared.model.FEELING_MINUTE_MS
-import com.omamoripet.shared.model.FEELING_MINUTES_AFTER
 import com.omamoripet.shared.model.FeelingContextQr
 import com.omamoripet.wear.R
 import com.omamoripet.wear.data.WatchFeelingContext
@@ -51,6 +49,7 @@ import kotlin.math.floor
 internal fun FeelingContextWatchScreen(
     settings: WatchFeelingContext.Settings,
     onSetEnabled: suspend (Boolean) -> Unit,
+    onUpdateWindows: suspend () -> Unit,
     onShowCode: (Boolean) -> Unit
 ) {
     var selectedTime by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -58,13 +57,15 @@ internal fun FeelingContextWatchScreen(
     var changing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(settings.windows) {
         while (true) {
             now = System.currentTimeMillis()
+            if (settings.windows.any { !it.completed && now >= it.endsAt }) onUpdateWindows()
+            if (settings.windows.none { !it.completed }) break
             delay(5_000)
         }
     }
-    val selected = settings.windows.firstOrNull { it.recordedAtEpochMs == selectedTime }
+    val selected = settings.windows.firstOrNull { it.recordedAt == selectedTime && it.ready }?.context
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM) }
     val qr = remember(selected) {
         selected?.let { QRCodeWriter().encode(FeelingContextQr.encode(it), BarcodeFormat.QR_CODE, 0, 0) }
@@ -151,16 +152,21 @@ internal fun FeelingContextWatchScreen(
                         item { Text(stringResource(R.string.feeling_context_empty), Modifier.padding(horizontal = 8.dp)) }
                     }
                     for (window in settings.windows) {
-                        val recordedAt = window.recordedAtEpochMs
-                        val ready = now >= recordedAt + FEELING_MINUTES_AFTER * FEELING_MINUTE_MS
+                        val recordedAt = window.recordedAt
+                        val status = when {
+                            window.ready -> R.string.feeling_context_qr
+                            window.completed -> R.string.feeling_context_no_data
+                            now >= window.endsAt -> R.string.feeling_context_saving
+                            else -> R.string.feeling_context_collecting
+                        }
                         item(key = recordedAt) {
                             OutlinedButton(
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = ready,
+                                enabled = window.ready,
                                 onClick = { selectedTime = recordedAt },
                                 label = { Text(formatter.format(Date(recordedAt))) },
                                 secondaryLabel = {
-                                    Text(stringResource(if (ready) R.string.feeling_context_qr else R.string.feeling_context_collecting))
+                                    Text(stringResource(status))
                                 }
                             )
                         }

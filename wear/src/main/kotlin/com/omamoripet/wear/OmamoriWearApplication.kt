@@ -21,11 +21,16 @@ class OmamoriWearApplication : Application() {
         super.onCreate()
         repository = WatchStateRepository(applicationContext)
         applicationScope.launch {
+            while (isActive) {
+                repository.feelingContext.updateWindows(checkpoint = true)
+                delay(60_000L)
+            }
+        }
+        applicationScope.launch {
             val syncClient = WatchSyncClient(applicationContext)
             while (isActive) {
                 try {
                     syncClient.flushPendingHistory()
-                    repository.feelingContext.pruneExpired(System.currentTimeMillis())
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {

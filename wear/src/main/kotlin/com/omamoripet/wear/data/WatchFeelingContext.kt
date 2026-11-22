@@ -1,10 +1,14 @@
 package com.omamoripet.wear.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.FEELING_MINUTE_COUNT
 import com.omamoripet.shared.model.FEELING_MINUTE_MS
@@ -18,41 +22,56 @@ import java.io.File
 import java.io.IOException
 import java.util.TreeMap
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-internal class WatchFeelingContext(context: Context, private val scope: CoroutineScope) {
-    private val store = PreferenceDataStoreFactory.create(scope = scope) {
-        File(context.noBackupFilesDir, "feeling_context.preferences_pb")
-    }
+internal class WatchFeelingContext(
+    private val store: DataStore<Preferences>,
+    private val scope: CoroutineScope,
+    private val clock: () -> Long = System::currentTimeMillis
+) {
+    constructor(context: Context, scope: CoroutineScope) : this(
+        PreferenceDataStoreFactory.create(scope = scope) {
+            File(context.noBackupFilesDir, "feeling_context.preferences_pb")
+        },
+        scope
+    )
+
     private val lock = Any()
     private val heart = TreeMap<Long, Int>()
     private val motion = TreeMap<Long, MotionState>()
-    private val active = mutableSetOf<Long>()
     val state = store.data.map { preferences ->
+        val completed = preferences[COMPLETED].orEmpty()
         Settings(
             enabledSince = preferences[ENABLED_SINCE],
-            windows = readWindows(preferences[WINDOWS])
+            windows = readWindows(preferences[WINDOWS]).map { context ->
+                Window(context, context.recordedAtEpochMs.toString() in completed)
+            }
         )
     }.catch { failure ->
         if (failure is IOException) emit(Settings()) else throw failure
     }.stateIn(scope, SharingStarted.Eagerly, Settings())
 
-    data class Settings(val enabledSince: Long? = null, val windows: List<FeelingContext> = emptyList())
+    data class Settings(val enabledSince: Long? = null, val windows: List<Window> = emptyList())
+
+    data class Window(val context: FeelingContext, val completed: Boolean) {
+        val recordedAt: Long get() = context.recordedAtEpochMs
+        val endsAt: Long get() = recordedAt + FEELING_MINUTES_AFTER * FEELING_MINUTE_MS
+        val ready: Boolean get() = completed && context.hasObservations()
+    }
 
     suspend fun setEnabled(enabled: Boolean) {
-        val now = System.currentTimeMillis()
+        val now = clock()
         store.edit { preferences ->
             if (enabled) {
                 if (preferences[ENABLED_SINCE] == null) preferences[ENABLED_SINCE] = now
             } else {
                 preferences.remove(ENABLED_SINCE)
                 preferences.remove(WINDOWS)
+                preferences.remove(COMPLETED)
             }
         }
         if (!enabled) synchronized(lock) {
@@ -80,49 +99,69 @@ internal class WatchFeelingContext(context: Context, private val scope: Coroutin
     }
 
     fun capture(recordedAt: Long, baselineBpm: Int, baselineSource: BaselineSource) {
-        val now = System.currentTimeMillis()
+        scope.launch { startWindow(recordedAt, baselineBpm, baselineSource) }
+    }
+
+    suspend fun startWindow(recordedAt: Long, baselineBpm: Int, baselineSource: BaselineSource) {
+        val now = clock()
         if (recordedAt !in (now - BUFFER_MS)..(now + CLOCK_TOLERANCE_MS)) return
-        if (!synchronized(lock) { active.add(recordedAt) }) return
-        scope.launch {
-            try {
-                val preferences = store.data.first()
-                val since = preferences[ENABLED_SINCE] ?: return@launch
-                if (recordedAt < since) return@launch
-                val end = recordedAt + FEELING_MINUTES_AFTER * FEELING_MINUTE_MS
-                save(since, snapshot(recordedAt, baselineBpm, baselineSource, since))
-                if (end > now) {
-                    delay((end - System.currentTimeMillis()).coerceAtLeast(0L))
-                    save(since, snapshot(recordedAt, baselineBpm, baselineSource, since))
-                }
-            } catch (_: IOException) {
-                // A failed local write must not interfere with the live pet or feeling display.
-            } finally {
-                synchronized(lock) { active.remove(recordedAt) }
+        try {
+            store.edit { preferences ->
+                val since = preferences[ENABLED_SINCE] ?: return@edit
+                if (recordedAt < since) return@edit
+                val windows = readWindows(preferences[WINDOWS])
+                if (windows.any { it.recordedAtEpochMs == recordedAt }) return@edit
+                val validBaseline = baselineBpm.takeIf { it in 35..220 }
+                val context = FeelingContext(
+                    recordedAt, validBaseline, baselineSource.takeIf { validBaseline != null },
+                    snapshot(recordedAt, since)
+                )
+                val completed = preferences[COMPLETED].orEmpty().toMutableSet()
+                if (now >= Window(context, false).endsAt) completed.add(recordedAt.toString())
+                writeWindows(preferences, listOf(context) + windows, completed, now)
             }
+        } catch (_: IOException) {
+            // A failed local write must not interfere with the live pet or feeling display.
         }
     }
 
-    suspend fun pruneExpired(now: Long) {
+    suspend fun updateWindows(checkpoint: Boolean = false) {
+        val now = clock()
         synchronized(lock) {
             heart.headMap(now - BUFFER_MS).clear()
             motion.headMap(now - BUFFER_MS).clear()
         }
-        if (state.value.windows.none { now - it.recordedAtEpochMs >= RETENTION_MS }) return
-        store.edit { preferences ->
-            preferences[WINDOWS] = OmamoriJson.encode(
-                readWindows(preferences[WINDOWS]).filter { now - it.recordedAtEpochMs < RETENTION_MS }
-            )
+        if (state.value.windows.none {
+                now - it.recordedAt >= RETENTION_MS || (!it.completed && (checkpoint || now >= it.endsAt))
+            }) return
+        try {
+            store.edit { preferences ->
+                val since = preferences[ENABLED_SINCE] ?: return@edit
+                val completed = preferences[COMPLETED].orEmpty().toMutableSet()
+                val windows = readWindows(preferences[WINDOWS]).mapNotNull { context ->
+                    val windowId = context.recordedAtEpochMs.toString()
+                    if (now - context.recordedAtEpochMs >= RETENTION_MS) return@mapNotNull null
+                    val due = now >= Window(context, false).endsAt
+                    if (windowId in completed || (!due && !checkpoint)) return@mapNotNull context
+                    val current = snapshot(context.recordedAtEpochMs, since)
+                    val merged = context.copy(minutes = current.zip(context.minutes) { fresh, saved ->
+                        val heartMinute = if (fresh.sampleCount >= saved.sampleCount) fresh else saved
+                        heartMinute.copy(motion = fresh.motion ?: saved.motion)
+                    })
+                    if (due) completed.add(windowId)
+                    merged
+                }
+                // The data and the QR eligibility marker become visible in the same transaction.
+                writeWindows(preferences, windows, completed, now)
+            }
+        } catch (_: IOException) {
+            // Leave the window pending so a subsequent update can retry the write.
         }
     }
 
-    private fun snapshot(
-        recordedAt: Long,
-        baselineBpm: Int,
-        baselineSource: BaselineSource,
-        enabledSince: Long
-    ): FeelingContext {
+    private fun snapshot(recordedAt: Long, enabledSince: Long): List<FeelingMinute> {
         val start = recordedAt - FEELING_MINUTES_BEFORE * FEELING_MINUTE_MS
-        val minutes = synchronized(lock) {
+        return synchronized(lock) {
             List(FEELING_MINUTE_COUNT) { index ->
                 val from = start + index * FEELING_MINUTE_MS
                 val to = from + FEELING_MINUTE_MS
@@ -136,31 +175,20 @@ internal class WatchFeelingContext(context: Context, private val scope: Coroutin
                 }
             }
         }
-        val validBaseline = baselineBpm.takeIf { it in 35..220 }
-        return FeelingContext(recordedAt, validBaseline, baselineSource.takeIf { validBaseline != null }, minutes)
     }
 
-    private suspend fun save(since: Long, snapshot: FeelingContext) {
-        if (!snapshot.hasObservations()) return
-        store.edit { preferences ->
-            if (preferences[ENABLED_SINCE] != since) return@edit
-            val windows = readWindows(preferences[WINDOWS])
-            val previous = windows.firstOrNull { it.recordedAtEpochMs == snapshot.recordedAtEpochMs }
-            val merged = if (previous == null) snapshot else previous.copy(
-                minutes = snapshot.minutes.zip(previous.minutes) { current, old ->
-                    val heartMinute = if (current.sampleCount >= old.sampleCount) current else old
-                    heartMinute.copy(motion = current.motion ?: old.motion)
-                }
-            )
-            val now = System.currentTimeMillis()
-            preferences[WINDOWS] = OmamoriJson.encode(
-                (listOf(merged) + windows)
-                    .distinctBy { it.recordedAtEpochMs }
-                    .filter { now - it.recordedAtEpochMs < RETENTION_MS }
-                    .sortedByDescending { it.recordedAtEpochMs }
-                    .take(MAX_WINDOWS)
-            )
-        }
+    private fun writeWindows(
+        preferences: MutablePreferences,
+        windows: List<FeelingContext>,
+        completed: Set<String>,
+        now: Long
+    ) {
+        val retained = windows
+            .filter { now - it.recordedAtEpochMs < RETENTION_MS }
+            .sortedByDescending { it.recordedAtEpochMs }
+            .take(MAX_WINDOWS)
+        preferences[WINDOWS] = OmamoriJson.encode(retained)
+        preferences[COMPLETED] = retained.map { it.recordedAtEpochMs.toString() }.filter { it in completed }.toSet()
     }
 
     private companion object {
@@ -170,6 +198,7 @@ internal class WatchFeelingContext(context: Context, private val scope: Coroutin
         const val MAX_WINDOWS = 30
         val ENABLED_SINCE = longPreferencesKey("enabled_since")
         val WINDOWS = stringPreferencesKey("windows")
+        val COMPLETED = stringSetPreferencesKey("completed_windows")
 
         fun readWindows(json: String?): List<FeelingContext> =
             OmamoriJson.decodeOrNull<List<FeelingContext>>(json) ?: emptyList()

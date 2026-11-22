@@ -81,5 +81,7 @@
     <string name="feeling_context_empty">Watchのデータがある記録はまだありません。</string>
     <string name="feeling_context_qr">この記録のQRコード</string>
     <string name="feeling_context_collecting">記録後15分まで計測中</string>
+    <string name="feeling_context_saving">この記録の集計を保存中</string>
+    <string name="feeling_context_no_data">この時間帯の計測データはありません</string>
     <string name="feeling_context_save_failed">設定を保存できませんでした。</string>
 </resources>
