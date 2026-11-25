@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +46,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -750,6 +753,9 @@ fun DemoSettingsWatchScreen(
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
     var snoozedFeedback by remember { mutableStateOf(false) }
+    var demoExpanded by rememberSaveable(uiState.simulationScenario) {
+        mutableStateOf(uiState.simulationScenario != SimulationScenario.LIVE_SENSORS)
+    }
 
     val scenarios = remember {
         listOf(
@@ -770,6 +776,9 @@ fun DemoSettingsWatchScreen(
     val snoozedUntil = uiState.preferences.snoozedUntilEpochMs
     val nowMs = maxOf(System.currentTimeMillis(), uiState.snapshot.sampledAtEpochMs)
     val isCurrentlySnoozed = snoozedFeedback || snoozedUntil > nowMs
+    val isDemoActive = uiState.simulationScenario != SimulationScenario.LIVE_SENSORS
+    val expandedLabel = stringResource(R.string.section_expanded)
+    val collapsedLabel = stringResource(R.string.section_collapsed)
 
     ScreenScaffold(
         scrollState = listState,
@@ -780,15 +789,6 @@ fun DemoSettingsWatchScreen(
             contentPadding = contentPadding,
             modifier = Modifier.fillMaxSize()
         ) {
-            item(key = "feeling_context") {
-                val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                OutlinedButton(
-                    onClick = onOpenFeelingContext,
-                    label = { Text(stringResource(R.string.feeling_context_title)) },
-                    transformation = transformation,
-                    modifier = Modifier.fillMaxWidth().transformedHeight(this, spec)
-                )
-            }
             item(key = "section_alerts") {
                 val transformation = remember(this, spec) { SurfaceTransformation(spec) }
                 ListSubHeader(
@@ -804,7 +804,6 @@ fun DemoSettingsWatchScreen(
                     checked = uiState.preferences.alertsEnabled,
                     onCheckedChange = { onToggleAlerts() },
                     label = { Text(stringResource(R.string.settings_alerts_label)) },
-                    secondaryLabel = { Text(stringResource(R.string.settings_alerts_secondary)) },
                     transformation = transformation,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -861,68 +860,60 @@ fun DemoSettingsWatchScreen(
                         .transformedHeight(this, spec)
                 )
             }
-
-            item(key = "section_demo") {
+            item(key = "feeling_context") {
                 val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                ListSubHeader(
+                OutlinedButton(
+                    onClick = onOpenFeelingContext,
+                    label = { Text(stringResource(R.string.feeling_context_title)) },
                     transformation = transformation,
-                    modifier = Modifier.transformedHeight(this, spec)
-                ) {
-                    Text(stringResource(R.string.settings_section_demo))
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, spec)
+                )
             }
-            scenarios.forEach { (scenario, labelRes) ->
-                item(key = "scenario_${scenario.name}") {
+            item(key = "demo_toggle") {
+                val transformation = remember(this, spec) { SurfaceTransformation(spec) }
+                OutlinedButton(
+                    onClick = { demoExpanded = !demoExpanded },
+                    label = { Text(stringResource(R.string.settings_section_demo)) },
+                    secondaryLabel = if (isDemoActive && !demoExpanded) {
+                        { Text(stringResource(R.string.demo_badge)) }
+                    } else {
+                        null
+                    },
+                    transformation = transformation,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .transformedHeight(this, spec)
+                        .semantics {
+                            stateDescription = if (demoExpanded) expandedLabel else collapsedLabel
+                        }
+                )
+            }
+            if (demoExpanded) {
+                scenarios.forEach { (scenario, labelRes) ->
+                    item(key = "scenario_${scenario.name}") {
+                        val transformation = remember(this, spec) { SurfaceTransformation(spec) }
+                        val selected = uiState.simulationScenario == scenario
+                        RadioButton(
+                            selected = selected,
+                            onSelect = { onSelectScenario(scenario) },
+                            label = { Text(stringResource(labelRes)) },
+                            transformation = transformation,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .transformedHeight(this, spec)
+                        )
+                    }
+                }
+                item(key = "pet_expression_preview") {
                     val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                    val selected = uiState.simulationScenario == scenario
-                    RadioButton(
-                        selected = selected,
-                        onSelect = { onSelectScenario(scenario) },
-                        label = { Text(stringResource(labelRes)) },
+                    WatchPetExpressionPreviewGrid(
                         transformation = transformation,
                         modifier = Modifier
                             .fillMaxWidth()
                             .transformedHeight(this, spec)
                     )
-                }
-            }
-            item(key = "pet_expression_preview") {
-                val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                ListSubHeader(
-                    transformation = transformation,
-                    modifier = Modifier.transformedHeight(this, spec)
-                ) {
-                    Text(stringResource(R.string.pet_expression_preview))
-                }
-            }
-            val expressions = listOf(
-                R.drawable.pet_calm to R.string.pet_state_calm,
-                R.drawable.pet_strain_yellow to R.string.pet_state_high,
-                R.drawable.pet_strain_red to R.string.pet_state_very_high,
-                R.drawable.pet_strain_purple to R.string.pet_state_extremely_high
-            )
-            expressions.forEach { (drawable, label) ->
-                item(key = "pet_expression_$label") {
-                    val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .transformedHeight(this, spec)
-                            .graphicsLayer { with(transformation) { applyContentTransformation() } }
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(drawable),
-                            contentDescription = null,
-                            modifier = Modifier.size(36.dp)
-                        )
-                        Text(
-                            text = stringResource(label),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                 }
             }
             item(key = "disclaimer") {
@@ -935,6 +926,70 @@ fun DemoSettingsWatchScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WatchPetExpressionPreviewGrid(
+    transformation: SurfaceTransformation,
+    modifier: Modifier = Modifier
+) {
+    val rows = remember {
+        listOf(
+            listOf(
+                R.drawable.pet_calm to R.string.pet_state_calm,
+                R.drawable.pet_strain_yellow to R.string.pet_state_high
+            ),
+            listOf(
+                R.drawable.pet_strain_red to R.string.pet_state_very_high,
+                R.drawable.pet_strain_purple to R.string.pet_state_extremely_high
+            )
+        )
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .graphicsLayer { with(transformation) { applyContentTransformation() } }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.pet_expression_preview),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        rows.forEach { rowItems ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                rowItems.forEach { (drawable, label) ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics(mergeDescendants = true) {}
+                    ) {
+                        Image(
+                            painter = painterResource(drawable),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            text = stringResource(label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }

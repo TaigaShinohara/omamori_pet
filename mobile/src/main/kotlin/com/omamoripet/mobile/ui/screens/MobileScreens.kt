@@ -12,6 +12,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -45,6 +46,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -1501,8 +1503,18 @@ fun SettingsMobileScreen(
     val hasDemoRecords = uiState.breathingSessions.any { it.isSimulated } || uiState.calmEvents.any { it.isSimulated }
     val haptic = LocalHapticFeedback.current
     val animationsEnabled = LocalAnimationsEnabled.current
+    var showSecondary by remember { mutableStateOf(!animationsEnabled) }
+    LaunchedEffect(animationsEnabled) {
+        if (animationsEnabled && !showSecondary) {
+            kotlinx.coroutines.delay(60L)
+        }
+        showSecondary = true
+    }
+
     var showResetConfirmation by remember { mutableStateOf(false) }
-    var demoExpanded by rememberSaveable(uiState.isSimulated, hasDemoRecords) {
+    var showResetDialog by rememberSaveable { mutableStateOf(false) }
+    var dataExpanded by rememberSaveable { mutableStateOf(false) }
+    var guideDemoExpanded by rememberSaveable(uiState.isSimulated, hasDemoRecords) {
         mutableStateOf(uiState.isSimulated || hasDemoRecords)
     }
 
@@ -1516,6 +1528,46 @@ fun SettingsMobileScreen(
         MobileDemoMode.DEMO_CALM -> stringResource(R.string.demo_calm)
         MobileDemoMode.DEMO_ELEVATED_AT_REST -> stringResource(R.string.demo_elevated)
         MobileDemoMode.DEMO_MOVING -> stringResource(R.string.demo_moving)
+    }
+
+    val hasAnyIntegration = uiState.hasHealthConnectPermission ||
+        uiState.feelingHealthPermissionsGranted > 0 ||
+        uiState.hasPeriodPermission
+    val expandedLabel = stringResource(R.string.section_expanded)
+    val collapsedLabel = stringResource(R.string.section_collapsed)
+    val dataArrowRotation by animateFloatAsState(
+        targetValue = if (dataExpanded) 90f else 0f,
+        animationSpec = if (animationsEnabled) tween(180) else snap(),
+        label = "dataArrowRotation"
+    )
+    val guideDemoArrowRotation by animateFloatAsState(
+        targetValue = if (guideDemoExpanded) 90f else 0f,
+        animationSpec = if (animationsEnabled) tween(180) else snap(),
+        label = "guideDemoArrowRotation"
+    )
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text(stringResource(R.string.settings_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.settings_reset_onboarding_sub)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        onResetOnboardingAnswers()
+                        showResetConfirmation = true
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_reset_confirm_btn))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
     }
 
     Box(
@@ -1534,7 +1586,6 @@ fun SettingsMobileScreen(
             ListItem(
                 leadingContent = { Icon(painterResource(R.drawable.ic_notifications_active_rounded), contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.settings_alerts_toggle)) },
-                supportingContent = { Text(stringResource(R.string.settings_alerts_subtitle)) },
                 trailingContent = {
                     Switch(
                         checked = prefs.alertsEnabled,
@@ -1619,7 +1670,6 @@ fun SettingsMobileScreen(
             ListItem(
                 leadingContent = { Icon(painterResource(R.drawable.ic_spa_rounded), contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.settings_haptics_toggle)) },
-                supportingContent = { Text(stringResource(R.string.settings_haptics_subtitle)) },
                 trailingContent = {
                     Switch(
                         checked = prefs.breathingHapticsEnabled,
@@ -1635,243 +1685,291 @@ fun SettingsMobileScreen(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            SectionHeader(text = stringResource(R.string.settings_data_section))
-
-            ListItem(
-                leadingContent = { Icon(painterResource(R.drawable.ic_favorite_rounded), contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.hc_title)) },
-                supportingContent = {
-                    Text(
-                        when {
-                            uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
-                                stringResource(R.string.hc_update_required)
-                            uiState.healthConnectAvailability == HealthConnectAvailability.UNAVAILABLE ->
-                                stringResource(R.string.hc_unavailable)
-                            uiState.hasHealthConnectPermission && uiState.healthConnectRestingBpm != null ->
-                                stringResource(R.string.hc_ready, uiState.healthConnectRestingBpm)
-                            uiState.hasHealthConnectPermission ->
-                                stringResource(R.string.hc_connected_badge)
-                            uiState.hcPermissionAttempted ->
-                                stringResource(R.string.hc_denied_recovery)
-                            else ->
-                                stringResource(R.string.hc_missing_perm)
-                        }
-                    )
-                },
-                trailingContent = if (
-                    uiState.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
-                    uiState.hasHealthConnectPermission
-                ) {
-                    {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_check_circle_outline_rounded),
-                            contentDescription = stringResource(R.string.hc_connected_badge),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                } else {
-                    null
-                }
-            )
-            if (uiState.healthConnectAvailability != HealthConnectAvailability.UNAVAILABLE &&
-                !uiState.hasHealthConnectPermission
-            ) {
-                Box(modifier = Modifier.padding(start = 56.dp, end = 16.dp, bottom = 12.dp)) {
-                    FilledTonalButton(
-                        onClick = {
-                            when {
-                                uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
-                                    onUpdateHealthConnect()
-                                uiState.hcPermissionAttempted ->
-                                    onOpenHealthConnectSettings()
-                                else ->
-                                    onRequestHealthConnect()
-                            }
-                        },
-                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                    ) {
-                        Text(
-                            when {
-                                uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
-                                    stringResource(R.string.hc_update_btn)
-                                uiState.hcPermissionAttempted ->
-                                    stringResource(R.string.hc_open_settings_btn)
-                                else ->
-                                    stringResource(R.string.hc_grant_btn)
-                            }
-                        )
-                    }
-                }
-            }
-
-            if (uiState.healthConnectAvailability == HealthConnectAvailability.AVAILABLE) {
-                val hasFeelingHealthPermissions = uiState.feelingHealthPermissionsGranted == 3
-                ListItem(
-                    leadingContent = { Icon(painterResource(R.drawable.ic_history_rounded), contentDescription = null) },
-                    headlineContent = { Text(stringResource(R.string.feeling_health_settings_title)) },
-                    supportingContent = {
-                        Column {
-                            Text(stringResource(R.string.feeling_health_settings_summary))
-                            if (uiState.feelingHealthPermissionsGranted > 0) {
-                                Text(stringResource(R.string.feeling_health_permissions_count, uiState.feelingHealthPermissionsGranted))
-                            }
-                            TextButton(onClick = if (hasFeelingHealthPermissions) onOpenHealthConnectSettings else onRequestFeelingHealth) {
-                                Text(stringResource(if (hasFeelingHealthPermissions) R.string.hc_open_settings_btn else R.string.feeling_health_grant))
-                            }
-                        }
-                    }
-                )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.feeling_period_settings_title)) },
-                    supportingContent = {
-                        Column {
-                            Text(stringResource(R.string.feeling_period_settings_summary))
-                            TextButton(onClick = if (uiState.hasPeriodPermission) onOpenHealthConnectSettings else onRequestFeelingPeriod) {
-                                Text(stringResource(if (uiState.hasPeriodPermission) R.string.hc_open_settings_btn else R.string.feeling_health_grant))
-                            }
-                        }
-                    }
-                )
-            }
-
-            if (uiState.aiBackendStatus != AiBackendStatus.FALLBACK_ONLY || uiState.isAiPreparing) {
-                ListItem(
-                    leadingContent = { Icon(painterResource(R.drawable.ic_auto_awesome_rounded), contentDescription = null) },
-                    headlineContent = { Text(stringResource(R.string.ai_nano_title)) },
-                    supportingContent = {
-                        Text(
-                            when {
-                                uiState.isAiPreparing -> stringResource(R.string.ai_preparing)
-                                uiState.aiPrepareFailed -> stringResource(R.string.ai_prepare_failed)
-                                uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_AVAILABLE ->
-                                    stringResource(R.string.ai_nano_ready)
-                                else -> stringResource(R.string.ai_nano_downloadable)
-                            }
-                        )
-                    },
-                    trailingContent = {
-                        when {
-                            uiState.isAiPreparing ->
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_AVAILABLE ->
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_check_circle_outline_rounded),
-                                    contentDescription = stringResource(R.string.ai_nano_ready),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            else ->
-                                FilledTonalButton(
-                                    onClick = onPrepareGeminiNano,
-                                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                                ) {
-                                    Text(stringResource(R.string.ai_download_btn))
-                                }
-                        }
-                    }
-                )
-            }
-
-            ListItem(
-                leadingContent = { Icon(painterResource(R.drawable.ic_privacy_tip_rounded), contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.settings_privacy_item)) },
-                supportingContent = { Text(stringResource(R.string.settings_privacy_subtitle)) },
-                trailingContent = {
-                    Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
-                },
-                modifier = Modifier.clickable(onClick = onOpenPrivacyRationale)
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            SectionHeader(text = stringResource(R.string.settings_guide_section))
-
-            ListItem(
-                leadingContent = { Icon(painterResource(R.drawable.ic_auto_awesome_rounded), contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.settings_replay_onboarding)) },
-                trailingContent = {
-                    Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
-                },
-                modifier = Modifier.clickable(onClick = onReplayOnboarding)
-            )
-
-            ListItem(
-                leadingContent = { Icon(painterResource(R.drawable.ic_delete_outline_rounded), contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.settings_reset_onboarding)) },
-                supportingContent = {
-                    Text(
-                        if (showResetConfirmation) {
-                            stringResource(R.string.settings_reset_onboarding_done)
-                        } else {
-                            stringResource(R.string.settings_reset_onboarding_sub)
-                        }
-                    )
-                },
-                modifier = Modifier.clickable {
-                    onResetOnboardingAnswers()
-                    showResetConfirmation = true
-                }
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-            // 体験デモは低頻度のBランク機能として既定で折りたたみ、必要時だけ開ける
-            val expandedLabel = stringResource(R.string.section_expanded)
-            val collapsedLabel = stringResource(R.string.section_collapsed)
-            ListItem(
-                leadingContent = { Icon(painterResource(R.drawable.ic_watch_rounded), contentDescription = null) },
-                headlineContent = { Text(stringResource(R.string.settings_demo_section)) },
-                supportingContent = { Text(demoModeLabel) },
-                trailingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_keyboard_arrow_right_rounded),
-                        contentDescription = null,
-                        modifier = Modifier.rotate(if (demoExpanded) 90f else 0f)
-                    )
-                },
-                modifier = Modifier
-                    .semantics {
-                        stateDescription = if (demoExpanded) expandedLabel else collapsedLabel
-                    }
-                    .clickable(role = Role.Button) { demoExpanded = !demoExpanded }
-            )
-
             AnimatedVisibility(
-                visible = demoExpanded,
-                enter = if (animationsEnabled) fadeIn() + expandVertically() else EnterTransition.None,
-                exit = if (animationsEnabled) fadeOut() + shrinkVertically() else ExitTransition.None
+                visible = showSecondary,
+                enter = if (animationsEnabled) fadeIn(tween(180)) else EnterTransition.None
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_demo_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                Column {
+                    // Bランク折りたたみ①：健康データ・AI連携
+                    ListItem(
+                        leadingContent = { Icon(painterResource(R.drawable.ic_favorite_rounded), contentDescription = null) },
+                        headlineContent = { Text(stringResource(R.string.settings_integrations_section)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (hasAnyIntegration) {
+                                        R.string.settings_integrations_connected
+                                    } else {
+                                        R.string.settings_integrations_not_set
+                                    }
+                                )
+                            )
+                        },
+                        trailingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_keyboard_arrow_right_rounded),
+                                contentDescription = null,
+                                modifier = Modifier.rotate(dataArrowRotation)
+                            )
+                        },
+                        modifier = Modifier
+                            .semantics {
+                                stateDescription = if (dataExpanded) expandedLabel else collapsedLabel
+                            }
+                            .clickable(role = Role.Button) { dataExpanded = !dataExpanded }
                     )
-                    DemoModeSelector(
-                        current = uiState.demoMode,
-                        onSelect = onSelectDemoMode
-                    )
-                    PetExpressionPreview()
-                    if (hasDemoRecords) {
-                        OutlinedButton(
-                            onClick = onClearDemoHistory,
-                            modifier = Modifier.defaultMinSize(minHeight = 48.dp)
-                        ) {
-                            Icon(painterResource(R.drawable.ic_delete_outline_rounded), contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(stringResource(R.string.settings_clear_demo))
+
+                    AnimatedVisibility(
+                        visible = dataExpanded,
+                        enter = if (animationsEnabled) fadeIn() + expandVertically() else EnterTransition.None,
+                        exit = if (animationsEnabled) fadeOut() + shrinkVertically() else ExitTransition.None
+                    ) {
+                        Column {
+                            ListItem(
+                                leadingContent = { Icon(painterResource(R.drawable.ic_favorite_rounded), contentDescription = null) },
+                                headlineContent = { Text(stringResource(R.string.hc_title)) },
+                                supportingContent = {
+                                    Text(
+                                        when {
+                                            uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
+                                                stringResource(R.string.hc_update_required)
+                                            uiState.healthConnectAvailability == HealthConnectAvailability.UNAVAILABLE ->
+                                                stringResource(R.string.hc_unavailable)
+                                            uiState.hasHealthConnectPermission && uiState.healthConnectRestingBpm != null ->
+                                                stringResource(R.string.hc_ready, uiState.healthConnectRestingBpm)
+                                            uiState.hasHealthConnectPermission ->
+                                                stringResource(R.string.hc_connected_badge)
+                                            uiState.hcPermissionAttempted ->
+                                                stringResource(R.string.hc_denied_recovery)
+                                            else ->
+                                                stringResource(R.string.hc_missing_perm)
+                                        }
+                                    )
+                                },
+                                trailingContent = when {
+                                    uiState.healthConnectAvailability == HealthConnectAvailability.AVAILABLE &&
+                                        uiState.hasHealthConnectPermission -> {
+                                        {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_check_circle_outline_rounded),
+                                                contentDescription = stringResource(R.string.hc_connected_badge),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    uiState.healthConnectAvailability != HealthConnectAvailability.UNAVAILABLE &&
+                                        !uiState.hasHealthConnectPermission -> {
+                                        {
+                                            TextButton(
+                                                onClick = {
+                                                    when {
+                                                        uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
+                                                            onUpdateHealthConnect()
+                                                        uiState.hcPermissionAttempted ->
+                                                            onOpenHealthConnectSettings()
+                                                        else ->
+                                                            onRequestHealthConnect()
+                                                    }
+                                                }
+                                            ) {
+                                                Text(
+                                                    when {
+                                                        uiState.healthConnectAvailability == HealthConnectAvailability.UPDATE_REQUIRED ->
+                                                            stringResource(R.string.hc_update_btn)
+                                                        uiState.hcPermissionAttempted ->
+                                                            stringResource(R.string.hc_open_settings_btn)
+                                                        else ->
+                                                            stringResource(R.string.hc_grant_btn)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                    else -> null
+                                }
+                            )
+
+                            if (uiState.healthConnectAvailability == HealthConnectAvailability.AVAILABLE) {
+                                val hasFeelingHealthPermissions = uiState.feelingHealthPermissionsGranted == 3
+                                ListItem(
+                                    leadingContent = { Icon(painterResource(R.drawable.ic_history_rounded), contentDescription = null) },
+                                    headlineContent = { Text(stringResource(R.string.feeling_health_settings_title)) },
+                                    supportingContent = {
+                                        Text(
+                                            "${stringResource(R.string.feeling_health_settings_summary)} · ${uiState.feelingHealthPermissionsGranted}/3"
+                                        )
+                                    },
+                                    trailingContent = {
+                                        TextButton(
+                                            onClick = if (hasFeelingHealthPermissions) {
+                                                onOpenHealthConnectSettings
+                                            } else {
+                                                onRequestFeelingHealth
+                                            }
+                                        ) {
+                                            Text(
+                                                stringResource(
+                                                    if (hasFeelingHealthPermissions) {
+                                                        R.string.hc_open_settings_btn
+                                                    } else {
+                                                        R.string.feeling_health_grant
+                                                    }
+                                                )
+                                            )
+                                        }
+                                    }
+                                )
+                                ListItem(
+                                    leadingContent = { Icon(painterResource(R.drawable.ic_favorite_border_rounded), contentDescription = null) },
+                                    headlineContent = { Text(stringResource(R.string.feeling_period_settings_title)) },
+                                    supportingContent = { Text(stringResource(R.string.feeling_period_settings_summary)) },
+                                    trailingContent = {
+                                        TextButton(
+                                            onClick = if (uiState.hasPeriodPermission) {
+                                                onOpenHealthConnectSettings
+                                            } else {
+                                                onRequestFeelingPeriod
+                                            }
+                                        ) {
+                                            Text(
+                                                stringResource(
+                                                    if (uiState.hasPeriodPermission) {
+                                                        R.string.hc_open_settings_btn
+                                                    } else {
+                                                        R.string.feeling_health_grant
+                                                    }
+                                                )
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+
+                            if (uiState.aiBackendStatus != AiBackendStatus.FALLBACK_ONLY || uiState.isAiPreparing) {
+                                ListItem(
+                                    leadingContent = { Icon(painterResource(R.drawable.ic_auto_awesome_rounded), contentDescription = null) },
+                                    headlineContent = { Text(stringResource(R.string.ai_nano_title)) },
+                                    supportingContent = {
+                                        Text(
+                                            when {
+                                                uiState.isAiPreparing -> stringResource(R.string.ai_preparing)
+                                                uiState.aiPrepareFailed -> stringResource(R.string.ai_prepare_failed)
+                                                uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_AVAILABLE ->
+                                                    stringResource(R.string.ai_nano_ready)
+                                                else -> stringResource(R.string.ai_nano_downloadable)
+                                            }
+                                        )
+                                    },
+                                    trailingContent = {
+                                        when {
+                                            uiState.isAiPreparing ->
+                                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                            uiState.aiBackendStatus == AiBackendStatus.GEMINI_NANO_AVAILABLE ->
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_check_circle_outline_rounded),
+                                                    contentDescription = stringResource(R.string.ai_nano_ready),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            else ->
+                                                TextButton(onClick = onPrepareGeminiNano) {
+                                                    Text(stringResource(R.string.ai_download_btn))
+                                                }
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
+
+                    // Bランク折りたたみ②：使い方・体験デモ
+                    ListItem(
+                        leadingContent = { Icon(painterResource(R.drawable.ic_auto_awesome_rounded), contentDescription = null) },
+                        headlineContent = { Text(stringResource(R.string.settings_guide_demo_section)) },
+                        supportingContent = if (uiState.isSimulated) {
+                            { Text(demoModeLabel) }
+                        } else {
+                            null
+                        },
+                        trailingContent = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_keyboard_arrow_right_rounded),
+                                contentDescription = null,
+                                modifier = Modifier.rotate(guideDemoArrowRotation)
+                            )
+                        },
+                        modifier = Modifier
+                            .semantics {
+                                stateDescription = if (guideDemoExpanded) expandedLabel else collapsedLabel
+                            }
+                            .clickable(role = Role.Button) { guideDemoExpanded = !guideDemoExpanded }
+                    )
+
+                    AnimatedVisibility(
+                        visible = guideDemoExpanded,
+                        enter = if (animationsEnabled) fadeIn() + expandVertically() else EnterTransition.None,
+                        exit = if (animationsEnabled) fadeOut() + shrinkVertically() else ExitTransition.None
+                    ) {
+                        Column {
+                            ListItem(
+                                leadingContent = { Icon(painterResource(R.drawable.ic_auto_awesome_rounded), contentDescription = null) },
+                                headlineContent = { Text(stringResource(R.string.settings_replay_onboarding)) },
+                                trailingContent = {
+                                    Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
+                                },
+                                modifier = Modifier.clickable(onClick = onReplayOnboarding)
+                            )
+
+                            ListItem(
+                                leadingContent = { Icon(painterResource(R.drawable.ic_delete_outline_rounded), contentDescription = null) },
+                                headlineContent = { Text(stringResource(R.string.settings_reset_onboarding)) },
+                                supportingContent = if (showResetConfirmation) {
+                                    { Text(stringResource(R.string.settings_reset_onboarding_done)) }
+                                } else {
+                                    null
+                                },
+                                modifier = Modifier.clickable { showResetDialog = true }
+                            )
+
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                DemoModeSelector(
+                                    current = uiState.demoMode,
+                                    onSelect = onSelectDemoMode
+                                )
+                                PetExpressionPreview()
+                                if (hasDemoRecords) {
+                                    OutlinedButton(
+                                        onClick = onClearDemoHistory,
+                                        modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                                    ) {
+                                        Icon(painterResource(R.drawable.ic_delete_outline_rounded), contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(stringResource(R.string.settings_clear_demo))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ListItem(
+                        leadingContent = { Icon(painterResource(R.drawable.ic_privacy_tip_rounded), contentDescription = null) },
+                        headlineContent = { Text(stringResource(R.string.settings_privacy_item)) },
+                        trailingContent = {
+                            Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
+                        },
+                        modifier = Modifier.clickable(onClick = onOpenPrivacyRationale)
+                    )
+
+                    Text(
+                        text = stringResource(R.string.settings_disclaimer_short),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                    )
                 }
             }
-
-            WellnessNoticeCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            )
         }
     }
 }

@@ -39,7 +39,7 @@
 
     <string name="ai_card_title">ひとこと</string>
     <string name="ai_refresh">言葉を新しくする</string>
-    <string name="ai_nano_title">端末内AI（Gemini Nano）</string>
+    <string name="ai_nano_title">ひとことの言葉づくり</string>
     <string name="ai_nano_ready">準備済み · 外部送信なし</string>
     <string name="ai_nano_downloadable">より自然な言葉にできます</string>
     <string name="ai_download_btn">準備する</string>
@@ -77,23 +77,22 @@
 
     <string name="settings_alerts_section">通知</string>
     <string name="settings_alerts_toggle">静止中の心拍通知</string>
-    <string name="settings_alerts_subtitle">静止3分・持続90秒で通知</string>
     <string name="settings_threshold_label">通知の目安（+%1$d bpm）</string>
-    <string name="settings_threshold_sensitive">敏感 (+10)</string>
-    <string name="settings_threshold_relaxed">控えめ (+25)</string>
+    <string name="settings_threshold_sensitive">敏感</string>
+    <string name="settings_threshold_relaxed">控えめ</string>
     <string name="settings_quiet_hours">おやすみ時間（23:00〜07:00）</string>
     <string name="settings_haptics_toggle">深呼吸の振動ガイド</string>
-    <string name="settings_haptics_subtitle">手元の振動でペースを案内</string>
-    <string name="settings_data_section">連携・プライバシー</string>
+    <string name="settings_integrations_section">健康データ・AI連携</string>
+    <string name="settings_integrations_connected">連携中</string>
+    <string name="settings_integrations_not_set">未設定</string>
+    <string name="settings_guide_demo_section">使い方・体験デモ</string>
     <string name="settings_privacy_item">データとプライバシー</string>
-    <string name="settings_privacy_subtitle">Health Connectの読み取り・端末内保存</string>
-    <string name="settings_guide_section">使い方</string>
     <string name="settings_replay_onboarding">はじめの案内を見る</string>
     <string name="settings_reset_onboarding">案内設定をリセット</string>
     <string name="settings_reset_onboarding_sub">記録は残ります</string>
     <string name="settings_reset_onboarding_done">リセットしました</string>
-    <string name="settings_demo_section">体験デモ</string>
-    <string name="settings_demo_subtitle">Watch なしで画面と通知を体験</string>
+    <string name="settings_reset_confirm_title">案内設定をリセットしますか？</string>
+    <string name="settings_reset_confirm_btn">リセット</string>
     <string name="demo_live">実測</string>
     <string name="demo_calm">おだやか</string>
     <string name="demo_elevated">高め(静止)</string>
@@ -101,6 +100,7 @@
     <string name="settings_clear_demo">デモ記録を消去</string>
     <string name="settings_disclaimer_title">ご利用上の注意</string>
     <string name="settings_disclaimer_body">医療機器ではなく、自己観察とリラックスのためのアプリです。</string>
+    <string name="settings_disclaimer_short">医療機器ではありません。自己観察とリラックスのためのアプリです。</string>
 
     <string name="privacy_title">データとプライバシー</string>
     <string name="privacy_point_read_title">読み取るデータ</string>
@@ -253,12 +253,12 @@
     <string name="feeling_detail_remove_watch_data">この記録のWatchデータを削除</string>
     <string name="feeling_detail_remove_help">取り込んだ心拍と動きを、このスマホから削除します。</string>
     <string name="feeling_detail_remove">削除</string>
-    <string name="feeling_health_settings_title">気持ちの記録に健康データを添える</string>
-    <string name="feeling_health_settings_summary">Health Connectの睡眠・歩数・心拍を自動で添えます。</string>
+    <string name="feeling_health_settings_title">気持ち記録の健康データ</string>
+    <string name="feeling_health_settings_summary">睡眠・歩数・心拍</string>
     <string name="feeling_health_permissions_count">3項目中%1$d項目を許可済み</string>
     <string name="feeling_health_grant">読み取りを許可</string>
     <string name="feeling_period_settings_title">生理周期の記録</string>
-    <string name="feeling_period_settings_summary">Health Connectにある最終月経開始日からの日数を表示します。</string>
+    <string name="feeling_period_settings_summary">最終月経からの日数</string>
     <string name="feeling_health_detail_title">そのときのデータ</string>
     <string name="feeling_health_detail_empty">この記録の睡眠・歩数・心拍は未取得です。</string>
     <string name="feeling_health_sync_pending">Health Connectの同期待ち</string>

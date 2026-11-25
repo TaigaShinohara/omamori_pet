@@ -65,9 +65,10 @@
 
     <string name="settings_section_alerts">通知</string>
     <string name="settings_alerts_label">やさしい通知</string>
-    <string name="settings_alerts_secondary">静止3分以上で通知</string>
     <string name="settings_snoozed_confirm">1時間おやすみにしました</string>
-    <string name="settings_section_demo">体験デモ切替</string>
+    <string name="settings_section_demo">体験デモ</string>
+    <string name="section_expanded">展開</string>
+    <string name="section_collapsed">折りたたみ</string>
     <string name="demo_live">実センサー</string>
     <string name="demo_calm">デモ: おだやか</string>
     <string name="demo_elevated">デモ: 静止中に高め</string>

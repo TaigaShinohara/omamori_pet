@@ -39,7 +39,7 @@
 
     <string name="ai_card_title">Note</string>
     <string name="ai_refresh">Refresh note</string>
-    <string name="ai_nano_title">On-device AI (Gemini Nano)</string>
+    <string name="ai_nano_title">Smarter on-device notes</string>
     <string name="ai_nano_ready">Ready · Private</string>
     <string name="ai_nano_downloadable">Smarter notes available</string>
     <string name="ai_download_btn">Prepare</string>
@@ -77,23 +77,22 @@
 
     <string name="settings_alerts_section">Alerts</string>
     <string name="settings_alerts_toggle">Elevated HR alerts</string>
-    <string name="settings_alerts_subtitle">After 3m still &amp; 90s rise</string>
     <string name="settings_threshold_label">Sensitivity (+%1$d bpm)</string>
-    <string name="settings_threshold_sensitive">Sensitive (+10)</string>
-    <string name="settings_threshold_relaxed">Relaxed (+25)</string>
+    <string name="settings_threshold_sensitive">Sensitive</string>
+    <string name="settings_threshold_relaxed">Relaxed</string>
     <string name="settings_quiet_hours">Quiet hours (23:00–07:00)</string>
     <string name="settings_haptics_toggle">Breathing vibration</string>
-    <string name="settings_haptics_subtitle">Feel inhale and exhale pace</string>
-    <string name="settings_data_section">Data &amp; Privacy</string>
+    <string name="settings_integrations_section">Health Data &amp; AI</string>
+    <string name="settings_integrations_connected">Connected</string>
+    <string name="settings_integrations_not_set">Not set</string>
+    <string name="settings_guide_demo_section">Guide &amp; Demo</string>
     <string name="settings_privacy_item">Data &amp; Privacy</string>
-    <string name="settings_privacy_subtitle">Health Connect access · On-device records</string>
-    <string name="settings_guide_section">Guide</string>
     <string name="settings_replay_onboarding">View beginner guide</string>
     <string name="settings_reset_onboarding">Reset guide choices</string>
     <string name="settings_reset_onboarding_sub">History is kept</string>
     <string name="settings_reset_onboarding_done">Reset complete</string>
-    <string name="settings_demo_section">Demo Mode</string>
-    <string name="settings_demo_subtitle">Preview states without a watch</string>
+    <string name="settings_reset_confirm_title">Reset guide choices?</string>
+    <string name="settings_reset_confirm_btn">Reset</string>
     <string name="demo_live">Live</string>
     <string name="demo_calm">Calm</string>
     <string name="demo_elevated">Elevated</string>
@@ -101,6 +100,7 @@
     <string name="settings_clear_demo">Clear demo records</string>
     <string name="settings_disclaimer_title">Wellness Notice</string>
     <string name="settings_disclaimer_body">A relaxation companion, not a medical device.</string>
+    <string name="settings_disclaimer_short">Not a medical device. For relaxation and self-awareness.</string>
 
     <string name="privacy_title">Data &amp; Privacy</string>
     <string name="privacy_point_read_title">What we read</string>
@@ -253,12 +253,12 @@
     <string name="feeling_detail_remove_watch_data">Delete watch data for this record</string>
     <string name="feeling_detail_remove_help">This removes the imported heart rate and movement from this phone.</string>
     <string name="feeling_detail_remove">Delete</string>
-    <string name="feeling_health_settings_title">Health data for feeling records</string>
-    <string name="feeling_health_settings_summary">Automatically attach sleep, steps, and heart rate from Health Connect.</string>
+    <string name="feeling_health_settings_title">Health data for feelings</string>
+    <string name="feeling_health_settings_summary">Sleep, steps &amp; heart rate</string>
     <string name="feeling_health_permissions_count">%1$d of 3 data types allowed</string>
     <string name="feeling_health_grant">Allow access</string>
     <string name="feeling_period_settings_title">Menstrual records</string>
-    <string name="feeling_period_settings_summary">Show the day counted from the last period start in Health Connect.</string>
+    <string name="feeling_period_settings_summary">Days since last period</string>
     <string name="feeling_health_detail_title">Data around this record</string>
     <string name="feeling_health_detail_empty">Sleep, steps, and heart rate are unavailable for this record.</string>
     <string name="feeling_health_sync_pending">Waiting for Health Connect to sync</string>

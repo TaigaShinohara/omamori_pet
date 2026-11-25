@@ -65,9 +65,10 @@
 
     <string name="settings_section_alerts">Notices</string>
     <string name="settings_alerts_label">Gentle alerts</string>
-    <string name="settings_alerts_secondary">When still 3m+</string>
     <string name="settings_snoozed_confirm">Paused for 1 hour</string>
-    <string name="settings_section_demo">Demo Preview</string>
+    <string name="settings_section_demo">Demo Mode</string>
+    <string name="section_expanded">Expanded</string>
+    <string name="section_collapsed">Collapsed</string>
     <string name="demo_live">Live Sensors</string>
     <string name="demo_calm">Demo: Calm</string>
     <string name="demo_elevated">Demo: Elevated at rest</string>
