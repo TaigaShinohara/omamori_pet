@@ -12,7 +12,16 @@ internal fun resolvePetDrawableRes(
     petHeartRateColor: PetHeartRateColor? = null
 ): Int = when (state) {
     OmamoriState.CALM -> if (monochromatic) R.drawable.pet_calm_mono else R.drawable.pet_calm
-    OmamoriState.BREATHING -> if (monochromatic) R.drawable.pet_breathing_mono else R.drawable.pet_breathing
+    OmamoriState.BREATHING -> if (monochromatic) {
+        R.drawable.pet_breathing_mono
+    } else {
+        when (petHeartRateColor) {
+            PetHeartRateColor.YELLOW -> R.drawable.pet_breathing_yellow
+            PetHeartRateColor.RED -> R.drawable.pet_breathing_red
+            PetHeartRateColor.PURPLE -> R.drawable.pet_breathing_purple
+            null -> R.drawable.pet_breathing
+        }
+    }
     OmamoriState.RESTING -> if (monochromatic) R.drawable.pet_resting_mono else R.drawable.pet_resting
     OmamoriState.ELEVATED_AT_REST -> when (petHeartRateColor) {
         PetHeartRateColor.YELLOW -> if (monochromatic) R.drawable.pet_strain_yellow_mono else R.drawable.pet_strain_yellow

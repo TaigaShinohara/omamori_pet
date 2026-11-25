@@ -3,7 +3,10 @@ package com.omamoripet.mobile.data
 import com.omamoripet.shared.model.BaselineSource
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetBodyTone
+import com.omamoripet.shared.model.PetExpressionMode
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.shared.sync.WatchLivePayload
 import org.junit.Assert.*
 import org.junit.Test
@@ -25,7 +28,16 @@ class MobileWatchStateTest {
         )
         assertEquals(PetHeartRateColor.RED, MobileUiState().withWatchMeasurements(payload).petHeartRateColor)
         assertNull(MobileUiState(healthConnectRestingBpm = 75).withWatchMeasurements(payload).petHeartRateColor)
-        assertNull(MobileUiState().withWatchMeasurements(payload.copy(omamoriState = OmamoriState.BREATHING)).petHeartRateColor)
+        assertEquals(
+            PetHeartRateColor.RED,
+            MobileUiState().withWatchMeasurements(payload.copy(omamoriState = OmamoriState.BREATHING)).petHeartRateColor
+        )
+        assertNull(
+            MobileUiState(healthConnectRestingBpm = 75)
+                .withWatchMeasurements(payload.copy(omamoriState = OmamoriState.BREATHING)).petHeartRateColor
+        )
+        assertNull(MobileUiState().withWatchMeasurements(payload.copy(omamoriState = OmamoriState.CALM)).petHeartRateColor)
+        assertNull(MobileUiState().withWatchMeasurements(payload.copy(omamoriState = OmamoriState.RESTING)).petHeartRateColor)
     }
 
     @Test
@@ -49,5 +61,37 @@ class MobileWatchStateTest {
     fun `losing the watch connection preserves an explicit phone demo`() {
         val demo = MobileUiState(demoMode = MobileDemoMode.DEMO_CALM, isSimulated = true, currentHeartRateBpm = 66)
         assertEquals(demo, demo.withoutWatchMeasurements())
+    }
+
+    @Test
+    fun `petVisualState resolves two-axis tone and mode consistently`() {
+        assertEquals(
+            PetVisualState(PetBodyTone.DATA_MISSING, PetExpressionMode.SLEEPING),
+            MobileUiState().petVisualState
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.RED, PetExpressionMode.BREATHING),
+            MobileUiState(
+                omamoriState = OmamoriState.BREATHING,
+                petHeartRateColor = PetHeartRateColor.RED,
+                lastWatchSyncMs = 1_000L
+            ).petVisualState
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.PURPLE, PetExpressionMode.ELEVATED),
+            MobileUiState(
+                omamoriState = OmamoriState.ELEVATED_AT_REST,
+                petHeartRateColor = PetHeartRateColor.PURPLE,
+                lastWatchSyncMs = 1_000L
+            ).petVisualState
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.RED, PetExpressionMode.ELEVATED),
+            MobileUiState(
+                omamoriState = OmamoriState.ELEVATED_AT_REST,
+                petHeartRateColor = PetHeartRateColor.RED,
+                isSimulated = true
+            ).petVisualState
+        )
     }
 }

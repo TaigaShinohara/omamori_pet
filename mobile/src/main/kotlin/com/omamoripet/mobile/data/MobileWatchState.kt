@@ -10,7 +10,9 @@ internal fun MobileUiState.withWatchMeasurements(payload: WatchLivePayload): Mob
     return copy(
         omamoriState = payload.omamoriState,
         petHeartRateColor = payload.petHeartRateColor.takeIf {
-            payload.omamoriState == OmamoriState.ELEVATED_AT_REST && baselineBpm == payload.restingBaselineBpm
+            (payload.omamoriState == OmamoriState.ELEVATED_AT_REST ||
+                payload.omamoriState == OmamoriState.BREATHING) &&
+                baselineBpm == payload.restingBaselineBpm
         },
         currentHeartRateBpm = payload.currentHeartRateBpm,
         restingBaselineBpm = baselineBpm,

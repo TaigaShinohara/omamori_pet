@@ -71,7 +71,9 @@ import androidx.wear.compose.material3.lazy.transformedHeight
 import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetExpressionMode
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.shared.model.visibleForRemainingTime
 import com.omamoripet.wear.R
 import com.omamoripet.wear.breathing.BreathPhase
@@ -152,6 +154,7 @@ fun HomeWatchScreen(
             item(key = "pet_header") {
                 WatchPetHeader(
                     state = state,
+                    visualState = uiState.petVisualState,
                     feeling = feelingFace?.feeling,
                     petHeartRateColor = uiState.evaluation.petHeartRateColor,
                     isSimulated = isSimulated,
@@ -351,6 +354,7 @@ fun HomeWatchScreen(
 @Composable
 private fun WatchPetHeader(
     state: OmamoriState,
+    visualState: PetVisualState,
     feeling: Feeling?,
     petHeartRateColor: PetHeartRateColor?,
     isSimulated: Boolean,
@@ -366,33 +370,16 @@ private fun WatchPetHeader(
         }
     )
     val visibleTitle = if (isSimulated && feeling == null) "$title (${stringResource(R.string.demo_badge)})" else title
-    val face = when (feeling) {
-        Feeling.ANXIOUS -> R.drawable.pet_feeling_anxious
-        Feeling.LOW -> R.drawable.pet_feeling_low
-        Feeling.IRRITATED -> R.drawable.pet_feeling_irritated
-        null -> if (state == OmamoriState.ELEVATED_AT_REST && petHeartRateColor != null) {
-            resolvePetDrawableRes(state, petHeartRateColor = petHeartRateColor)
-        } else {
-            null
-        }
-    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.padding(top = 2.dp, bottom = 2.dp)
     ) {
-        if (face != null) {
-            Image(
-                painter = painterResource(face),
-                contentDescription = null,
-                modifier = Modifier.size(48.dp)
-            )
-        } else {
-            OmamoriPetWearAvatar(
-                state = state,
-                contentDescriptionText = stringResource(R.string.app_name),
-                size = 48.dp
-            )
-        }
+        OmamoriPetWearAvatar(
+            visualState = visualState,
+            feeling = feeling,
+            contentDescriptionText = stringResource(R.string.app_name),
+            size = 48.dp
+        )
         Spacer(Modifier.height(2.dp))
         if (feeling != null) {
             Text(
@@ -532,6 +519,7 @@ private fun WatchBreathingCtaButton(
 @Composable
 fun BreathingWatchScreen(
     breathingState: BreathingUiState,
+    visualState: PetVisualState,
     onStop: () -> Unit,
     onDoneBack: () -> Unit
 ) {
@@ -625,7 +613,7 @@ fun BreathingWatchScreen(
                 ) {
                     if (isCompleted) {
                         OmamoriPetWearAvatar(
-                            state = OmamoriState.CALM,
+                            visualState = visualState,
                             contentDescriptionText = null,
                             interactive = false,
                             size = 54.dp
@@ -666,7 +654,7 @@ fun BreathingWatchScreen(
                             BreathPhase.COMPLETED -> ""
                         }
                         OmamoriPetWearAvatar(
-                            state = OmamoriState.BREATHING,
+                            visualState = visualState.copy(mode = PetExpressionMode.BREATHING),
                             contentDescriptionText = null,
                             breathProgressProvider = breathFractionProvider,
                             interactive = false,

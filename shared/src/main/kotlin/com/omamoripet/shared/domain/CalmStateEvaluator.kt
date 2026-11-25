@@ -38,6 +38,23 @@ object CalmStateEvaluator {
         val currentBpm = snapshot.currentHeartRateBpm
         val delta = currentBpm - snapshot.restingBaselineBpm
         val calmScore = computeCalmScore(delta = delta, motionState = snapshot.motionState, isBreathingActive = isBreathingActive)
+        val isStill = snapshot.motionState == MotionState.STILL_CONFIRMED
+        val alertElevationReached = isStill &&
+            delta >= preferences.elevationThresholdBpm &&
+            snapshot.sustainedElevationSeconds >= preferences.requiredSustainedSeconds
+        val petElevationReached = isStill &&
+            delta >= PET_ELEVATION_THRESHOLD_BPM &&
+            snapshot.sustainedPetElevationSeconds >= PET_ELEVATION_REQUIRED_SECONDS
+        val petHeartRateColor = if (isStill) {
+            resolvePetHeartRateColor(
+                delta = delta,
+                alertElevationReached = alertElevationReached,
+                petElevationReached = petElevationReached,
+                elevationThresholdBpm = preferences.elevationThresholdBpm
+            )
+        } else {
+            null
+        }
 
         if (isBreathingActive) {
             return CalmEvaluation(
@@ -45,11 +62,12 @@ object CalmStateEvaluator {
                 calmScore = calmScore,
                 deltaFromRestingBpm = delta,
                 shouldTriggerAlert = false,
-                suppressionReason = AlertSuppressionReason.ALREADY_BREATHING
+                suppressionReason = AlertSuppressionReason.ALREADY_BREATHING,
+                petHeartRateColor = petHeartRateColor
             )
         }
 
-        if (snapshot.motionState != MotionState.STILL_CONFIRMED) {
+        if (!isStill) {
             return CalmEvaluation(
                 state = OmamoriState.CALM,
                 calmScore = calmScore,
@@ -59,10 +77,6 @@ object CalmStateEvaluator {
             )
         }
 
-        val alertElevationReached = delta >= preferences.elevationThresholdBpm &&
-            snapshot.sustainedElevationSeconds >= preferences.requiredSustainedSeconds
-        val petElevationReached = delta >= PET_ELEVATION_THRESHOLD_BPM &&
-            snapshot.sustainedPetElevationSeconds >= PET_ELEVATION_REQUIRED_SECONDS
         val suppression = when {
             delta < preferences.elevationThresholdBpm -> AlertSuppressionReason.BELOW_THRESHOLD
             !alertElevationReached -> AlertSuppressionReason.DURATION_TOO_SHORT
@@ -74,15 +88,6 @@ object CalmStateEvaluator {
             )
         }
 
-        // 小さな心拍差はペットに早めに表示し、赤・紫と通知には従来の判定を使う。
-        val bpmAboveThreshold = delta - preferences.elevationThresholdBpm
-        val petHeartRateColor = when {
-            alertElevationReached && bpmAboveThreshold >= 25 -> PetHeartRateColor.PURPLE
-            alertElevationReached && bpmAboveThreshold >= 15 -> PetHeartRateColor.RED
-            petElevationReached && delta >= PET_YELLOW_THRESHOLD_BPM -> PetHeartRateColor.YELLOW
-            alertElevationReached && bpmAboveThreshold >= 5 -> PetHeartRateColor.YELLOW
-            else -> null
-        }
         return CalmEvaluation(
             state = if (petElevationReached || alertElevationReached) OmamoriState.ELEVATED_AT_REST else OmamoriState.CALM,
             calmScore = calmScore,
@@ -91,6 +96,23 @@ object CalmStateEvaluator {
             suppressionReason = suppression,
             petHeartRateColor = petHeartRateColor
         )
+    }
+
+    fun resolvePetHeartRateColor(
+        delta: Int,
+        alertElevationReached: Boolean,
+        petElevationReached: Boolean,
+        elevationThresholdBpm: Int
+    ): PetHeartRateColor? {
+        // 小さな心拍差はペットに早めに表示し、赤・紫と通知には従来の判定を使う。
+        val bpmAboveThreshold = delta - elevationThresholdBpm
+        return when {
+            alertElevationReached && bpmAboveThreshold >= 25 -> PetHeartRateColor.PURPLE
+            alertElevationReached && bpmAboveThreshold >= 15 -> PetHeartRateColor.RED
+            petElevationReached && delta >= PET_YELLOW_THRESHOLD_BPM -> PetHeartRateColor.YELLOW
+            alertElevationReached && bpmAboveThreshold >= 5 -> PetHeartRateColor.YELLOW
+            else -> null
+        }
     }
 
     private fun resolveAlertSuppression(

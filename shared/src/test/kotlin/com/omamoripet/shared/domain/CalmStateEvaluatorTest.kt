@@ -89,7 +89,7 @@ class CalmStateEvaluatorTest {
     }
 
     @Test
-    fun `pet colors require an available sustained at rest reading outside guided breathing`() {
+    fun `pet colors require an available sustained at rest reading`() {
         val high = baseSnapshot(bpm = 120, sustainedSeconds = 90)
         for (snapshot in listOf(
             high.copy(isWatchOnBody = false),
@@ -101,11 +101,55 @@ class CalmStateEvaluatorTest {
             val evaluation = CalmStateEvaluator.evaluate(snapshot, false, 0L, 14, defaultPrefs)
             assertNull(evaluation.petHeartRateColor)
         }
-        val breathing = CalmStateEvaluator.evaluate(high, true, 0L, 14, defaultPrefs)
-        assertNull(breathing.petHeartRateColor)
         val alertsOff = CalmStateEvaluator.evaluate(high, false, 0L, 14, defaultPrefs.copy(alertsEnabled = false))
         assertEquals(PetHeartRateColor.PURPLE, alertsOff.petHeartRateColor)
         assertFalse(alertsOff.shouldTriggerAlert)
+    }
+
+    @Test
+    fun `pet colors are preserved during guided breathing while still and cleared on movement`() {
+        val purple = CalmStateEvaluator.evaluate(
+            baseSnapshot(bpm = 104, sustainedSeconds = 90),
+            true, 0L, 14, defaultPrefs
+        )
+        assertEquals(OmamoriState.BREATHING, purple.state)
+        assertEquals(PetHeartRateColor.PURPLE, purple.petHeartRateColor)
+        assertFalse(purple.shouldTriggerAlert)
+        assertEquals(AlertSuppressionReason.ALREADY_BREATHING, purple.suppressionReason)
+
+        val red = CalmStateEvaluator.evaluate(
+            baseSnapshot(bpm = 94, sustainedSeconds = 90),
+            true, 0L, 14, defaultPrefs
+        )
+        assertEquals(OmamoriState.BREATHING, red.state)
+        assertEquals(PetHeartRateColor.RED, red.petHeartRateColor)
+        assertFalse(red.shouldTriggerAlert)
+        assertEquals(AlertSuppressionReason.ALREADY_BREATHING, red.suppressionReason)
+
+        val yellow = CalmStateEvaluator.evaluate(
+            baseSnapshot(bpm = 74).copy(sustainedPetElevationSeconds = 30),
+            true, 0L, 14, defaultPrefs
+        )
+        assertEquals(OmamoriState.BREATHING, yellow.state)
+        assertEquals(PetHeartRateColor.YELLOW, yellow.petHeartRateColor)
+        assertFalse(yellow.shouldTriggerAlert)
+        assertEquals(AlertSuppressionReason.ALREADY_BREATHING, yellow.suppressionReason)
+
+        val moving = CalmStateEvaluator.evaluate(
+            baseSnapshot(bpm = 120, motion = MotionState.RECENT_MOVEMENT, sustainedSeconds = 90),
+            true, 0L, 14, defaultPrefs
+        )
+        assertEquals(OmamoriState.BREATHING, moving.state)
+        assertNull(moving.petHeartRateColor)
+        assertFalse(moving.shouldTriggerAlert)
+        assertEquals(AlertSuppressionReason.ALREADY_BREATHING, moving.suppressionReason)
+
+        val offBody = CalmStateEvaluator.evaluate(
+            baseSnapshot(bpm = 120, onBody = false, sustainedSeconds = 90),
+            true, 0L, 14, defaultPrefs
+        )
+        assertEquals(OmamoriState.RESTING, offBody.state)
+        assertNull(offBody.petHeartRateColor)
     }
 
     @Test

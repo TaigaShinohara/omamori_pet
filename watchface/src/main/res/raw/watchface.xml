@@ -81,6 +81,15 @@
                         <Expression name="state_resting">
                             <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] >= 1.5 && [COMPLICATION.RANGED_VALUE_VALUE] < 2.5]]>
                         </Expression>
+                        <Expression name="state_breathing_yellow">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 2.625]]>
+                        </Expression>
+                        <Expression name="state_breathing_red">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 2.75]]>
+                        </Expression>
+                        <Expression name="state_breathing_purple">
+                            <![CDATA[[COMPLICATION.RANGED_VALUE_VALUE] == 2.875]]>
+                        </Expression>
                     </Expressions>
 
                     <!-- 他社 RANGED_VALUE 差し替え時はテキスト表示へフォールバック -->
@@ -256,18 +265,88 @@
                         </Group>
                     </Compare>
 
-                    <!-- 3 / Default: BREATHING（深呼吸中）＝青磁色（ART_DIRECTION v1.1 準拠） -->
-                    <Default>
-                        <Group name="petBreathing" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                    <!-- 2.625 / 2.75 / 2.875: BREATHING with condition color -->
+                    <Compare expression="state_breathing_yellow">
+                        <Group name="petBreathingYellow" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
-                                    <Fill color="#2E93C7B5" />
+                                    <Fill color="#28DCCB8D" />
                                 </Ellipse>
                                 <Variant mode="AMBIENT" target="alpha" value="0" />
                             </PartDraw>
                             <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="68" width="68" x="14" y="14">
-                                    <Fill color="#FF93C7B5" />
+                                    <Fill color="#FFDCCB8D" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="51" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <Compare expression="state_breathing_red">
+                        <Group name="petBreathingRed" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#28DDA0A0" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Fill color="#FFDDA0A0" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="51" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <Compare expression="state_breathing_purple">
+                        <Group name="petBreathingPurple" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#28BBA4DC" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Fill color="#FFBBA4DC" />
+                                </Ellipse>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                                <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="51" y="45">
+                                    <Fill color="#FFFFFFFF" />
+                                </RoundRectangle>
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="150" />
+                        </Group>
+                    </Compare>
+
+                    <!-- 3 / Default: BREATHING（深呼吸中・緑）＝おだやかと同じ緑・水平な呼吸目 -->
+                    <Default>
+                        <Group name="petBreathing" alpha="255" height="96" pivotX="0.5" pivotY="0.5" width="140" x="0" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="84" width="84" x="6" y="6">
+                                    <Fill color="#288FD3B6" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Fill color="#FF8FD3B6" />
                                 </Ellipse>
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
                                     <Fill color="#FFFFFFFF" />

@@ -18,6 +18,7 @@ import com.omamoripet.mobile.health.HealthConnectManager
 import com.omamoripet.mobile.health.readFeelingPressure
 import com.omamoripet.mobile.health.RestingHeartRateBaseline
 import com.omamoripet.mobile.sync.PhoneWearSyncClient
+import com.omamoripet.shared.domain.CalmStateEvaluator
 import com.omamoripet.shared.domain.MeasurementFreshness
 import com.omamoripet.shared.model.AlertPreferences
 import com.omamoripet.shared.model.BaselineSource
@@ -29,9 +30,11 @@ import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.shared.model.OnboardingAnalyticsTracker
 import com.omamoripet.shared.model.OnboardingAnswers
 import com.omamoripet.shared.model.OnboardingHapticChoice
+import com.omamoripet.shared.model.resolvePetVisualState
 import com.omamoripet.shared.model.visibleForRemainingTime
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
@@ -108,7 +111,14 @@ data class MobileUiState(
     val watchGuideDismissedOnHome: Boolean = false,
     val petHeartRateColor: PetHeartRateColor? = null,
     val feelingRecords: List<FeelingRecord> = emptyList()
-)
+) {
+    val petVisualState: PetVisualState
+        get() = resolvePetVisualState(
+            state = omamoriState,
+            petHeartRateColor = petHeartRateColor,
+            isDataMissing = (!isSimulated && lastWatchSyncMs == null) || omamoriState == OmamoriState.RESTING
+        )
+}
 
 class MobileRepository(
     private val context: Context,
@@ -271,6 +281,19 @@ class MobileRepository(
             val watch = lastRealWatchPayload?.takeIf { isFreshWatchPayload(it) && it.baselineSource != BaselineSource.HEALTH_CONNECT }
             val restingBaselineBpm = baseline?.bpm ?: watch?.restingBaselineBpm ?: 65
             _uiState.update { state ->
+                val updatedPetHeartRateColor = when {
+                    state.restingBaselineBpm == restingBaselineBpm -> state.petHeartRateColor
+                    state.currentHeartRateBpm != null &&
+                        (state.omamoriState == OmamoriState.ELEVATED_AT_REST || state.omamoriState == OmamoriState.BREATHING) ->
+                        CalmStateEvaluator.resolvePetHeartRateColor(
+                            delta = state.currentHeartRateBpm - restingBaselineBpm,
+                            alertElevationReached = state.petHeartRateColor == PetHeartRateColor.RED ||
+                                state.petHeartRateColor == PetHeartRateColor.PURPLE,
+                            petElevationReached = true,
+                            elevationThresholdBpm = state.preferences.elevationThresholdBpm
+                        )
+                    else -> null
+                }
                 state.copy(
                     healthConnectAvailability = availability,
                     hasHealthConnectPermission = hasPerm,
@@ -281,7 +304,7 @@ class MobileRepository(
                     healthConnectRestingBpm = baseline?.bpm,
                     healthConnectMeasuredAtMs = baseline?.measuredAtEpochMs,
                     restingBaselineBpm = restingBaselineBpm,
-                    petHeartRateColor = state.petHeartRateColor.takeIf { state.restingBaselineBpm == restingBaselineBpm },
+                    petHeartRateColor = updatedPetHeartRateColor,
                     baselineSource = if (baseline != null) BaselineSource.HEALTH_CONNECT else watch?.baselineSource ?: BaselineSource.DEFAULT_FALLBACK
                 )
             }
@@ -376,16 +399,24 @@ class MobileRepository(
                     calmScore = 94,
                     isSimulated = true
                 )
-                MobileDemoMode.DEMO_ELEVATED_AT_REST -> state.copy(
-                    demoMode = mode,
-                    omamoriState = OmamoriState.ELEVATED_AT_REST,
-                    petHeartRateColor = null,
-                    currentHeartRateBpm = base + state.preferences.elevationThresholdBpm + 3,
-                    restingBaselineBpm = base,
-                    motionState = MotionState.STILL_CONFIRMED,
-                    calmScore = 60,
-                    isSimulated = true
-                )
+                MobileDemoMode.DEMO_ELEVATED_AT_REST -> {
+                    val demoDelta = state.preferences.elevationThresholdBpm + 15
+                    state.copy(
+                        demoMode = mode,
+                        omamoriState = OmamoriState.ELEVATED_AT_REST,
+                        petHeartRateColor = CalmStateEvaluator.resolvePetHeartRateColor(
+                            delta = demoDelta,
+                            alertElevationReached = true,
+                            petElevationReached = true,
+                            elevationThresholdBpm = state.preferences.elevationThresholdBpm
+                        ),
+                        currentHeartRateBpm = base + demoDelta,
+                        restingBaselineBpm = base,
+                        motionState = MotionState.STILL_CONFIRMED,
+                        calmScore = 60,
+                        isSimulated = true
+                    )
+                }
                 MobileDemoMode.DEMO_MOVING -> state.copy(
                     demoMode = mode,
                     omamoriState = OmamoriState.CALM,

@@ -458,7 +458,8 @@ private fun OmamoriMobileRoot(repository: com.omamoripet.mobile.data.MobileRepos
                             onBack = { navController.popBackStack() },
                             onCompleted = { id, startedAt, duration ->
                                 repository.addLocalBreathingCompletion(id, startedAt, duration)
-                            }
+                            },
+                            visualState = uiState.petVisualState
                         )
                     }
                 }

@@ -116,7 +116,9 @@ import com.omamoripet.shared.model.CalmEventRecord
 import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
-import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetBodyTone
+import com.omamoripet.shared.model.PetExpressionMode
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.shared.model.OnboardingDeviceStyle
 import java.text.DateFormat
 import java.time.LocalDate
@@ -296,30 +298,21 @@ private fun HeroStatusCard(
 
     val hasWatchData = uiState.lastWatchSyncMs != null
     val isPhoneOnlyIdle = !hasWatchData && !uiState.isSimulated
-    val targetContainerColor = when (uiState.omamoriState) {
-        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> cs.primaryContainer
-        OmamoriState.BREATHING -> cs.secondaryContainer
-        OmamoriState.RESTING -> cs.surfaceContainerHigh
+    val visualState = uiState.petVisualState
+    val targetContainerColor = if (visualState.tone == PetBodyTone.DATA_MISSING) {
+        cs.surfaceContainerHigh
+    } else {
+        cs.primaryContainer
     }
-    val targetContentColor = when (uiState.omamoriState) {
-        OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST -> cs.onPrimaryContainer
-        OmamoriState.BREATHING -> cs.onSecondaryContainer
-        OmamoriState.RESTING -> cs.onSurface
+    val targetContentColor = if (visualState.tone == PetBodyTone.DATA_MISSING) {
+        cs.onSurface
+    } else {
+        cs.onPrimaryContainer
     }
     val containerColor by animateColorAsState(targetContainerColor, animationSpec = colorSpec, label = "heroBg")
     val contentColor by animateColorAsState(targetContentColor, animationSpec = colorSpec, label = "heroFg")
 
     val delta = uiState.currentHeartRateBpm?.minus(uiState.restingBaselineBpm)
-    val petHeartRateDrawable = if (uiState.omamoriState == OmamoriState.ELEVATED_AT_REST) {
-        when (uiState.petHeartRateColor) {
-            PetHeartRateColor.YELLOW -> R.drawable.pet_strain_yellow
-            PetHeartRateColor.RED -> R.drawable.pet_strain_red
-            PetHeartRateColor.PURPLE -> R.drawable.pet_strain_purple
-            null -> null
-        }
-    } else {
-        null
-    }
     val stateTitle = if (isPhoneOnlyIdle) {
         stringResource(R.string.state_phone_ready_title)
     } else {
@@ -416,10 +409,11 @@ private fun HeroStatusCard(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier.width(92.dp)
                     ) {
-                        Image(
-                            painter = painterResource(feeling.faceRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(92.dp)
+                        OmamoriPetMobileAvatar(
+                            visualState = visualState,
+                            feeling = feeling,
+                            description = stringResource(R.string.app_name),
+                            size = 92.dp
                         )
                         Text(
                             text = stringResource(feeling.labelRes),
@@ -428,15 +422,9 @@ private fun HeroStatusCard(
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                         )
                     }
-                } else if (petHeartRateDrawable != null) {
-                    Image(
-                        painter = painterResource(petHeartRateDrawable),
-                        contentDescription = null,
-                        modifier = Modifier.size(92.dp)
-                    )
                 } else {
                     OmamoriPetMobileAvatar(
-                        state = if (isPhoneOnlyIdle) OmamoriState.CALM else uiState.omamoriState,
+                        visualState = visualState,
                         description = stringResource(R.string.app_name),
                         size = 92.dp
                     )
@@ -905,6 +893,7 @@ fun BreathingMobileScreen(
     onBack: () -> Unit,
     onCompleted: (String, Long, Int) -> Unit,
     modifier: Modifier = Modifier,
+    visualState: PetVisualState = PetVisualState(PetBodyTone.GREEN, PetExpressionMode.CALM),
     elapsedRealtimeMs: () -> Long = { SystemClock.elapsedRealtime() }
 ) {
     val context = LocalContext.current
@@ -1009,7 +998,7 @@ fun BreathingMobileScreen(
                 .padding(24.dp)
         ) {
             OmamoriPetMobileAvatar(
-                state = if (running) OmamoriState.BREATHING else OmamoriState.CALM,
+                visualState = if (running) visualState.copy(mode = PetExpressionMode.BREATHING) else visualState,
                 description = null,
                 breathFractionProvider = breathFractionProvider,
                 interactive = false,

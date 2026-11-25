@@ -18,7 +18,6 @@ import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
 import com.google.common.util.concurrent.ListenableFuture
 import com.omamoripet.shared.model.MotionState
-import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.R
@@ -29,7 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.guava.future
 
-private const val RESOURCES_VERSION = "4"
+private const val RESOURCES_VERSION = "5"
 private val petDrawables = intArrayOf(
     R.drawable.pet_calm,
     R.drawable.pet_elevated,
@@ -37,6 +36,9 @@ private val petDrawables = intArrayOf(
     R.drawable.pet_strain_red,
     R.drawable.pet_strain_purple,
     R.drawable.pet_breathing,
+    R.drawable.pet_breathing_yellow,
+    R.drawable.pet_breathing_red,
+    R.drawable.pet_breathing_purple,
     R.drawable.pet_resting
 )
 
@@ -90,14 +92,8 @@ class OmamoriTileService : TileService() {
                 )
                 .build()
 
-            val primaryColor = when (state) {
-                OmamoriState.BREATHING -> 0xFF93C7B5.toInt()
-                OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST, OmamoriState.RESTING -> 0xFF8FD3B6.toInt()
-            }
-            val onPrimaryColor = when (state) {
-                OmamoriState.BREATHING -> 0xFF0B251D.toInt()
-                OmamoriState.CALM, OmamoriState.ELEVATED_AT_REST, OmamoriState.RESTING -> 0xFF0A261B.toInt()
-            }
+            val primaryColor = 0xFF8FD3B6.toInt()
+            val onPrimaryColor = 0xFF0A261B.toInt()
             val materialColors = Colors(
                 primaryColor,
                 onPrimaryColor,

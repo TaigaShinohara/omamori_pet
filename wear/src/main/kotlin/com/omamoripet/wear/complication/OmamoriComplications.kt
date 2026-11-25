@@ -51,7 +51,12 @@ internal fun resolvePetComplicationCode(
         null -> 1f
     }
     OmamoriState.RESTING -> 2f
-    OmamoriState.BREATHING -> 3f
+    OmamoriState.BREATHING -> when (petHeartRateColor) {
+        PetHeartRateColor.YELLOW -> 2.625f
+        PetHeartRateColor.RED -> 2.75f
+        PetHeartRateColor.PURPLE -> 2.875f
+        null -> 3f
+    }
 }
 
 internal fun resolveHeartRateDisplayText(

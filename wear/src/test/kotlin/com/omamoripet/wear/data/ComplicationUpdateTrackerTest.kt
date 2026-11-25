@@ -1,8 +1,13 @@
 package com.omamoripet.wear.data
 
+import com.omamoripet.shared.model.AlertSuppressionReason
+import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
+import com.omamoripet.shared.model.PetBodyTone
+import com.omamoripet.shared.model.PetExpressionMode
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.wear.R
 import com.omamoripet.wear.complication.resolvePetComplicationCode
 import com.omamoripet.wear.ui.resolvePetDrawableRes
@@ -39,6 +44,102 @@ class ComplicationUpdateTrackerTest {
         )
         assertEquals(listOf(1.125f, 1.25f, 1.375f), colors.map { resolvePetComplicationCode(state, it) })
         assertEquals(R.drawable.pet_calm, resolvePetDrawableRes(OmamoriState.CALM, petHeartRateColor = PetHeartRateColor.PURPLE))
+    }
+
+    @Test
+    fun `breathing colors have distinct drawables and compatible watch face codes`() {
+        val state = OmamoriState.BREATHING
+        val colors = PetHeartRateColor.entries
+        assertEquals(
+            R.drawable.pet_breathing,
+            resolvePetDrawableRes(state, petHeartRateColor = null)
+        )
+        assertEquals(
+            listOf(R.drawable.pet_breathing_yellow, R.drawable.pet_breathing_red, R.drawable.pet_breathing_purple),
+            colors.map { resolvePetDrawableRes(state, petHeartRateColor = it) }
+        )
+        assertEquals(
+            listOf(R.drawable.pet_breathing_mono, R.drawable.pet_breathing_mono, R.drawable.pet_breathing_mono),
+            colors.map { resolvePetDrawableRes(state, monochromatic = true, petHeartRateColor = it) }
+        )
+        assertEquals(3f, resolvePetComplicationCode(state, null))
+        assertEquals(listOf(2.625f, 2.75f, 2.875f), colors.map { resolvePetComplicationCode(state, it) })
+    }
+
+    @Test
+    fun `watch ui state exposes single source of truth petVisualState across states and colors`() {
+        val resting = WatchUiState()
+        assertEquals(
+            PetVisualState(PetBodyTone.DATA_MISSING, PetExpressionMode.SLEEPING),
+            resting.petVisualState
+        )
+
+        val restingWhileBreathing = resting.copy(isBreathingActive = true)
+        assertEquals(
+            PetVisualState(PetBodyTone.DATA_MISSING, PetExpressionMode.BREATHING),
+            restingWhileBreathing.petVisualState
+        )
+
+        val calm = WatchUiState(
+            evaluation = CalmEvaluation(
+                state = OmamoriState.CALM,
+                calmScore = 92,
+                deltaFromRestingBpm = 2,
+                shouldTriggerAlert = false,
+                suppressionReason = AlertSuppressionReason.BELOW_THRESHOLD
+            )
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.GREEN, PetExpressionMode.CALM),
+            calm.petVisualState
+        )
+
+        val elevatedPurple = WatchUiState(
+            evaluation = CalmEvaluation(
+                state = OmamoriState.ELEVATED_AT_REST,
+                calmScore = 40,
+                deltaFromRestingBpm = 28,
+                shouldTriggerAlert = true,
+                suppressionReason = AlertSuppressionReason.NONE,
+                petHeartRateColor = PetHeartRateColor.PURPLE
+            )
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.PURPLE, PetExpressionMode.ELEVATED),
+            elevatedPurple.petVisualState
+        )
+
+        val breathingRed = WatchUiState(
+            evaluation = CalmEvaluation(
+                state = OmamoriState.BREATHING,
+                calmScore = 50,
+                deltaFromRestingBpm = 18,
+                shouldTriggerAlert = false,
+                suppressionReason = AlertSuppressionReason.ALREADY_BREATHING,
+                petHeartRateColor = PetHeartRateColor.RED
+            ),
+            isBreathingActive = true
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.RED, PetExpressionMode.BREATHING),
+            breathingRed.petVisualState
+        )
+
+        val breathingYellow = breathingRed.copy(
+            evaluation = breathingRed.evaluation.copy(petHeartRateColor = PetHeartRateColor.YELLOW)
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.YELLOW, PetExpressionMode.BREATHING),
+            breathingYellow.petVisualState
+        )
+
+        val breathingGreen = breathingRed.copy(
+            evaluation = breathingRed.evaluation.copy(petHeartRateColor = null)
+        )
+        assertEquals(
+            PetVisualState(PetBodyTone.GREEN, PetExpressionMode.BREATHING),
+            breathingGreen.petVisualState
+        )
     }
 
     @Test

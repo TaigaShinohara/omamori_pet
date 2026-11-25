@@ -241,6 +241,7 @@ class MainActivity : ComponentActivity() {
                             }
                             BreathingWatchScreen(
                                 breathingState = breathingState,
+                                visualState = uiState.petVisualState,
                                 onStop = {
                                     breathingController.stop()
                                     navController.popBackStack()

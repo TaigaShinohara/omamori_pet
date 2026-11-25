@@ -409,7 +409,8 @@ class BiometricMonitorService : LifecycleService(), SensorEventListener {
     ) {
         val stateChanged = lastSyncedState != evaluation.state ||
             lastSyncedPetHeartRateColor != evaluation.petHeartRateColor ||
-            (evaluation.state == OmamoriState.ELEVATED_AT_REST && lastSyncedBaselineBpm != snapshot.restingBaselineBpm) ||
+            ((evaluation.state == OmamoriState.ELEVATED_AT_REST || evaluation.state == OmamoriState.BREATHING) &&
+                lastSyncedBaselineBpm != snapshot.restingBaselineBpm) ||
             lastSyncedMotion != snapshot.motionState ||
             lastSyncedOnBody != snapshot.isWatchOnBody
         val bpmDelta = abs((snapshot.currentHeartRateBpm ?: -1) - (lastSyncedBpm ?: -1))

@@ -23,10 +23,13 @@ import com.omamoripet.shared.model.CalmEvaluation
 import com.omamoripet.shared.model.MotionState
 import com.omamoripet.shared.model.OmamoriState
 import com.omamoripet.shared.model.PetHeartRateColor
+import com.omamoripet.shared.model.PetVisualState
 import com.omamoripet.shared.model.FeelingFace
+import com.omamoripet.shared.model.resolvePetVisualState
 import com.omamoripet.shared.sync.OmamoriJson
 import com.omamoripet.shared.sync.PhoneBaselinePayload
 import com.omamoripet.shared.sync.PreferencesSyncPayload
+import com.omamoripet.shared.sync.toWatchLivePayload
 import com.omamoripet.wear.complication.HeartRateComplicationService
 import com.omamoripet.wear.complication.PetStateComplicationService
 import com.omamoripet.wear.complication.WatchFaceHeartRateComplicationService
@@ -88,7 +91,14 @@ data class WatchUiState(
     val calibrationRemainingSeconds: Int = 0,
     val calibrationResult: CalibrationResult = CalibrationResult.NONE,
     val phoneFeelingFace: FeelingFace? = null
-)
+) {
+    val petVisualState: PetVisualState
+        get() = resolvePetVisualState(
+            state = evaluation.state,
+            petHeartRateColor = evaluation.petHeartRateColor,
+            isBreathingActive = isBreathingActive
+        )
+}
 
 internal fun WatchUiState.withPhoneFeelingFace(face: FeelingFace, nowEpochMs: Long): WatchUiState {
     val current = phoneFeelingFace
@@ -113,6 +123,8 @@ class WatchStateRepository(private val context: Context) {
         val LAST_ON_BODY = booleanPreferencesKey("last_on_body")
         val LAST_SAMPLE_EPOCH_MS = longPreferencesKey("last_sample_epoch_ms")
         val LAST_SIM_SCENARIO = stringPreferencesKey("last_sim_scenario")
+        val LAST_SUSTAINED_ELEVATION_SEC = intPreferencesKey("last_sustained_elevation_sec")
+        val LAST_SUSTAINED_PET_ELEVATION_SEC = intPreferencesKey("last_sustained_pet_elevation_sec")
     }
 
     private companion object {
@@ -138,6 +150,8 @@ class WatchStateRepository(private val context: Context) {
     private var lastSnapshotPersistMs = 0L
     @Volatile
     private var lastPersistedState: OmamoriState? = null
+    @Volatile
+    private var lastPersistedPetHeartRateColor: PetHeartRateColor? = null
     @Volatile
     private var lastPersistedMotion: MotionState? = null
 
@@ -195,6 +209,8 @@ class WatchStateRepository(private val context: Context) {
             MotionState.RECENT_MOVEMENT
         }
         val restoredOnBody = if (isFreshSnapshot) (prefs[Keys.LAST_ON_BODY] ?: true) else true
+        val restoredSustainedSec = if (isFreshSnapshot) (prefs[Keys.LAST_SUSTAINED_ELEVATION_SEC] ?: 0) else 0
+        val restoredSustainedPetSec = if (isFreshSnapshot) (prefs[Keys.LAST_SUSTAINED_PET_ELEVATION_SEC] ?: 0) else 0
 
         _uiState.update { current ->
             val updatedSnap = current.snapshot.copy(
@@ -203,6 +219,8 @@ class WatchStateRepository(private val context: Context) {
                 baselineSource = resolved.source,
                 motionState = restoredMotion,
                 isWatchOnBody = restoredOnBody,
+                sustainedElevationSeconds = restoredSustainedSec,
+                sustainedPetElevationSeconds = restoredSustainedPetSec,
                 sampledAtEpochMs = if (isFreshSnapshot) savedSampleMs else current.snapshot.sampledAtEpochMs,
                 isSimulated = effectiveScenario != SimulationScenario.LIVE_SENSORS
             )
@@ -278,7 +296,12 @@ class WatchStateRepository(private val context: Context) {
             current.copy(snapshot = snapshot, evaluation = eval)
         }
         val eval = evaluated!!
-        persistSnapshotIfNeeded(snapshot = snapshot, state = eval.state, scenario = scenario)
+        persistSnapshotIfNeeded(
+            snapshot = snapshot,
+            state = eval.state,
+            petHeartRateColor = eval.petHeartRateColor,
+            scenario = scenario
+        )
         maybeRefreshComplicationsAndTile(
             state = eval.state,
             petHeartRateColor = eval.petHeartRateColor,
@@ -309,14 +332,26 @@ class WatchStateRepository(private val context: Context) {
         val snap = updatedSnapshot
         val eval = updatedEval
         if (snap != null && eval != null) {
+            val now = System.currentTimeMillis()
             maybeRefreshComplicationsAndTile(
                 state = eval.state,
                 petHeartRateColor = eval.petHeartRateColor,
                 motionState = snap.motionState,
                 bpm = snap.currentHeartRateBpm,
                 calmScore = eval.calmScore,
-                nowMs = System.currentTimeMillis()
+                nowMs = now
             )
+            scope.launch {
+                syncClient.pushLiveState(
+                    payload = snap.toWatchLivePayload(
+                        state = eval.state,
+                        calmScore = eval.calmScore,
+                        publishedAtEpochMs = now,
+                        petHeartRateColor = eval.petHeartRateColor
+                    ),
+                    urgent = true
+                )
+            }
         }
     }
 
@@ -499,14 +534,18 @@ class WatchStateRepository(private val context: Context) {
     private fun persistSnapshotIfNeeded(
         snapshot: BiometricSnapshot,
         state: OmamoriState,
+        petHeartRateColor: PetHeartRateColor?,
         scenario: SimulationScenario
     ) {
         val now = System.currentTimeMillis()
-        val changedSignificantly = lastPersistedState != state || lastPersistedMotion != snapshot.motionState
+        val changedSignificantly = lastPersistedState != state ||
+            lastPersistedPetHeartRateColor != petHeartRateColor ||
+            lastPersistedMotion != snapshot.motionState
         if (!changedSignificantly && (now - lastSnapshotPersistMs) < MIN_SNAPSHOT_PERSIST_INTERVAL_MS) {
             return
         }
         lastPersistedState = state
+        lastPersistedPetHeartRateColor = petHeartRateColor
         lastPersistedMotion = snapshot.motionState
         lastSnapshotPersistMs = now
         scope.launch {
@@ -521,6 +560,8 @@ class WatchStateRepository(private val context: Context) {
                 prefs[Keys.LAST_ON_BODY] = snapshot.isWatchOnBody
                 prefs[Keys.LAST_SAMPLE_EPOCH_MS] = snapshot.sampledAtEpochMs
                 prefs[Keys.LAST_SIM_SCENARIO] = scenario.name
+                prefs[Keys.LAST_SUSTAINED_ELEVATION_SEC] = snapshot.sustainedElevationSeconds
+                prefs[Keys.LAST_SUSTAINED_PET_ELEVATION_SEC] = snapshot.sustainedPetElevationSeconds
             }
         }
     }
