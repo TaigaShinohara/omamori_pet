@@ -1223,7 +1223,8 @@ fun HistoryMobileScreen(
     modifier: Modifier = Modifier
 ) {
     val formatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
-    val prepared = remember(uiState.breathingSessions, uiState.calmEvents, uiState.feelingRecords, formatter) {
+    val timeOnlyFormatter = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
+    val prepared = remember(uiState.breathingSessions, uiState.calmEvents, uiState.feelingRecords, formatter, timeOnlyFormatter) {
         val todayCutoff = LocalDate.now()
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant()
@@ -1235,11 +1236,10 @@ fun HistoryMobileScreen(
         val today = ArrayList<PreparedHistoryItem>(timeline.size)
         val earlier = ArrayList<PreparedHistoryItem>(timeline.size)
         for (entry in timeline) {
-            val wrapped = PreparedHistoryItem(entry, formatter.format(Date(entry.timestampEpochMs)))
             if (entry.timestampEpochMs >= todayCutoff) {
-                today.add(wrapped)
+                today.add(PreparedHistoryItem(entry, timeOnlyFormatter.format(Date(entry.timestampEpochMs))))
             } else {
-                earlier.add(wrapped)
+                earlier.add(PreparedHistoryItem(entry, formatter.format(Date(entry.timestampEpochMs))))
             }
         }
         val todayBreaths = uiState.breathingSessions.count { !it.isSimulated && it.startedAtEpochMs >= todayCutoff }
@@ -1253,6 +1253,13 @@ fun HistoryMobileScreen(
         )
     }
     val animationsEnabled = LocalAnimationsEnabled.current
+    var showTimeline by remember { mutableStateOf(!animationsEnabled) }
+    LaunchedEffect(animationsEnabled) {
+        if (animationsEnabled && !showTimeline) {
+            kotlinx.coroutines.delay(60L)
+        }
+        showTimeline = true
+    }
 
     Box(
         contentAlignment = Alignment.TopCenter,
@@ -1296,74 +1303,82 @@ fun HistoryMobileScreen(
                 }
             }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 16.dp),
+            AnimatedVisibility(
+                visible = showTimeline,
+                enter = if (animationsEnabled) fadeIn(tween(180)) else EnterTransition.None,
                 modifier = Modifier
                     .widthIn(max = 720.dp)
                     .fillMaxSize()
             ) {
-                item(key = "summary_header") {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ),
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(14.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_spa_rounded),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = when {
-                                    prepared.todayBreaths == 0 && prepared.demoTodayBreaths > 0 ->
-                                        stringResource(R.string.history_demo_summary, prepared.demoTodayBreaths)
-                                    prepared.todayBreaths > 0 && prepared.demoTodayBreaths > 0 ->
-                                        stringResource(R.string.history_today_with_demo_summary, prepared.todayBreaths, prepared.demoTodayBreaths)
-                                    else ->
-                                        stringResource(R.string.history_today_summary, prepared.todayBreaths)
-                                },
-                                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (prepared.todayBreaths > 0 || prepared.demoTodayBreaths > 0) {
+                        item(key = "summary_header") {
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.padding(14.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_spa_rounded),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = when {
+                                            prepared.todayBreaths == 0 && prepared.demoTodayBreaths > 0 ->
+                                                stringResource(R.string.history_demo_summary, prepared.demoTodayBreaths)
+                                            prepared.todayBreaths > 0 && prepared.demoTodayBreaths > 0 ->
+                                                stringResource(R.string.history_today_with_demo_summary, prepared.todayBreaths, prepared.demoTodayBreaths)
+                                            else ->
+                                                stringResource(R.string.history_today_summary, prepared.todayBreaths)
+                                        },
+                                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (prepared.todayItems.isNotEmpty()) {
+                        item(key = "section_today") {
+                            SectionHeader(text = stringResource(R.string.history_section_today))
+                        }
+                        itemsIndexed(prepared.todayItems, key = { _, entry -> entry.item.key }) { index, entry ->
+                            HistoryTimelineRow(
+                                item = entry.item,
+                                timeLabel = entry.formattedTime,
+                                showDivider = index < prepared.todayItems.lastIndex,
+                                onOpenFeeling = onOpenFeeling,
+                                modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
                             )
                         }
                     }
-                }
 
-                if (prepared.todayItems.isNotEmpty()) {
-                    item(key = "section_today") {
-                        SectionHeader(text = stringResource(R.string.history_section_today))
-                    }
-                    itemsIndexed(prepared.todayItems, key = { _, entry -> entry.item.key }) { index, entry ->
-                        HistoryTimelineRow(
-                            item = entry.item,
-                            timeLabel = entry.formattedTime,
-                            showDivider = index < prepared.todayItems.lastIndex,
-                            onOpenFeeling = onOpenFeeling,
-                            modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
-                        )
-                    }
-                }
-
-                if (prepared.earlierItems.isNotEmpty()) {
-                    item(key = "section_earlier") {
-                        SectionHeader(text = stringResource(R.string.history_section_earlier))
-                    }
-                    itemsIndexed(prepared.earlierItems, key = { _, entry -> entry.item.key }) { index, entry ->
-                        HistoryTimelineRow(
-                            item = entry.item,
-                            timeLabel = entry.formattedTime,
-                            showDivider = index < prepared.earlierItems.lastIndex,
-                            onOpenFeeling = onOpenFeeling,
-                            modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
-                        )
+                    if (prepared.earlierItems.isNotEmpty()) {
+                        item(key = "section_earlier") {
+                            SectionHeader(text = stringResource(R.string.history_section_earlier))
+                        }
+                        itemsIndexed(prepared.earlierItems, key = { _, entry -> entry.item.key }) { index, entry ->
+                            HistoryTimelineRow(
+                                item = entry.item,
+                                timeLabel = entry.formattedTime,
+                                showDivider = index < prepared.earlierItems.lastIndex,
+                                onOpenFeeling = onOpenFeeling,
+                                modifier = if (animationsEnabled) Modifier.animateItem() else Modifier
+                            )
+                        }
                     }
                 }
             }
@@ -1379,6 +1394,8 @@ private fun HistoryTimelineRow(
     onOpenFeeling: (FeelingRecord) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val headlineStyle = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum")
+    val supportingStyle = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
     Column(modifier = modifier) {
         when (item) {
             is HistoryTimelineItem.Breath -> {
@@ -1403,9 +1420,9 @@ private fun HistoryTimelineRow(
                         )
                     },
                     headlineContent = {
-                        Text(headlineText)
+                        Text(headlineText, style = headlineStyle)
                     },
-                    supportingContent = { Text(timeLabel) },
+                    supportingContent = { Text(timeLabel, style = supportingStyle) },
                     trailingContent = if (item.isSimulated) {
                         { DemoTagBadge() }
                     } else {
@@ -1428,14 +1445,15 @@ private fun HistoryTimelineRow(
                     },
                     headlineContent = {
                         Text(
-                            if (isSnoozed) {
+                            text = if (isSnoozed) {
                                 stringResource(R.string.history_event_snoozed)
                             } else {
                                 stringResource(R.string.history_event_item, e.peakBpm, e.restingBaselineBpm)
-                            }
+                            },
+                            style = headlineStyle
                         )
                     },
-                    supportingContent = { Text(timeLabel) },
+                    supportingContent = { Text(timeLabel, style = supportingStyle) },
                     trailingContent = if (item.isSimulated) {
                         { DemoTagBadge() }
                     } else {
@@ -1449,12 +1467,12 @@ private fun HistoryTimelineRow(
                     leadingContent = {
                         Image(painterResource(feeling.faceRes), contentDescription = null, modifier = Modifier.size(36.dp))
                     },
-                    headlineContent = { Text(stringResource(feeling.labelRes)) },
-                    supportingContent = { Text(timeLabel) },
+                    headlineContent = { Text(stringResource(feeling.labelRes), style = headlineStyle) },
+                    supportingContent = { Text(timeLabel, style = supportingStyle) },
                     trailingContent = {
                         Icon(painterResource(R.drawable.ic_keyboard_arrow_right_rounded), contentDescription = null)
                     },
-                    modifier = Modifier.clickable { onOpenFeeling(item.record) }
+                    modifier = Modifier.clickable(role = Role.Button) { onOpenFeeling(item.record) }
                 )
             }
         }

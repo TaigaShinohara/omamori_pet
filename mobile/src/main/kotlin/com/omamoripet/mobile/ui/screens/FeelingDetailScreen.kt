@@ -1,12 +1,25 @@
 package com.omamoripet.mobile.ui.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,8 +27,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,12 +51,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.google.zxing.client.android.Intents
 import com.journeyapps.barcodescanner.ScanContract
@@ -47,7 +72,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 import com.omamoripet.mobile.R
 import com.omamoripet.mobile.data.FeelingRecord
 import com.omamoripet.mobile.data.PendingFeelingActivity
-import com.omamoripet.shared.model.BaselineSource
+import com.omamoripet.mobile.ui.theme.LocalAnimationsEnabled
 import com.omamoripet.shared.model.BreathingSessionRecord
 import com.omamoripet.shared.model.FEELING_MINUTE_COUNT
 import com.omamoripet.shared.model.FEELING_MINUTE_MS
@@ -58,6 +83,7 @@ import com.omamoripet.shared.model.MotionState
 import java.io.IOException
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,10 +126,34 @@ private fun FeelingDetail(
     onSaveContext: suspend (String, FeelingContext?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val animationsEnabled = LocalAnimationsEnabled.current
+    var showSecondary by remember { mutableStateOf(!animationsEnabled) }
+    LaunchedEffect(animationsEnabled) {
+        if (animationsEnabled && !showSecondary) {
+            delay(60L)
+        }
+        showSecondary = true
+    }
+
     var saving by remember { mutableStateOf(false) }
     var feedback by rememberSaveable { mutableStateOf<Int?>(null) }
+    var watchImportExpanded by rememberSaveable { mutableStateOf(false) }
     var showMinutes by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+
+    val expandedLabel = stringResource(R.string.section_expanded)
+    val collapsedLabel = stringResource(R.string.section_collapsed)
+    val watchImportArrowRotation by animateFloatAsState(
+        targetValue = if (watchImportExpanded) 90f else 0f,
+        animationSpec = if (animationsEnabled) tween(180) else snap(),
+        label = "watchImportArrowRotation"
+    )
+    val minutesArrowRotation by animateFloatAsState(
+        targetValue = if (showMinutes) 90f else 0f,
+        animationSpec = if (animationsEnabled) tween(180) else snap(),
+        label = "minutesArrowRotation"
+    )
+
     fun save(context: FeelingContext?) {
         if (saving) return
         saving = true
@@ -139,15 +189,16 @@ private fun FeelingDetail(
         }.sortedBy { it.startedAtEpochMs }
     }
     val context = record.context
-    val dateFormatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM) }
+    val dateFormatter = remember { DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT) }
     val timeFormatter = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
+
     LazyColumn(
         modifier = Modifier.widthIn(max = 580.dp).fillMaxWidth().padding(horizontal = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
+        item(key = "header") {
             Row(
-                modifier = Modifier.padding(top = 12.dp, bottom = 12.dp),
+                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -155,105 +206,219 @@ private fun FeelingDetail(
                 Column {
                     Text(stringResource(record.feeling.labelRes), style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        dateFormatter.format(Date(record.recordedAtEpochMs)),
+                        text = dateFormatter.format(Date(record.recordedAtEpochMs)),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
-        item { FeelingObservations(record, pendingActivity) }
-        if (context != null || breaths.isNotEmpty()) {
-            item { FeelingTimeline(context, start, breaths) }
+        item(key = "observations") {
+            FeelingObservations(record, pendingActivity)
         }
-        if (context == null) {
-            item {
-                Text(
-                    stringResource(R.string.feeling_detail_no_watch_data),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            item {
-                Text(stringResource(R.string.feeling_detail_import_help), style = MaterialTheme.typography.bodyMedium)
-            }
-            item {
-                OutlinedButton(enabled = !saving, onClick = {
-                    feedback = null
-                    scanner.launch(
-                        ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE).setPrompt(scanPrompt)
-                            .setBarcodeImageEnabled(false).setBeepEnabled(false).setOrientationLocked(false)
-                    )
-                }) {
-                    Text(stringResource(R.string.feeling_detail_scan))
-                }
-            }
-        } else {
-            item {
-                val minutesMeasured = context.minutes.count { it.medianBpm != null }
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.feeling_detail_coverage, minutesMeasured, FEELING_MINUTE_COUNT))
-                    context.baselineBpm?.let { bpm ->
-                        val label = if (context.baselineSource == BaselineSource.DEFAULT_FALLBACK) {
-                            R.string.feeling_detail_baseline_default
-                        } else {
-                            R.string.feeling_detail_baseline
+        item(key = "secondary") {
+            AnimatedVisibility(
+                visible = showSecondary,
+                enter = if (animationsEnabled) fadeIn(tween(200)) else EnterTransition.None
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (context != null || breaths.isNotEmpty()) {
+                        FeelingTimeline(context, start, breaths)
+                    }
+                    if (context != null) {
+                        val minutesMeasured = context.minutes.count { it.medianBpm != null }
+                        val summaryText = context.baselineBpm?.let { bpm ->
+                            stringResource(
+                                R.string.feeling_detail_summary_with_baseline,
+                                minutesMeasured,
+                                FEELING_MINUTE_COUNT,
+                                bpm
+                            )
+                        } ?: stringResource(
+                            R.string.feeling_detail_coverage,
+                            minutesMeasured,
+                            FEELING_MINUTE_COUNT
+                        )
+                        Text(
+                            text = summaryText,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 48.dp)
+                                .semantics {
+                                    stateDescription = if (showMinutes) expandedLabel else collapsedLabel
+                                }
+                                .clickable(role = Role.Button) { showMinutes = !showMinutes }
+                        ) {
+                            Text(
+                                text = stringResource(R.string.feeling_detail_minutes_toggle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_keyboard_arrow_right_rounded),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.rotate(minutesArrowRotation)
+                            )
                         }
-                        Text(stringResource(label, bpm), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AnimatedVisibility(
+                            visible = showMinutes,
+                            enter = if (animationsEnabled) fadeIn() + expandVertically() else EnterTransition.None,
+                            exit = if (animationsEnabled) fadeOut() + shrinkVertically() else ExitTransition.None
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                context.minutes.forEachIndexed { index, minute ->
+                                    val pulse = minute.medianBpm?.let { stringResource(R.string.feeling_detail_bpm, it) }
+                                        ?: stringResource(R.string.feeling_detail_missing)
+                                    val motion = when (minute.motion) {
+                                        MotionState.STILL_CONFIRMED -> R.string.feeling_detail_still
+                                        MotionState.RECENT_MOVEMENT -> R.string.feeling_detail_moving
+                                        MotionState.OFF_BODY -> R.string.feeling_detail_off_body
+                                        null -> R.string.feeling_detail_missing
+                                    }
+                                    Text(
+                                        text = stringResource(
+                                            R.string.feeling_detail_minute,
+                                            timeFormatter.format(Date(start + index * FEELING_MINUTE_MS)),
+                                            pulse,
+                                            stringResource(motion)
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (breaths.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = stringResource(R.string.feeling_detail_breathing),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.semantics { heading() }
+                            )
+                            breaths.forEach { breath ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_spa_rounded),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.feeling_detail_breath_session,
+                                            timeFormatter.format(Date(breath.startedAtEpochMs)),
+                                            breath.durationSeconds
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (context == null) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            ),
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .defaultMinSize(minHeight = 48.dp)
+                                        .semantics {
+                                            stateDescription = if (watchImportExpanded) expandedLabel else collapsedLabel
+                                        }
+                                        .clickable(role = Role.Button) { watchImportExpanded = !watchImportExpanded }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_watch_rounded),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.feeling_detail_import_title),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_keyboard_arrow_right_rounded),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.rotate(watchImportArrowRotation)
+                                    )
+                                }
+                                AnimatedVisibility(
+                                    visible = watchImportExpanded,
+                                    enter = if (animationsEnabled) fadeIn() + expandVertically() else EnterTransition.None,
+                                    exit = if (animationsEnabled) fadeOut() + shrinkVertically() else ExitTransition.None
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.feeling_detail_import_help),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        OutlinedButton(
+                                            enabled = !saving,
+                                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                                            onClick = {
+                                                feedback = null
+                                                scanner.launch(
+                                                    ScanOptions().setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                                        .setPrompt(scanPrompt)
+                                                        .setBarcodeImageEnabled(false)
+                                                        .setBeepEnabled(false)
+                                                        .setOrientationLocked(false)
+                                                )
+                                            }
+                                        ) {
+                                            Text(stringResource(R.string.feeling_detail_scan))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        TextButton(
+                            enabled = !saving,
+                            onClick = { confirmDelete = true },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Text(stringResource(R.string.feeling_detail_remove_watch_data))
+                        }
+                    }
+                    feedback?.let { message ->
+                        Text(stringResource(message), color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
-            item {
-                TextButton(onClick = { showMinutes = !showMinutes }) {
-                    Text(stringResource(if (showMinutes) R.string.feeling_detail_hide_minutes else R.string.feeling_detail_show_minutes))
-                }
-            }
-            if (showMinutes) {
-                items(context.minutes.size, key = { index -> index }) { index ->
-                    val minute = context.minutes[index]
-                    val pulse = minute.medianBpm?.let { stringResource(R.string.feeling_detail_bpm, it) }
-                        ?: stringResource(R.string.feeling_detail_missing)
-                    val motion = when (minute.motion) {
-                        MotionState.STILL_CONFIRMED -> R.string.feeling_detail_still
-                        MotionState.RECENT_MOVEMENT -> R.string.feeling_detail_moving
-                        MotionState.OFF_BODY -> R.string.feeling_detail_off_body
-                        null -> R.string.feeling_detail_missing
-                    }
-                    Text(
-                        stringResource(
-                            R.string.feeling_detail_minute,
-                            timeFormatter.format(Date(start + index * FEELING_MINUTE_MS)),
-                            pulse,
-                            stringResource(motion)
-                        ),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
         }
-        item { Text(stringResource(R.string.feeling_detail_breathing), style = MaterialTheme.typography.titleMedium) }
-        if (breaths.isEmpty()) {
-            item { Text(stringResource(R.string.feeling_detail_no_breathing), color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-        items(breaths, key = { "breath-${it.id}" }) { breath ->
-            Text(
-                stringResource(
-                    R.string.feeling_detail_breath_session,
-                    timeFormatter.format(Date(breath.startedAtEpochMs)),
-                    breath.durationSeconds
-                ),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-        if (context != null) {
-            item {
-                TextButton(enabled = !saving, onClick = { confirmDelete = true }) {
-                    Text(stringResource(R.string.feeling_detail_remove_watch_data))
-                }
-            }
-        }
-        feedback?.let { message ->
-            item { Text(stringResource(message), color = MaterialTheme.colorScheme.error) }
-        }
-        item { Box(Modifier.height(16.dp)) }
+        item(key = "bottom_spacer") { Box(Modifier.height(16.dp)) }
     }
     if (confirmDelete) {
         AlertDialog(
@@ -261,10 +426,15 @@ private fun FeelingDetail(
             title = { Text(stringResource(R.string.feeling_detail_remove_watch_data)) },
             text = { Text(stringResource(R.string.feeling_detail_remove_help)) },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    save(null)
-                }) {
+                TextButton(
+                    onClick = {
+                        confirmDelete = false
+                        save(null)
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
                     Text(stringResource(R.string.feeling_detail_remove))
                 }
             },
@@ -281,14 +451,38 @@ private fun FeelingTimeline(context: FeelingContext?, start: Long, breaths: List
     val timeFormatter = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
     val end = start + FEELING_MINUTE_COUNT * FEELING_MINUTE_MS
     val minutes = context?.minutes.orEmpty()
+    val minutesMeasured = minutes.count { it.medianBpm != null }
     val bpmValues = minutes.mapNotNull { it.medianBpm } + listOfNotNull(context?.baselineBpm)
     val graphMax = (bpmValues.maxOrNull() ?: 90) + 8
     val graphMin = (bpmValues.minOrNull() ?: 55) - 8
+    val startLabel = timeFormatter.format(Date(start))
+    val endLabel = timeFormatter.format(Date(end))
+    val timelineDescription = if (context != null) {
+        stringResource(
+            R.string.feeling_detail_timeline_a11y_with_watch,
+            startLabel,
+            endLabel,
+            minutesMeasured,
+            FEELING_MINUTE_COUNT,
+            breaths.size
+        )
+    } else {
+        stringResource(
+            R.string.feeling_detail_timeline_a11y_breaths_only,
+            startLabel,
+            endLabel,
+            breaths.size
+        )
+    }
+    val timeLabelStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (minutes.any { it.medianBpm != null }) {
-            Text(stringResource(R.string.feeling_detail_heart), style = MaterialTheme.typography.labelMedium)
-        }
-        Canvas(Modifier.fillMaxWidth().height(112.dp)) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(112.dp)
+                .semantics { contentDescription = timelineDescription }
+        ) {
             val minuteWidth = size.width / FEELING_MINUTE_COUNT
             val pulseBottom = size.height - 22.dp.toPx()
             val recordX = FEELING_MINUTES_BEFORE * minuteWidth
@@ -333,14 +527,43 @@ private fun FeelingTimeline(context: FeelingContext?, start: Long, breaths: List
             }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(timeFormatter.format(Date(start)), Modifier.weight(2f), style = MaterialTheme.typography.labelSmall)
-            Text(stringResource(R.string.feeling_detail_recorded), style = MaterialTheme.typography.labelSmall)
+            Text(startLabel, Modifier.weight(2f), style = timeLabelStyle, color = colors.onSurfaceVariant)
+            Text(stringResource(R.string.feeling_detail_recorded), style = timeLabelStyle, color = colors.onSurfaceVariant)
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                Text(timeFormatter.format(Date(end)), style = MaterialTheme.typography.labelSmall)
+                Text(endLabel, style = timeLabelStyle, color = colors.onSurfaceVariant)
             }
         }
-        if (context != null) {
-            Text(stringResource(R.string.feeling_detail_timeline_legend), style = MaterialTheme.typography.bodySmall)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (context != null) {
+                TimelineLegendDot(colors.primary, stringResource(R.string.feeling_detail_legend_heart))
+                TimelineLegendDot(colors.tertiary, stringResource(R.string.feeling_detail_legend_movement))
+            }
+            if (context != null || breaths.isNotEmpty()) {
+                TimelineLegendDot(colors.secondary, stringResource(R.string.feeling_detail_legend_breathing))
+            }
         }
+    }
+}
+
+@Composable
+private fun TimelineLegendDot(color: Color, label: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color)
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
