@@ -551,21 +551,10 @@
                 </RoundRectangle>
                 <Variant mode="AMBIENT" target="alpha" value="0" />
             </PartDraw>
-            <PartDraw height="34" width="36" x="49" y="10">
-                <Arc centerX="9" centerY="10" height="16" width="16" startAngle="90" endAngle="270" direction="COUNTER_CLOCKWISE">
-                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
-                </Arc>
-                <Arc centerX="25" centerY="10" height="16" width="16" startAngle="270" endAngle="90" direction="CLOCKWISE">
-                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
-                </Arc>
-                <Line startX="1" startY="10" endX="17" endY="29">
-                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
-                </Line>
-                <Line startX="33" startY="10" endX="17" endY="29">
-                    <Stroke color="#FF8FD3B6" thickness="2.8" cap="ROUND" />
-                </Line>
+            <PartImage height="34" tintColor="#FF8FD3B6" width="34" x="50" y="10">
+                <Image resource="ic_watchface_heart" />
                 <Variant mode="AMBIENT" target="alpha" value="150" />
-            </PartDraw>
+            </PartImage>
             <PartDraw height="48" width="2" x="148" y="15">
                 <Line startX="1" startY="0" endX="1" endY="48">
                     <Stroke color="#FF526978" thickness="1.2" />
@@ -637,44 +626,151 @@
 
         <!-- 電池アイコンと残量は下へ寄せ、心拍枠と弧の間に静かに収める。 -->
         <Group name="watchBattery" height="450" width="450" x="0" y="0">
-            <PartDraw height="24" width="30" x="181" y="374">
-                <Variant mode="AMBIENT" target="y" value="340" />
-                <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
-                    <Stroke color="#FFB4BCC4" thickness="1.8" />
-                </RoundRectangle>
-                <RoundRectangle cornerRadiusX="0.8" cornerRadiusY="0.8" height="5" width="3" x="26" y="9">
-                    <Fill color="#FFB4BCC4" />
-                </RoundRectangle>
-                <Rectangle height="7" width="5" x="4" y="8">
-                    <Fill color="#FFB4BCC4" />
-                </Rectangle>
-            </PartDraw>
-            <PartText height="28" width="62" x="216" y="370">
-                <Variant mode="AMBIENT" target="y" value="336" />
-                <ScreenReader stringId="battery_description">
-                    <Parameter expression="[BATTERY_PERCENT]" />
-                </ScreenReader>
-                <Text align="START" maxLines="1">
-                    <Font color="#FFB4BCC4" family="SYNC_TO_DEVICE" size="21" weight="NORMAL">
-                        <Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template>
-                    </Font>
-                </Text>
-            </PartText>
-            <Group name="watchBatteryArcs" height="450" width="450" x="0" y="0">
-                <PartDraw height="450" width="450" x="0" y="0">
-                    <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
-                        <Stroke color="#FF293741" thickness="5" cap="ROUND" />
-                    </Arc>
-                </PartDraw>
-                <PartDraw height="450" width="450" x="0" y="0">
-                    <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
-                        <Stroke color="#FF82969D" thickness="5" cap="ROUND" />
-                        <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
-                    </Arc>
-                    <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
-                </PartDraw>
-                <Variant mode="AMBIENT" target="alpha" value="0" />
-            </Group>
+            <Condition>
+                <Expressions>
+                    <Expression name="battery_critical">
+                        <![CDATA[[BATTERY_PERCENT] <= 10]]>
+                    </Expression>
+                    <Expression name="battery_low">
+                        <![CDATA[[BATTERY_PERCENT] > 10 && [BATTERY_PERCENT] <= 20]]>
+                    </Expression>
+                </Expressions>
+
+                <!-- 10%以下：柔らかな赤（error トークン）で残量低下を知らせる -->
+                <Compare expression="battery_critical">
+                    <Group name="watchBatteryCritical" height="450" width="450" x="0" y="0">
+                        <PartDraw height="24" width="30" x="181" y="374">
+                            <Variant mode="AMBIENT" target="y" value="340" />
+                            <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
+                                <Stroke color="#FFF2B8B5" thickness="1.8" />
+                            </RoundRectangle>
+                            <RoundRectangle cornerRadiusX="0.8" cornerRadiusY="0.8" height="5" width="3" x="26" y="9">
+                                <Fill color="#FFF2B8B5" />
+                            </RoundRectangle>
+                            <Rectangle height="7" width="18" x="4" y="8">
+                                <Transform target="width" value="[BATTERY_PERCENT] &gt; 0 ? 18.0 * [BATTERY_PERCENT] / 100.0 : 0" />
+                                <Fill color="#FFF2B8B5" />
+                            </Rectangle>
+                        </PartDraw>
+                        <PartText height="28" width="62" x="216" y="370">
+                            <Variant mode="AMBIENT" target="y" value="336" />
+                            <ScreenReader stringId="battery_description">
+                                <Parameter expression="[BATTERY_PERCENT]" />
+                            </ScreenReader>
+                            <Text align="START" maxLines="1">
+                                <Font color="#FFF2B8B5" family="SYNC_TO_DEVICE" size="21" weight="NORMAL">
+                                    <Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <Group name="watchBatteryArcsCritical" height="450" width="450" x="0" y="0">
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FF293741" thickness="5" cap="ROUND" />
+                                </Arc>
+                            </PartDraw>
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FFF2B8B5" thickness="5" cap="ROUND" />
+                                    <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
+                                </Arc>
+                                <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="0" />
+                        </Group>
+                    </Group>
+                </Compare>
+
+                <!-- 11%〜20%：温かな琥珀（tertiary トークン）で控えめに注意を促す -->
+                <Compare expression="battery_low">
+                    <Group name="watchBatteryLow" height="450" width="450" x="0" y="0">
+                        <PartDraw height="24" width="30" x="181" y="374">
+                            <Variant mode="AMBIENT" target="y" value="340" />
+                            <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
+                                <Stroke color="#FFE8B878" thickness="1.8" />
+                            </RoundRectangle>
+                            <RoundRectangle cornerRadiusX="0.8" cornerRadiusY="0.8" height="5" width="3" x="26" y="9">
+                                <Fill color="#FFE8B878" />
+                            </RoundRectangle>
+                            <Rectangle height="7" width="18" x="4" y="8">
+                                <Transform target="width" value="18.0 * [BATTERY_PERCENT] / 100.0" />
+                                <Fill color="#FFE8B878" />
+                            </Rectangle>
+                        </PartDraw>
+                        <PartText height="28" width="62" x="216" y="370">
+                            <Variant mode="AMBIENT" target="y" value="336" />
+                            <ScreenReader stringId="battery_description">
+                                <Parameter expression="[BATTERY_PERCENT]" />
+                            </ScreenReader>
+                            <Text align="START" maxLines="1">
+                                <Font color="#FFE8B878" family="SYNC_TO_DEVICE" size="21" weight="NORMAL">
+                                    <Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <Group name="watchBatteryArcsLow" height="450" width="450" x="0" y="0">
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FF293741" thickness="5" cap="ROUND" />
+                                </Arc>
+                            </PartDraw>
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FFE8B878" thickness="5" cap="ROUND" />
+                                    <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
+                                </Arc>
+                                <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="0" />
+                        </Group>
+                    </Group>
+                </Compare>
+
+                <!-- 21%以上：通常表示 -->
+                <Default>
+                    <Group name="watchBatteryNormal" height="450" width="450" x="0" y="0">
+                        <PartDraw height="24" width="30" x="181" y="374">
+                            <Variant mode="AMBIENT" target="y" value="340" />
+                            <RoundRectangle cornerRadiusX="1.5" cornerRadiusY="1.5" height="13" width="24" x="1" y="5">
+                                <Stroke color="#FFB4BCC4" thickness="1.8" />
+                            </RoundRectangle>
+                            <RoundRectangle cornerRadiusX="0.8" cornerRadiusY="0.8" height="5" width="3" x="26" y="9">
+                                <Fill color="#FFB4BCC4" />
+                            </RoundRectangle>
+                            <Rectangle height="7" width="18" x="4" y="8">
+                                <Transform target="width" value="18.0 * [BATTERY_PERCENT] / 100.0" />
+                                <Fill color="#FFB4BCC4" />
+                            </Rectangle>
+                        </PartDraw>
+                        <PartText height="28" width="62" x="216" y="370">
+                            <Variant mode="AMBIENT" target="y" value="336" />
+                            <ScreenReader stringId="battery_description">
+                                <Parameter expression="[BATTERY_PERCENT]" />
+                            </ScreenReader>
+                            <Text align="START" maxLines="1">
+                                <Font color="#FFB4BCC4" family="SYNC_TO_DEVICE" size="21" weight="NORMAL">
+                                    <Template>%d%%<Parameter expression="[BATTERY_PERCENT]" /></Template>
+                                </Font>
+                            </Text>
+                        </PartText>
+                        <Group name="watchBatteryArcs" height="450" width="450" x="0" y="0">
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FF293741" thickness="5" cap="ROUND" />
+                                </Arc>
+                            </PartDraw>
+                            <PartDraw height="450" width="450" x="0" y="0">
+                                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                                    <Stroke color="#FF82969D" thickness="5" cap="ROUND" />
+                                    <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
+                                </Arc>
+                                <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
+                            </PartDraw>
+                            <Variant mode="AMBIENT" target="alpha" value="0" />
+                        </Group>
+                    </Group>
+                </Default>
+            </Condition>
             <Variant mode="AMBIENT" target="alpha" value="140" />
         </Group>
     </Scene>
