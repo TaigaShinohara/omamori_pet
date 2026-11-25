@@ -108,7 +108,10 @@ internal fun WatchUiState.withPhoneFeelingFace(face: FeelingFace, nowEpochMs: Lo
     return copy(phoneFeelingFace = face)
 }
 
-class WatchStateRepository(private val context: Context) {
+class WatchStateRepository(
+    private val context: Context,
+    private val syncClient: WatchSyncClient = WatchSyncClient(context)
+) {
 
     private object Keys {
         val LEARNED_SAMPLES = stringPreferencesKey("learned_hr_samples")
@@ -128,16 +131,35 @@ class WatchStateRepository(private val context: Context) {
     }
 
     private companion object {
-        const val MIN_SAMPLE_PERSIST_INTERVAL_MS = 30_000L
-        const val MIN_SNAPSHOT_PERSIST_INTERVAL_MS = 30_000L
+        const val MIN_SAMPLE_PERSIST_INTERVAL_MS = 300_000L
+        const val MIN_SNAPSHOT_PERSIST_INTERVAL_MS = 120_000L
+        const val UNCHANGED_SNAPSHOT_PERSIST_INTERVAL_MS = 300_000L
         const val SNAPSHOT_RESTORE_TTL_MS = MeasurementFreshness.HEART_RATE_MAX_AGE_MS
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     internal val feelingContext = WatchFeelingContext(context, scope)
-    private val syncClient by lazy { WatchSyncClient(context) }
     private val baselineLock = Any()
     private val baselineLearner = RestingBaselineLearner()
+
+    private val petStateRequester by lazy {
+        ComplicationDataSourceUpdateRequester.create(
+            context,
+            ComponentName(context, PetStateComplicationService::class.java)
+        )
+    }
+    private val heartRateRequester by lazy {
+        ComplicationDataSourceUpdateRequester.create(
+            context,
+            ComponentName(context, HeartRateComplicationService::class.java)
+        )
+    }
+    private val watchFaceHeartRateRequester by lazy {
+        ComplicationDataSourceUpdateRequester.create(
+            context,
+            ComponentName(context, WatchFaceHeartRateComplicationService::class.java)
+        )
+    }
 
     private val _uiState = MutableStateFlow(WatchUiState())
     val uiState: StateFlow<WatchUiState> = _uiState.asStateFlow()
@@ -154,6 +176,16 @@ class WatchStateRepository(private val context: Context) {
     private var lastPersistedPetHeartRateColor: PetHeartRateColor? = null
     @Volatile
     private var lastPersistedMotion: MotionState? = null
+    @Volatile
+    private var lastPersistedBpm: Int? = null
+    @Volatile
+    private var lastPersistedOnBody: Boolean? = null
+    @Volatile
+    private var lastPersistedScenario: SimulationScenario? = null
+    @Volatile
+    private var lastPersistedSustainedSec: Int = 0
+    @Volatile
+    private var lastPersistedSustainedPetSec: Int = 0
 
     private var updateTracker = ComplicationUpdateTracker()
 
@@ -293,7 +325,11 @@ class WatchStateRepository(private val context: Context) {
                 preferences = current.preferences
             )
             evaluated = eval
-            current.copy(snapshot = snapshot, evaluation = eval)
+            if (current.snapshot == snapshot && current.evaluation == eval) {
+                current
+            } else {
+                current.copy(snapshot = snapshot, evaluation = eval)
+            }
         }
         val eval = evaluated!!
         persistSnapshotIfNeeded(
@@ -540,14 +576,42 @@ class WatchStateRepository(private val context: Context) {
         val now = System.currentTimeMillis()
         val changedSignificantly = lastPersistedState != state ||
             lastPersistedPetHeartRateColor != petHeartRateColor ||
-            lastPersistedMotion != snapshot.motionState
-        if (!changedSignificantly && (now - lastSnapshotPersistMs) < MIN_SNAPSHOT_PERSIST_INTERVAL_MS) {
-            return
+            lastPersistedMotion != snapshot.motionState ||
+            lastPersistedOnBody != snapshot.isWatchOnBody ||
+            lastPersistedScenario != scenario
+        val anyFieldChanged = changedSignificantly ||
+            lastPersistedBpm != snapshot.currentHeartRateBpm ||
+            lastPersistedSustainedSec != snapshot.sustainedElevationSeconds ||
+            lastPersistedSustainedPetSec != snapshot.sustainedPetElevationSeconds
+        val elapsed = now - lastSnapshotPersistMs
+        if (!changedSignificantly) {
+            if (!anyFieldChanged && elapsed < UNCHANGED_SNAPSHOT_PERSIST_INTERVAL_MS) {
+                return
+            }
+            if (anyFieldChanged && elapsed < MIN_SNAPSHOT_PERSIST_INTERVAL_MS) {
+                return
+            }
         }
         lastPersistedState = state
         lastPersistedPetHeartRateColor = petHeartRateColor
         lastPersistedMotion = snapshot.motionState
+        lastPersistedBpm = snapshot.currentHeartRateBpm
+        lastPersistedOnBody = snapshot.isWatchOnBody
+        lastPersistedScenario = scenario
+        lastPersistedSustainedSec = snapshot.sustainedElevationSeconds
+        lastPersistedSustainedPetSec = snapshot.sustainedPetElevationSeconds
         lastSnapshotPersistMs = now
+
+        val coalescedSamples: List<Int>? = synchronized(baselineLock) {
+            if (samplesDirty) {
+                samplesDirty = false
+                lastSamplesPersistMs = now
+                baselineLearner.getCurrentSamples()
+            } else {
+                null
+            }
+        }
+
         scope.launch {
             context.watchDataStore.edit { prefs ->
                 val bpm = snapshot.currentHeartRateBpm
@@ -562,13 +626,17 @@ class WatchStateRepository(private val context: Context) {
                 prefs[Keys.LAST_SIM_SCENARIO] = scenario.name
                 prefs[Keys.LAST_SUSTAINED_ELEVATION_SEC] = snapshot.sustainedElevationSeconds
                 prefs[Keys.LAST_SUSTAINED_PET_ELEVATION_SEC] = snapshot.sustainedPetElevationSeconds
+                if (coalescedSamples != null) {
+                    prefs[Keys.LEARNED_SAMPLES] = OmamoriJson.encode(coalescedSamples)
+                }
             }
         }
     }
 
     /**
      * 毎秒のコンプリケーション更新は Wear OS のスロットリング対象になるため、
-     * 状態・移動文脈・計測有無の切り替わりは即時プッシュし、心拍・落ち着きスコア変化は 30 秒以上間隔を空けてプッシュする。
+     * 状態・移動文脈・計測有無の切り替わりは即時プッシュし、心拍・落ち着きスコア変化は 30 秒以上間隔を空けて
+     * 影響するコンプリケーションとタイルのみをバックグラウンドでプッシュする。
      */
     private fun maybeRefreshComplicationsAndTile(
         state: OmamoriState,
@@ -578,25 +646,47 @@ class WatchStateRepository(private val context: Context) {
         calmScore: Int,
         nowMs: Long
     ) {
-        if (updateTracker.shouldPushAndMark(state, motionState, bpm, calmScore, nowMs, petHeartRateColor)) {
-            forceRefreshComplicationsAndTile()
+        val targets = updateTracker.evaluateTargetsAndMark(
+            state = state,
+            motionState = motionState,
+            bpm = bpm,
+            calmScore = calmScore,
+            nowMs = nowMs,
+            petHeartRateColor = petHeartRateColor
+        )
+        if (targets.any) {
+            refreshTargetsAsync(targets)
+        }
+    }
+
+    private fun refreshTargetsAsync(targets: ComplicationRefreshTargets) {
+        scope.launch {
+            runCatching {
+                if (targets.petState) {
+                    petStateRequester.requestUpdateAll()
+                }
+                if (targets.heartRate) {
+                    heartRateRequester.requestUpdateAll()
+                    watchFaceHeartRateRequester.requestUpdateAll()
+                }
+                if (targets.tile) {
+                    TileService.getUpdater(context).requestUpdate(OmamoriTileService::class.java)
+                }
+            }
         }
     }
 
     fun forceRefreshComplicationsAndTile() {
-        runCatching {
-            ComplicationDataSourceUpdateRequester
-                .create(context, ComponentName(context, PetStateComplicationService::class.java))
-                .requestUpdateAll()
-            ComplicationDataSourceUpdateRequester
-                .create(context, ComponentName(context, HeartRateComplicationService::class.java))
-                .requestUpdateAll()
-            ComplicationDataSourceUpdateRequester
-                .create(context, ComponentName(context, WatchFaceHeartRateComplicationService::class.java))
-                .requestUpdateAll()
-            TileService.getUpdater(context).requestUpdate(OmamoriTileService::class.java)
-        }
+        refreshTargetsAsync(ComplicationRefreshTargets(petState = true, heartRate = true, tile = true))
     }
+}
+
+internal data class ComplicationRefreshTargets(
+    val petState: Boolean,
+    val heartRate: Boolean,
+    val tile: Boolean
+) {
+    val any: Boolean get() = petState || heartRate || tile
 }
 
 /**
@@ -604,12 +694,15 @@ class WatchStateRepository(private val context: Context) {
  */
 internal class ComplicationUpdateTracker {
     private var lastPushedMs: Long = 0L
+    private var lastTilePushedMs: Long = 0L
     private var lastState: OmamoriState? = null
     private var lastPetHeartRateColor: PetHeartRateColor? = null
     private var lastMotionState: MotionState? = null
     private var lastHasBpm: Boolean? = null
     private var lastBpmBucket: Int? = null
     private var lastCalmBucket: Int? = null
+    private var lastTileBpmBucket: Int? = null
+    private var lastTileCalmBucket: Int? = null
 
     @Synchronized
     fun shouldPushAndMark(
@@ -646,7 +739,60 @@ internal class ComplicationUpdateTracker {
         lastBpmBucket = bpmBucket
         lastCalmBucket = calmBucket
         lastPushedMs = nowMs
+        lastTileBpmBucket = bpmBucket
+        lastTileCalmBucket = calmBucket
+        lastTilePushedMs = nowMs
         return true
+    }
+
+    @Synchronized
+    fun evaluateTargetsAndMark(
+        state: OmamoriState,
+        motionState: MotionState,
+        bpm: Int?,
+        calmScore: Int,
+        nowMs: Long,
+        petHeartRateColor: PetHeartRateColor? = null
+    ): ComplicationRefreshTargets {
+        val hasBpm = bpm != null
+        val bpmBucket = bpm?.let { it / 3 }
+        val calmBucket = calmScore / 5
+
+        val urgentTransition = lastState != state ||
+            lastPetHeartRateColor != petHeartRateColor ||
+            lastMotionState != motionState ||
+            lastHasBpm != hasBpm
+        val elapsed = nowMs - lastPushedMs
+        val tileElapsed = nowMs - lastTilePushedMs
+        val bpmChanged = bpmBucket != null && bpmBucket != lastBpmBucket
+        val calmChanged = calmBucket != lastCalmBucket
+        val heartbeatElapsed = elapsed >= 300_000L
+
+        val pushPetState = urgentTransition || (elapsed >= 30_000L && calmChanged) || heartbeatElapsed
+        val pushHeartRate = urgentTransition || (elapsed >= 30_000L && bpmChanged) || heartbeatElapsed
+        val pushTile = urgentTransition ||
+            (tileElapsed >= 90_000L && ((bpmBucket != null && bpmBucket != lastTileBpmBucket) || calmBucket != lastTileCalmBucket)) ||
+            tileElapsed >= 300_000L
+
+        if (pushPetState || pushHeartRate) {
+            lastState = state
+            lastPetHeartRateColor = petHeartRateColor
+            lastMotionState = motionState
+            lastHasBpm = hasBpm
+            if (pushHeartRate) lastBpmBucket = bpmBucket
+            if (pushPetState) lastCalmBucket = calmBucket
+            lastPushedMs = nowMs
+        }
+        if (pushTile) {
+            lastTileBpmBucket = bpmBucket
+            lastTileCalmBucket = calmBucket
+            lastTilePushedMs = nowMs
+        }
+        return ComplicationRefreshTargets(
+            petState = pushPetState,
+            heartRate = pushHeartRate,
+            tile = pushTile
+        )
     }
 
     @Synchronized
@@ -665,5 +811,8 @@ internal class ComplicationUpdateTracker {
         lastBpmBucket = bpm?.let { it / 3 }
         lastCalmBucket = calmScore / 5
         lastPushedMs = nowMs
+        lastTileBpmBucket = lastBpmBucket
+        lastTileCalmBucket = lastCalmBucket
+        lastTilePushedMs = nowMs
     }
 }

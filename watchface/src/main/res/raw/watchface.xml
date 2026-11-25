@@ -126,6 +126,13 @@
                                 <Ellipse height="68" width="68" x="14" y="14">
                                     <Fill color="#FF8FD3B6" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Stroke color="#FF8FD3B6" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
                             </PartDraw>
                             <PartDraw alpha="255" angle="10" height="24" pivotX="0.5" pivotY="0.5" width="32" x="64" y="29">
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="16" width="8" x="4" y="3">
@@ -142,13 +149,23 @@
                     <!-- Elevation colors use fractional codes inside the existing 0–3 range. -->
                     <Compare expression="state_yellow">
                         <Group name="petYellow" height="96" width="140" x="0" y="0">
-                            <PartDraw height="96" width="96" x="22" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="84" width="84" x="6" y="6">
                                     <Fill color="#28DCCB8D" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="66" width="66" x="15" y="15">
                                     <Fill color="#FFDCCB8D" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Stroke color="#FFDCCB8D" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
                             </PartDraw>
                             <PartDraw angle="-12" height="96" pivotX="0.395833" pivotY="0.479167" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="9" width="17" x="29.5" y="41.5">
@@ -166,16 +183,26 @@
 
                     <Compare expression="state_red">
                         <Group name="petRed" height="96" width="140" x="0" y="0">
-                            <PartDraw height="96" width="96" x="22" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="88" width="88" x="4" y="4">
                                     <Fill color="#28DDA0A0" />
                                 </Ellipse>
                                 <Ellipse height="78" width="78" x="9" y="9">
                                     <Stroke color="#8CDDA0A0" thickness="3.2" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="62" width="62" x="17" y="17">
                                     <Fill color="#FFDDA0A0" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="62" width="62" x="17" y="17">
+                                    <Stroke color="#FFDDA0A0" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
                             </PartDraw>
                             <PartDraw angle="-28" height="96" pivotX="0.395833" pivotY="0.500000" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="5" width="18.4" x="28.8" y="45.5">
@@ -193,16 +220,28 @@
 
                     <Compare expression="state_purple">
                         <Group name="petPurple" height="96" width="140" x="0" y="0">
-                            <PartDraw height="96" width="96" x="22" y="0">
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="86" width="86" x="5" y="5">
                                     <Fill color="#28BBA4DC" />
                                 </Ellipse>
                                 <Ellipse height="76" width="76" x="10" y="10">
                                     <Stroke color="#8CBBA4DC" thickness="2.5" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <Ellipse height="64" width="64" x="16" y="16">
                                     <Fill color="#FFBBA4DC" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="64" width="64" x="16" y="16">
+                                    <Stroke color="#FFBBA4DC" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.2" cornerRadiusY="2.2" height="4.4" width="16.4" x="29.8" y="53">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -230,6 +269,15 @@
                                 <Ellipse height="66" width="66" x="15" y="15">
                                     <Fill color="#FF8FD3B6" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Stroke color="#FF8FD3B6" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="3" cornerRadiusY="3" height="15" width="11" x="34" y="39">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -254,6 +302,15 @@
                                 <Ellipse height="66" width="66" x="15" y="15">
                                     <Fill color="#FF7B8896" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="66" width="66" x="15" y="15">
+                                    <Stroke color="#FF7B8896" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2" cornerRadiusY="2" height="4" width="14" x="30" y="51">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -278,6 +335,15 @@
                                 <Ellipse height="68" width="68" x="14" y="14">
                                     <Fill color="#FFDCCB8D" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Stroke color="#FFDCCB8D" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -301,6 +367,15 @@
                                 <Ellipse height="68" width="68" x="14" y="14">
                                     <Fill color="#FFDDA0A0" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Stroke color="#FFDDA0A0" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -324,6 +399,15 @@
                                 <Ellipse height="68" width="68" x="14" y="14">
                                     <Fill color="#FFBBA4DC" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Stroke color="#FFBBA4DC" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -348,6 +432,15 @@
                                 <Ellipse height="68" width="68" x="14" y="14">
                                     <Fill color="#FF8FD3B6" />
                                 </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="0" />
+                            </PartDraw>
+                            <PartDraw alpha="0" height="96" width="96" x="22" y="0">
+                                <Ellipse height="68" width="68" x="14" y="14">
+                                    <Stroke color="#FF8FD3B6" thickness="2.5" />
+                                </Ellipse>
+                                <Variant mode="AMBIENT" target="alpha" value="255" />
+                            </PartDraw>
+                            <PartDraw alpha="255" height="96" width="96" x="22" y="0">
                                 <RoundRectangle cornerRadiusX="2.5" cornerRadiusY="2.5" height="5.5" width="16" x="29" y="45">
                                     <Fill color="#FFFFFFFF" />
                                 </RoundRectangle>
@@ -567,20 +660,21 @@
                     </Font>
                 </Text>
             </PartText>
-            <PartDraw height="450" width="450" x="0" y="0">
-                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
-                    <Stroke color="#FF293741" thickness="5" cap="ROUND" />
-                </Arc>
+            <Group name="watchBatteryArcs" height="450" width="450" x="0" y="0">
+                <PartDraw height="450" width="450" x="0" y="0">
+                    <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                        <Stroke color="#FF293741" thickness="5" cap="ROUND" />
+                    </Arc>
+                </PartDraw>
+                <PartDraw height="450" width="450" x="0" y="0">
+                    <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
+                        <Stroke color="#FF82969D" thickness="5" cap="ROUND" />
+                        <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
+                    </Arc>
+                    <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
+                </PartDraw>
                 <Variant mode="AMBIENT" target="alpha" value="0" />
-            </PartDraw>
-            <PartDraw height="450" width="450" x="0" y="0">
-                <Arc centerX="225" centerY="225" height="398" width="398" startAngle="222" endAngle="138" direction="COUNTER_CLOCKWISE">
-                    <Stroke color="#FF82969D" thickness="5" cap="ROUND" />
-                    <Transform target="endAngle" value="222 - 84 * [BATTERY_PERCENT] / 100.0" />
-                </Arc>
-                <Transform target="alpha" value="[BATTERY_PERCENT] &gt; 0 ? 255 : 0" />
-                <Variant mode="AMBIENT" target="alpha" value="0" />
-            </PartDraw>
+            </Group>
             <Variant mode="AMBIENT" target="alpha" value="140" />
         </Group>
     </Scene>

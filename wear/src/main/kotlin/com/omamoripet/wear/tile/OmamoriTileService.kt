@@ -45,7 +45,7 @@ private val petDrawables = intArrayOf(
 class OmamoriTileService : TileService() {
 
     private val serviceJob = SupervisorJob()
-    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
+    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.Default)
 
     override fun onDestroy() {
         serviceJob.cancel()
@@ -152,7 +152,7 @@ class OmamoriTileService : TileService() {
 
             TileBuilders.Tile.Builder()
                 .setResourcesVersion(RESOURCES_VERSION)
-                .setFreshnessIntervalMillis(300_000L)
+                .setFreshnessIntervalMillis(1_800_000L)
                 .setTileTimeline(
                     TimelineBuilders.Timeline.Builder()
                         .addTimelineEntry(

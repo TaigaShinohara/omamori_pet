@@ -25,6 +25,9 @@ import com.omamoripet.wear.MainActivity
 import com.omamoripet.wear.OmamoriWearApplication
 import com.omamoripet.wear.data.PHONE_FEELING_CLOCK_TOLERANCE_MS
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -35,9 +38,13 @@ class WatchSyncClient(private val context: Context) {
     }
 
     private val dataClient by lazy { Wearable.getDataClient(context) }
+    private val outboxStore by lazy { WatchHistoryOutboxStore(context.applicationContext.historyOutboxDataStore) }
+    private val _outboxWakeup = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val outboxWakeup: SharedFlow<Unit> = _outboxWakeup.asSharedFlow()
+
     private val historyOutbox by lazy {
         HistoryOutbox(
-            WatchHistoryOutboxStore(context.applicationContext.historyOutboxDataStore),
+            outboxStore,
             historyDeliveryMutex
         ) { item ->
             val request = PutDataMapRequest.create(item.path).apply {
@@ -69,13 +76,17 @@ class WatchSyncClient(private val context: Context) {
 
     suspend fun sendBreathingSession(record: BreathingSessionRecord) {
         historyOutbox.send(PendingHistoryItem("${DataLayerPaths.BREATHING_SESSION}/${record.id}", OmamoriJson.encode(record)))
+        if (hasPendingHistory()) _outboxWakeup.tryEmit(Unit)
     }
 
     suspend fun sendCalmEvent(record: CalmEventRecord) {
         historyOutbox.send(PendingHistoryItem("${DataLayerPaths.CALM_EVENT}/${record.id}", OmamoriJson.encode(record)))
+        if (hasPendingHistory()) _outboxWakeup.tryEmit(Unit)
     }
 
     suspend fun flushPendingHistory() = historyOutbox.flush()
+
+    suspend fun hasPendingHistory(): Boolean = outboxStore.pending().isNotEmpty()
 
     suspend fun readPhoneFeelingFace(): FeelingFace? {
         val uri = Uri.parse("wear://*${DataLayerPaths.PHONE_FEELING_FACE}")

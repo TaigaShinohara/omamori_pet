@@ -449,51 +449,53 @@ private fun BiometricSummaryPanel(
         )
     }
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    Box(
         modifier = modifier
             .graphicsLayer { with(transformation) { applyContainerTransformation() } }
             .paint(containerPainter, contentScale = ContentScale.FillBounds)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
-        if (bpmLine != null) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.graphicsLayer { with(transformation) { applyContentTransformation() } }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_favorite_rounded),
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(18.dp)
-                )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { with(transformation) { applyContentTransformation() } }
+        ) {
+            if (bpmLine != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_favorite_rounded),
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = bpmLine,
+                        style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                        color = accentColor
+                    )
+                }
                 Text(
-                    text = bpmLine,
-                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
-                    color = accentColor
+                    text = "$motionText · ${stringResource(R.string.baseline_label, baselineBpm)}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Text(
+                    text = if (motionState == MotionState.OFF_BODY) {
+                        stringResource(R.string.off_body)
+                    } else {
+                        stringResource(R.string.waiting_for_reading)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            Text(
-                text = "$motionText · ${stringResource(R.string.baseline_label, baselineBpm)}",
-                style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.graphicsLayer { with(transformation) { applyContentTransformation() } }
-            )
-        } else {
-            Text(
-                text = if (motionState == MotionState.OFF_BODY) {
-                    stringResource(R.string.off_body)
-                } else {
-                    stringResource(R.string.waiting_for_reading)
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { with(transformation) { applyContentTransformation() } }
-            )
         }
     }
 }
@@ -528,8 +530,9 @@ fun BreathingWatchScreen(
 ) {
     val view = LocalView.current
     val animationsEnabled = LocalWearAnimationsEnabled.current
-    DisposableEffect(view) {
-        view.keepScreenOn = true
+    val keepAwake = breathingState.isRunning && breathingState.phase != BreathPhase.COMPLETED
+    DisposableEffect(view, keepAwake) {
+        view.keepScreenOn = keepAwake
         onDispose { view.keepScreenOn = false }
     }
 
@@ -575,11 +578,10 @@ fun BreathingWatchScreen(
 
     val breathFractionProvider = remember {
         {
-            val p = phaseProgressAnim.value.coerceIn(0f, 1f)
             when (latestPhase) {
-                BreathPhase.INHALE -> p
+                BreathPhase.INHALE -> phaseProgressAnim.value.coerceIn(0f, 1f)
                 BreathPhase.HOLD -> 1f
-                BreathPhase.EXHALE -> 1f - p
+                BreathPhase.EXHALE -> 1f - phaseProgressAnim.value.coerceIn(0f, 1f)
                 BreathPhase.COMPLETED -> 0.5f
             }
         }
@@ -738,9 +740,17 @@ private fun WearBreathProgressBar(
     }
 }
 
+data class DemoSettingsUiState(
+    val alertsEnabled: Boolean,
+    val snoozedUntilEpochMs: Long,
+    val simulationScenario: SimulationScenario,
+    val isCalibrating: Boolean,
+    val calibrationRemainingSeconds: Int
+)
+
 @Composable
 fun DemoSettingsWatchScreen(
-    uiState: WatchUiState,
+    settingsState: DemoSettingsUiState,
     hasSensorPermission: Boolean,
     hasNotificationPermission: Boolean,
     onRequestOrOpenNotificationSettings: () -> Unit,
@@ -753,8 +763,8 @@ fun DemoSettingsWatchScreen(
     val listState = rememberTransformingLazyColumnState()
     val spec = rememberTransformationSpec()
     var snoozedFeedback by remember { mutableStateOf(false) }
-    var demoExpanded by rememberSaveable(uiState.simulationScenario) {
-        mutableStateOf(uiState.simulationScenario != SimulationScenario.LIVE_SENSORS)
+    var demoExpanded by rememberSaveable(settingsState.simulationScenario) {
+        mutableStateOf(settingsState.simulationScenario != SimulationScenario.LIVE_SENSORS)
     }
 
     val scenarios = remember {
@@ -773,10 +783,10 @@ fun DemoSettingsWatchScreen(
         }
     }
 
-    val snoozedUntil = uiState.preferences.snoozedUntilEpochMs
-    val nowMs = maxOf(System.currentTimeMillis(), uiState.snapshot.sampledAtEpochMs)
+    val snoozedUntil = settingsState.snoozedUntilEpochMs
+    val nowMs = System.currentTimeMillis()
     val isCurrentlySnoozed = snoozedFeedback || snoozedUntil > nowMs
-    val isDemoActive = uiState.simulationScenario != SimulationScenario.LIVE_SENSORS
+    val isDemoActive = settingsState.simulationScenario != SimulationScenario.LIVE_SENSORS
     val expandedLabel = stringResource(R.string.section_expanded)
     val collapsedLabel = stringResource(R.string.section_collapsed)
 
@@ -801,7 +811,7 @@ fun DemoSettingsWatchScreen(
             item(key = "toggle_alerts") {
                 val transformation = remember(this, spec) { SurfaceTransformation(spec) }
                 SwitchButton(
-                    checked = uiState.preferences.alertsEnabled,
+                    checked = settingsState.alertsEnabled,
                     onCheckedChange = { onToggleAlerts() },
                     label = { Text(stringResource(R.string.settings_alerts_label)) },
                     transformation = transformation,
@@ -810,7 +820,7 @@ fun DemoSettingsWatchScreen(
                         .transformedHeight(this, spec)
                 )
             }
-            if (uiState.preferences.alertsEnabled && !hasNotificationPermission) {
+            if (settingsState.alertsEnabled && !hasNotificationPermission) {
                 item(key = "notif_perm_recovery") {
                     val transformation = remember(this, spec) { SurfaceTransformation(spec) }
                     OutlinedButton(
@@ -850,9 +860,9 @@ fun DemoSettingsWatchScreen(
                 val transformation = remember(this, spec) { SurfaceTransformation(spec) }
                 WatchCalibrationButton(
                     hasSensorPermission = hasSensorPermission,
-                    isLiveMode = uiState.simulationScenario == SimulationScenario.LIVE_SENSORS,
-                    isCalibrating = uiState.isCalibrating,
-                    remainingSeconds = uiState.calibrationRemainingSeconds,
+                    isLiveMode = settingsState.simulationScenario == SimulationScenario.LIVE_SENSORS,
+                    isCalibrating = settingsState.isCalibrating,
+                    remainingSeconds = settingsState.calibrationRemainingSeconds,
                     onClick = onStartCalibration,
                     transformation = transformation,
                     modifier = Modifier
@@ -894,7 +904,7 @@ fun DemoSettingsWatchScreen(
                 scenarios.forEach { (scenario, labelRes) ->
                     item(key = "scenario_${scenario.name}") {
                         val transformation = remember(this, spec) { SurfaceTransformation(spec) }
-                        val selected = uiState.simulationScenario == scenario
+                        val selected = settingsState.simulationScenario == scenario
                         RadioButton(
                             selected = selected,
                             onSelect = { onSelectScenario(scenario) },

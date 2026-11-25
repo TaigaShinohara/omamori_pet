@@ -35,11 +35,14 @@ import com.omamoripet.wear.data.SimulationScenario
 import com.omamoripet.wear.sensor.BiometricMonitorService
 import com.omamoripet.wear.sync.WatchSyncClient
 import com.omamoripet.wear.ui.BreathingWatchScreen
+import com.omamoripet.wear.ui.DemoSettingsUiState
 import com.omamoripet.wear.ui.DemoSettingsWatchScreen
 import com.omamoripet.wear.ui.FeelingContextWatchScreen
 import com.omamoripet.wear.ui.HomeWatchScreen
 import com.omamoripet.wear.ui.OmamoriWearTheme
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -62,8 +65,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val repository = (application as OmamoriWearApplication).repository
-        syncClient = WatchSyncClient(this)
+        val app = application as OmamoriWearApplication
+        val repository = app.repository
+        syncClient = app.syncClient
         breathingController = HapticBreathingController(
             context = this,
             scope = lifecycleScope,
@@ -72,7 +76,7 @@ class MainActivity : ComponentActivity() {
             isHapticsEnabled = { repository.uiState.value.preferences.breathingHapticsEnabled },
             onActiveChanged = { active -> repository.setBreathingActive(active) },
             onSessionCompleted = { record ->
-                (application as OmamoriWearApplication).recordBreathingSession(record)
+                app.recordBreathingSession(record)
             }
         )
 
@@ -90,8 +94,6 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val uiState by repository.uiState.collectAsStateWithLifecycle()
-            val breathingState by breathingController.state.collectAsStateWithLifecycle()
             val openRequest by openBreathingRequests.collectAsStateWithLifecycle()
             val navController = rememberSwipeDismissableNavController()
             val lifecycleOwner = LocalLifecycleOwner.current
@@ -190,6 +192,7 @@ class MainActivity : ComponentActivity() {
                         startDestination = "home"
                     ) {
                         composable("home") {
+                            val uiState by repository.uiState.collectAsStateWithLifecycle()
                             HomeWatchScreen(
                                 uiState = uiState,
                                 hasSensorPermission = hasSensorPermission,
@@ -204,7 +207,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSnooze1h = {
                                     repository.snoozeAlertsForMinutes(60)
-                                    val snap = uiState.snapshot
+                                    val snap = repository.uiState.value.snapshot
                                     if (!snap.isSimulated) {
                                         lifecycleScope.launch {
                                             syncClient.sendCalmEvent(
@@ -234,6 +237,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("breathing") {
+                            val breathingState by breathingController.state.collectAsStateWithLifecycle()
+                            val visualStateFlow = remember(repository) {
+                                repository.uiState.map { it.petVisualState }.distinctUntilChanged()
+                            }
+                            val visualState by visualStateFlow.collectAsStateWithLifecycle(
+                                initialValue = repository.uiState.value.petVisualState
+                            )
                             DisposableEffect(Unit) {
                                 onDispose {
                                     breathingController.stop()
@@ -241,7 +251,7 @@ class MainActivity : ComponentActivity() {
                             }
                             BreathingWatchScreen(
                                 breathingState = breathingState,
-                                visualState = uiState.petVisualState,
+                                visualState = visualState,
                                 onStop = {
                                     breathingController.stop()
                                     navController.popBackStack()
@@ -252,8 +262,34 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("settings") {
+                            val settingsStateFlow = remember(repository) {
+                                repository.uiState
+                                    .map { state ->
+                                        DemoSettingsUiState(
+                                            alertsEnabled = state.preferences.alertsEnabled,
+                                            snoozedUntilEpochMs = state.preferences.snoozedUntilEpochMs,
+                                            simulationScenario = state.simulationScenario,
+                                            isCalibrating = state.isCalibrating,
+                                            calibrationRemainingSeconds = state.calibrationRemainingSeconds
+                                        )
+                                    }
+                                    .distinctUntilChanged()
+                            }
+                            val initialSettingsState = remember(repository) {
+                                val state = repository.uiState.value
+                                DemoSettingsUiState(
+                                    alertsEnabled = state.preferences.alertsEnabled,
+                                    snoozedUntilEpochMs = state.preferences.snoozedUntilEpochMs,
+                                    simulationScenario = state.simulationScenario,
+                                    isCalibrating = state.isCalibrating,
+                                    calibrationRemainingSeconds = state.calibrationRemainingSeconds
+                                )
+                            }
+                            val settingsState by settingsStateFlow.collectAsStateWithLifecycle(
+                                initialValue = initialSettingsState
+                            )
                             DemoSettingsWatchScreen(
-                                uiState = uiState,
+                                settingsState = settingsState,
                                 hasSensorPermission = hasSensorPermission,
                                 hasNotificationPermission = hasNotificationPermission,
                                 onRequestOrOpenNotificationSettings = {
@@ -265,7 +301,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onSelectScenario = { repository.setSimulationScenario(it) },
                                 onToggleAlerts = {
-                                    val cur = uiState.preferences
+                                    val cur = repository.uiState.value.preferences
                                     repository.updatePreferences(cur.copy(alertsEnabled = !cur.alertsEnabled))
                                 },
                                 onSnooze1h = { repository.snoozeAlertsForMinutes(60) },

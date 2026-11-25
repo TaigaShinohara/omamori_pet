@@ -129,7 +129,7 @@ class AlertActionReceiver : BroadcastReceiver() {
                 val pendingResult = goAsync()
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                     try {
-                        com.omamoripet.wear.sync.WatchSyncClient(context.applicationContext).sendCalmEvent(
+                        app.syncClient.sendCalmEvent(
                             com.omamoripet.shared.model.CalmEventRecord(
                                 id = java.util.UUID.randomUUID().toString(),
                                 timestampEpochMs = System.currentTimeMillis(),

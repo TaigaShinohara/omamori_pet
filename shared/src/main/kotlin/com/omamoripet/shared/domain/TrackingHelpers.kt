@@ -86,12 +86,14 @@ class RestingBaselineLearner(
     private val stillHrSamples = ArrayDeque<Int>()
     private var healthConnectBaselineBpm: Int? = null
     private var healthConnectMeasuredAtMs: Long? = null
+    private var cachedLearnedBaseline: ResolvedBaseline? = null
 
     fun loadInitial(samples: List<Int>, healthConnectBpm: Int?, measuredAtEpochMs: Long? = null) {
         stillHrSamples.clear()
         samples.takeLast(maxSamples).forEach { bpm ->
             if (bpm in 38..140) stillHrSamples.addLast(bpm)
         }
+        cachedLearnedBaseline = null
         updateHealthConnectBaseline(healthConnectBpm, measuredAtEpochMs)
     }
 
@@ -101,6 +103,7 @@ class RestingBaselineLearner(
             stillHrSamples.removeFirst()
         }
         stillHrSamples.addLast(bpm)
+        cachedLearnedBaseline = null
     }
 
     fun updateHealthConnectBaseline(bpm: Int?, measuredAtEpochMs: Long? = System.currentTimeMillis()) {
@@ -117,12 +120,16 @@ class RestingBaselineLearner(
         if (hc != null) {
             return ResolvedBaseline(bpm = hc, source = BaselineSource.HEALTH_CONNECT)
         }
-        if (stillHrSamples.size >= minSamplesForLearned) {
+        cachedLearnedBaseline?.let { return it }
+        val resolved = if (stillHrSamples.size >= minSamplesForLearned) {
             val sorted = stillHrSamples.sorted()
             // ストレス時の高い値を除いた 30パーセンタイル付近を個人の安静時目安とする
             val index = ((sorted.size - 1) * 0.30).toInt().coerceIn(0, sorted.lastIndex)
-            return ResolvedBaseline(bpm = sorted[index], source = BaselineSource.WATCH_LEARNED)
+            ResolvedBaseline(bpm = sorted[index], source = BaselineSource.WATCH_LEARNED)
+        } else {
+            ResolvedBaseline(bpm = defaultFallbackBpm, source = BaselineSource.DEFAULT_FALLBACK)
         }
-        return ResolvedBaseline(bpm = defaultFallbackBpm, source = BaselineSource.DEFAULT_FALLBACK)
+        cachedLearnedBaseline = resolved
+        return resolved
     }
 }

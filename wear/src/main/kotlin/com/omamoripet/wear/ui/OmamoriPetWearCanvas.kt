@@ -7,9 +7,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -32,6 +33,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.material3.MaterialTheme
 import com.omamoripet.shared.model.Feeling
 import com.omamoripet.shared.model.OmamoriState
@@ -100,6 +104,7 @@ fun OmamoriPetWearAvatar(
     modifier: Modifier = Modifier
 ) {
     val animationsEnabled = LocalWearAnimationsEnabled.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val tapLabel = stringResource(R.string.avatar_tap_action)
 
     var targetPose by remember {
@@ -107,7 +112,7 @@ fun OmamoriPetWearAvatar(
     }
     var tapWinkTrigger by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(visualState, feeling, animationsEnabled, tapWinkTrigger) {
+    LaunchedEffect(visualState, feeling, animationsEnabled, tapWinkTrigger, lifecycleOwner) {
         if (feeling != null) {
             targetPose = when (feeling) {
                 Feeling.ANXIOUS -> WearEyePose(
@@ -154,75 +159,77 @@ fun OmamoriPetWearAvatar(
             return@LaunchedEffect
         }
 
-        if (tapWinkTrigger > 0 && visualState.mode != PetExpressionMode.BREATHING) {
-            targetPose = WearEyePose(0.18f, -0.10f, 1.05f, 0.20f, 1.05f, 0.48f)
-            delay(360L)
-        }
-
-        when (visualState.mode) {
-            PetExpressionMode.CALM -> {
-                val script = listOf(
-                    WearEyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2100L,
-                    WearEyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,
-                    WearEyePose(0.00f, -0.04f, 1.00f, 1.00f, 1.05f, 0.38f) to 1800L,
-                    WearEyePose(-0.32f, -0.18f, 1.00f, 1.00f, 1.00f, 0.42f) to 1900L,
-                    WearEyePose(-0.24f, 0.12f, 1.05f, 0.20f, 1.05f, 0.48f) to 480L,
-                    WearEyePose(0.18f, 0.18f, 1.08f, 1.08f, 0.96f, 0.44f) to 1600L,
-                    WearEyePose(0.18f, 0.18f, 0.12f, 0.12f, 1.08f, 0.50f) to 130L
-                )
-                while (true) {
-                    for ((pose, waitMs) in script) {
-                        targetPose = pose
-                        delay(waitMs)
-                    }
-                }
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            if (tapWinkTrigger > 0 && visualState.mode != PetExpressionMode.BREATHING) {
+                targetPose = WearEyePose(0.18f, -0.10f, 1.05f, 0.20f, 1.05f, 0.48f)
+                delay(360L)
             }
 
-            PetExpressionMode.ELEVATED -> {
-                val script = when (visualState.tone) {
-                    PetBodyTone.YELLOW -> listOf(
-                        WearEyePose(0.00f, -0.04f, 0.45f, 0.45f, 1.22f, 0.46f, -12f, 12f) to 2000L,
-                        WearEyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.24f, 0.50f, -12f, 12f) to 150L,
-                        WearEyePose(0.00f, -0.02f, 0.44f, 0.44f, 1.22f, 0.46f, -12f, 12f) to 1800L
+            when (visualState.mode) {
+                PetExpressionMode.CALM -> {
+                    val script = listOf(
+                        WearEyePose(0.34f, -0.24f, 1.00f, 1.00f, 1.00f, 0.42f) to 2800L,
+                        WearEyePose(0.34f, -0.24f, 0.12f, 0.12f, 1.08f, 0.50f) to 140L,
+                        WearEyePose(0.00f, -0.04f, 1.00f, 1.00f, 1.05f, 0.38f) to 2600L,
+                        WearEyePose(-0.32f, -0.18f, 1.00f, 1.00f, 1.00f, 0.42f) to 2700L,
+                        WearEyePose(-0.24f, 0.12f, 1.05f, 0.20f, 1.05f, 0.48f) to 480L,
+                        WearEyePose(0.18f, 0.18f, 1.08f, 1.08f, 0.96f, 0.44f) to 2400L,
+                        WearEyePose(0.18f, 0.18f, 0.12f, 0.12f, 1.08f, 0.50f) to 130L
                     )
-                    PetBodyTone.RED -> listOf(
-                        WearEyePose(0.00f, 0.00f, 0.26f, 0.26f, 1.26f, 0.48f, -28f, 28f) to 2200L,
-                        WearEyePose(0.00f, 0.02f, 0.22f, 0.22f, 1.28f, 0.50f, -28f, 28f) to 1800L
-                    )
-                    PetBodyTone.PURPLE -> listOf(
-                        WearEyePose(0.00f, 0.16f, 0.24f, 0.24f, 1.22f, 0.50f) to 2400L,
-                        WearEyePose(0.00f, 0.19f, 0.20f, 0.20f, 1.24f, 0.50f) to 2200L
-                    )
-                    PetBodyTone.GREEN, PetBodyTone.DATA_MISSING -> listOf(
-                        WearEyePose(0.00f, -0.04f, 0.96f, 0.96f, 1.04f, 0.44f) to 1800L,
-                        WearEyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.08f, 0.50f) to 150L,
-                        WearEyePose(0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
-                        WearEyePose(-0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 1600L,
-                        WearEyePose(0.00f, 0.00f, 0.96f, 0.96f, 1.04f, 0.44f) to 1500L
-                    )
-                }
-                while (true) {
-                    for ((pose, waitMs) in script) {
-                        targetPose = pose
-                        delay(waitMs)
+                    while (true) {
+                        for ((pose, waitMs) in script) {
+                            targetPose = pose
+                            delay(waitMs)
+                        }
                     }
                 }
-            }
 
-            PetExpressionMode.SLEEPING -> {
-                val script = listOf(
-                    WearEyePose(0.00f, 0.16f, 0.18f, 0.18f, 1.24f, 0.50f) to 2800L,
-                    WearEyePose(0.00f, 0.19f, 0.16f, 0.16f, 1.26f, 0.50f) to 2600L
-                )
-                while (true) {
-                    for ((pose, waitMs) in script) {
-                        targetPose = pose
-                        delay(waitMs)
+                PetExpressionMode.ELEVATED -> {
+                    val script = when (visualState.tone) {
+                        PetBodyTone.YELLOW -> listOf(
+                            WearEyePose(0.00f, -0.04f, 0.45f, 0.45f, 1.22f, 0.46f, -12f, 12f) to 2600L,
+                            WearEyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.24f, 0.50f, -12f, 12f) to 150L,
+                            WearEyePose(0.00f, -0.02f, 0.44f, 0.44f, 1.22f, 0.46f, -12f, 12f) to 2500L
+                        )
+                        PetBodyTone.RED -> listOf(
+                            WearEyePose(0.00f, 0.00f, 0.26f, 0.26f, 1.26f, 0.48f, -28f, 28f) to 2800L,
+                            WearEyePose(0.00f, 0.02f, 0.22f, 0.22f, 1.28f, 0.50f, -28f, 28f) to 2600L
+                        )
+                        PetBodyTone.PURPLE -> listOf(
+                            WearEyePose(0.00f, 0.16f, 0.24f, 0.24f, 1.22f, 0.50f) to 3000L,
+                            WearEyePose(0.00f, 0.19f, 0.20f, 0.20f, 1.24f, 0.50f) to 2800L
+                        )
+                        PetBodyTone.GREEN, PetBodyTone.DATA_MISSING -> listOf(
+                            WearEyePose(0.00f, -0.04f, 0.96f, 0.96f, 1.04f, 0.44f) to 2500L,
+                            WearEyePose(0.00f, -0.04f, 0.14f, 0.14f, 1.08f, 0.50f) to 150L,
+                            WearEyePose(0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 2300L,
+                            WearEyePose(-0.08f, -0.02f, 0.94f, 0.94f, 1.04f, 0.44f) to 2300L,
+                            WearEyePose(0.00f, 0.00f, 0.96f, 0.96f, 1.04f, 0.44f) to 2200L
+                        )
+                    }
+                    while (true) {
+                        for ((pose, waitMs) in script) {
+                            targetPose = pose
+                            delay(waitMs)
+                        }
                     }
                 }
-            }
 
-            PetExpressionMode.BREATHING -> Unit
+                PetExpressionMode.SLEEPING -> {
+                    val script = listOf(
+                        WearEyePose(0.00f, 0.16f, 0.18f, 0.18f, 1.24f, 0.50f) to 3600L,
+                        WearEyePose(0.00f, 0.19f, 0.16f, 0.16f, 1.26f, 0.50f) to 3400L
+                    )
+                    while (true) {
+                        for ((pose, waitMs) in script) {
+                            targetPose = pose
+                            delay(waitMs)
+                        }
+                    }
+                }
+
+                PetExpressionMode.BREATHING -> Unit
+            }
         }
     }
 
@@ -302,119 +309,123 @@ fun OmamoriPetWearAvatar(
         else -> Modifier.clearAndSetSemantics {}
     }
 
-    Canvas(
+    Spacer(
         modifier = modifier
             .size(size)
             .then(semanticsModifier)
-    ) {
-        val w = this.size.width
-        val cx = w / 2f
-        val cy = this.size.height / 2f
+            .drawWithCache {
+                val outerRingStroke = Stroke(width = this.size.width * 0.03f)
+                onDrawBehind {
+                    val w = this.size.width
+                    val cx = w / 2f
+                    val cy = this.size.height / 2f
 
-        val breathProgress = if (isBreathingMode) breathProgressProvider().coerceIn(0f, 1f) else 0.5f
+                    val breathProgress = if (isBreathingMode) breathProgressProvider().coerceIn(0f, 1f) else 0.5f
 
-        val gazeX: Float
-        val gazeY: Float
-        val leftH: Float
-        val rightH: Float
-        val widthScale: Float
-        val cornerFactor: Float
-        val leftEyeRot: Float
-        val rightEyeRot: Float
-        if (isBreathingMode) {
-            gazeX = 0f
-            gazeY = 0.20f - 0.38f * breathProgress
-            leftH = 0.28f + 0.78f * breathProgress
-            rightH = leftH
-            widthScale = 1.20f - 0.18f * breathProgress
-            cornerFactor = 0.48f - 0.08f * breathProgress
-            leftEyeRot = 0f
-            rightEyeRot = 0f
-        } else {
-            gazeX = gazeXState.value
-            gazeY = gazeYState.value
-            leftH = leftHState.value
-            rightH = rightHState.value
-            widthScale = widthScaleState.value
-            cornerFactor = cornerFactorState.value
-            leftEyeRot = leftRotState.value
-            rightEyeRot = rightRotState.value
-        }
+                    val gazeX: Float
+                    val gazeY: Float
+                    val leftH: Float
+                    val rightH: Float
+                    val widthScale: Float
+                    val cornerFactor: Float
+                    val leftEyeRot: Float
+                    val rightEyeRot: Float
+                    if (isBreathingMode) {
+                        gazeX = 0f
+                        gazeY = 0.20f - 0.38f * breathProgress
+                        leftH = 0.28f + 0.78f * breathProgress
+                        rightH = leftH
+                        widthScale = 1.20f - 0.18f * breathProgress
+                        cornerFactor = 0.48f - 0.08f * breathProgress
+                        leftEyeRot = 0f
+                        rightEyeRot = 0f
+                    } else {
+                        gazeX = gazeXState.value
+                        gazeY = gazeYState.value
+                        leftH = leftHState.value
+                        rightH = rightHState.value
+                        widthScale = widthScaleState.value
+                        cornerFactor = cornerFactorState.value
+                        leftEyeRot = leftRotState.value
+                        rightEyeRot = rightRotState.value
+                    }
 
-        val bodyColor = bodyColorState.value
-        val haloScale = if (!animationsEnabled) {
-            1f
-        } else if (isBreathingMode) {
-            0.90f + 0.22f * breathProgress
-        } else {
-            1.0f + 0.03f * abs(gazeY)
-        }
+                    val bodyColor = bodyColorState.value
+                    val haloScale = if (!animationsEnabled) {
+                        1f
+                    } else if (isBreathingMode) {
+                        0.90f + 0.22f * breathProgress
+                    } else {
+                        1.0f + 0.03f * abs(gazeY)
+                    }
 
-        drawCircle(
-            color = bodyColor.copy(alpha = 0.22f),
-            radius = w * 0.46f * haloScale,
-            center = Offset(cx, cy)
-        )
+                    drawCircle(
+                        color = bodyColor.copy(alpha = 0.22f),
+                        radius = w * 0.46f * haloScale,
+                        center = Offset(cx, cy)
+                    )
 
-        if (showOuterRing) {
-            drawCircle(
-                color = bodyColor.copy(alpha = 0.55f),
-                radius = w * 0.41f,
-                center = Offset(cx, cy),
-                style = Stroke(width = w * 0.03f)
-            )
-        }
+                    if (showOuterRing) {
+                        drawCircle(
+                            color = bodyColor.copy(alpha = 0.55f),
+                            radius = w * 0.41f,
+                            center = Offset(cx, cy),
+                            style = outerRingStroke
+                        )
+                    }
 
-        val bodyRadius = w * 0.36f *
-            (if (isBreathingMode && animationsEnabled) (0.93f + 0.11f * breathProgress) else 1f)
-        drawCircle(
-            color = bodyColor,
-            radius = bodyRadius,
-            center = Offset(cx, cy)
-        )
+                    val bodyRadius = w * 0.36f *
+                        (if (isBreathingMode && animationsEnabled) (0.93f + 0.11f * breathProgress) else 1f)
+                    drawCircle(
+                        color = bodyColor,
+                        radius = bodyRadius,
+                        center = Offset(cx, cy)
+                    )
 
-        val shiftX = gazeX * bodyRadius * 0.62f
-        val shiftY = gazeY * bodyRadius * 0.54f
-        val eyeGap = bodyRadius * 0.34f * (1f - abs(gazeX) * 0.22f)
-        val baseEyeW = bodyRadius * 0.21f * widthScale
-        val baseEyeH = bodyRadius * 0.44f
+                    val shiftX = gazeX * bodyRadius * 0.62f
+                    val shiftY = gazeY * bodyRadius * 0.54f
+                    val eyeGap = bodyRadius * 0.34f * (1f - abs(gazeX) * 0.22f)
+                    val baseEyeW = bodyRadius * 0.21f * widthScale
+                    val baseEyeH = bodyRadius * 0.44f
 
-        val leftPerspX = if (gazeX < 0f) 1f - abs(gazeX) * 0.36f else 1f
-        val rightPerspX = if (gazeX > 0f) 1f - abs(gazeX) * 0.36f else 1f
-        val leftScale = if (gazeX < 0f) 1f - abs(gazeX) * 0.14f else 1f
-        val rightScale = if (gazeX > 0f) 1f - abs(gazeX) * 0.14f else 1f
+                    val leftPerspX = if (gazeX < 0f) 1f - abs(gazeX) * 0.36f else 1f
+                    val rightPerspX = if (gazeX > 0f) 1f - abs(gazeX) * 0.36f else 1f
+                    val leftScale = if (gazeX < 0f) 1f - abs(gazeX) * 0.14f else 1f
+                    val rightScale = if (gazeX > 0f) 1f - abs(gazeX) * 0.14f else 1f
 
-        val tiltDegrees = gazeX * gazeY * -120f
+                    val tiltDegrees = gazeX * gazeY * -120f
 
-        val leftCenter = Offset(cx + shiftX - eyeGap, cy + shiftY)
-        val rightCenter = Offset(cx + shiftX + eyeGap, cy + shiftY)
+                    val leftCenter = Offset(cx + shiftX - eyeGap, cy + shiftY)
+                    val rightCenter = Offset(cx + shiftX + eyeGap, cy + shiftY)
 
-        rotate(degrees = tiltDegrees, pivot = Offset(cx + shiftX, cy + shiftY)) {
-            val lw = baseEyeW * leftPerspX * leftScale
-            val lh = (baseEyeH * leftH * leftScale).coerceAtLeast(w * 0.032f)
-            val lCorner = minOf(lw, lh) * cornerFactor
-            rotate(degrees = leftEyeRot, pivot = leftCenter) {
-                drawRoundRect(
-                    color = eyeColor,
-                    topLeft = Offset(leftCenter.x - lw / 2f, leftCenter.y - lh / 2f),
-                    size = Size(lw, lh),
-                    cornerRadius = CornerRadius(lCorner, lCorner)
-                )
+                    rotate(degrees = tiltDegrees, pivot = Offset(cx + shiftX, cy + shiftY)) {
+                        val lw = baseEyeW * leftPerspX * leftScale
+                        val lh = (baseEyeH * leftH * leftScale).coerceAtLeast(w * 0.032f)
+                        val lCorner = minOf(lw, lh) * cornerFactor
+                        rotate(degrees = leftEyeRot, pivot = leftCenter) {
+                            drawRoundRect(
+                                color = eyeColor,
+                                topLeft = Offset(leftCenter.x - lw / 2f, leftCenter.y - lh / 2f),
+                                size = Size(lw, lh),
+                                cornerRadius = CornerRadius(lCorner, lCorner)
+                            )
+                        }
+
+                        val rw = baseEyeW * rightPerspX * rightScale
+                        val rh = (baseEyeH * rightH * rightScale).coerceAtLeast(w * 0.032f)
+                        val rCorner = minOf(rw, rh) * cornerFactor
+                        rotate(degrees = rightEyeRot, pivot = rightCenter) {
+                            drawRoundRect(
+                                color = eyeColor,
+                                topLeft = Offset(rightCenter.x - rw / 2f, rightCenter.y - rh / 2f),
+                                size = Size(rw, rh),
+                                cornerRadius = CornerRadius(rCorner, rCorner)
+                            )
+                        }
+                    }
+                }
             }
-
-            val rw = baseEyeW * rightPerspX * rightScale
-            val rh = (baseEyeH * rightH * rightScale).coerceAtLeast(w * 0.032f)
-            val rCorner = minOf(rw, rh) * cornerFactor
-            rotate(degrees = rightEyeRot, pivot = rightCenter) {
-                drawRoundRect(
-                    color = eyeColor,
-                    topLeft = Offset(rightCenter.x - rw / 2f, rightCenter.y - rh / 2f),
-                    size = Size(rw, rh),
-                    cornerRadius = CornerRadius(rCorner, rCorner)
-                )
-            }
-        }
-    }
+    )
 }
 
 private fun staticElevatedPose(tone: PetBodyTone): WearEyePose = when (tone) {
